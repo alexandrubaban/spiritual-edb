@@ -1,4 +1,4 @@
-spiritual-edb
+Spiritual EDB
 =============
 
-Adding templating and model-view-like features to Spiritual GUI.
+Adds templating and model-view-like features to Spiritual GUI.

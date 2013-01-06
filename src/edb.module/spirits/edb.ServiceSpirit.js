@@ -1,0 +1,84 @@
+/**
+ * Spirit of the service provider.
+ * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
+ */
+edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
+	
+	/**
+	 * Default to accept JSON and fetch data immediately.
+	 */
+	onconstruct : function () {
+		
+		this._super.onconstruct ();
+		if ( !this.att.get ( "disabled" )) {
+			this._resolve ();
+		}
+	},
+	
+	/**
+	 * TODO: comments go here...
+	 * @param {edb.Input} input
+	 */
+	oninput : function ( input ) {
+		
+		this._super.oninput ( input );
+		if ( this.att.get ( "type" ) && this.input.done ) {
+			this._pipeline ();
+		}
+	},
+	
+	
+	// PRIVATES ...............................................................................................
+	
+	/**
+	 * Resolve data from service.
+	 */
+	_resolve : function () {
+
+		new edb.Service ( this.window ).get ( 
+			this.att.get ( "type" ), 
+			this.element.href
+		);
+	},
+	
+	/**
+	 * If both input type and output type is specified, the service will automatically output new data when all 
+	 * input is recieved. Input data will be supplied as constructor argument to output function; if A and B is 
+	 * input types while C is output type, then input instance a and b will be output as new C ( a, b ) 
+	 */
+	_pipeline : function () {
+		
+		console.error ( "TODO: might this be outdated???" );
+
+		/*
+		 * TODO: use method apply with array-like arguments substitute pending universal browser support.
+		 * https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/apply#Description
+		 */
+		var data = new this.output._type (
+			this._arg ( 0 ),
+			this._arg ( 1 ),
+			this._arg ( 2 ),
+			this._arg ( 3 ),
+			this._arg ( 4 ),
+			this._arg ( 5 ),
+			this._arg ( 6 ),
+			this._arg ( 7 ),
+			this._arg ( 8 ),
+			this._arg ( 9 )
+		);
+		
+		this.output.dispatch ( data );
+	},
+	
+	/**
+	 * Return data for index. Index follows the order of which the input handler was added, not in which data was recieved. 
+	 * Alright, so this implies that first index will return object of type MyData if handler for this type was added first.
+	 * @param {number} index
+	 * @returns {object}
+	 */
+	_arg : function ( index ) {
+		
+		var type = this.input._types [ index ]; // function type
+		return this.input.get ( type ); // instance of function
+	}
+});

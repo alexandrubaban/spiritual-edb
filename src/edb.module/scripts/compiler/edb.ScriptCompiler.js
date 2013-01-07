@@ -61,6 +61,6 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 		}
 
 		return script;
-	},
+	}
 
 });

@@ -25,11 +25,12 @@ edb.UpdateAssistant = {
 	 * @param {Document} doc
 	 * @param {String} markup
 	 * @param {String} id
+	 * @param {Element} element
 	 * @returns {Element}
 	 */
 	parse : function ( doc, markup, id, element ) { // gonna need to know the parent element type here...
 
-		var element = doc.createElement ( element.localName );
+		element = doc.createElement ( element.localName );
 		element.innerHTML = markup;
 		element.id = id;
 

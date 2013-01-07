@@ -33,11 +33,11 @@ edb.Script = edb.GenericScript.extend ({
 	 */
 	input : null,
 
- 	/**
- 	 * Note to self: While loading the function we 
- 	 * are mapping variable name to function src...
- 	 * @type {Map<String,function>}
- 	 */
+	/**
+	 * Note to self: While loading the function we 
+	 * are mapping variable name to function src...
+	 * @type {Map<String,function>}
+	 */
 	functions : null,
 	
 	/**
@@ -274,7 +274,7 @@ edb.Script = edb.GenericScript.extend ({
 
 		var key = gui.KeyMaster.generateKey (),
 			msg = "// blob script generated in development mode\n",
-			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}";
+			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}",
 			win = this.context,
 			doc = win.document;
 
@@ -373,7 +373,8 @@ edb.Script = edb.GenericScript.extend ({
 	 */
 	invoke : function ( key, sig, log ) {
 		
-		var func = null, log = log || this._log;
+		var func = null;
+		log = log || this._log;
 
 		/*
 		  * Relay invokation to edb.Script in sandboxed context?
@@ -414,7 +415,7 @@ edb.Script = edb.GenericScript.extend ({
 			type : e.type,
 			value : e.target.value,
 			checked : e.target.checked
-		}
+		};
 		return this;
-	},
+	}
 });

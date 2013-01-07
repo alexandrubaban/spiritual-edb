@@ -6,7 +6,7 @@
 edb.Service = function Service ( context ) {
 
 	this._context = context;
-}
+};
 
 edb.Service.prototype = {
 

@@ -127,7 +127,6 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 					"Unexpected argument of type " + 
 					type.toUpperCase () + ":\n" + data 
 				);
-				break;
 		}
 	}
 
@@ -135,7 +134,7 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 }, { // recurring static fields .........................................
 	
 	__name__ : "DataObject",
-	__data__ : true,
+	__data__ : true
 	
 	
 }, { // static fields ............................................
@@ -168,7 +167,8 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 					 * TODO: this for edb.MapModel
 					 */
 					if ( gui.Type.isConstructor ( def )) {
-						model [ key ] = new def ( proxy [ key ]);
+						var C = def;
+						model [ key ] = new C ( proxy [ key ]);
 
 						/*
 						hotfix [ key ] = true;
@@ -237,16 +237,17 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 	_definitions : function ( handler ) {
 			
 		var keys = [];
-		for ( var key in handler ) {
-			( function ( key ) {
-				if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
-					if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
-						if ( !key.startsWith ( "_" )) {
-							keys.push ( key );
-						}
+		function fix ( key ) {
+			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
+				if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
+					if ( !key.startsWith ( "_" )) {
+						keys.push ( key );
 					}
 				}
-			})( key );
+			}
+		}
+		for ( var key in handler ) {
+			fix ( key );
 		}
 		return keys;
 	}
@@ -302,11 +303,11 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 				input.forEach ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
 						if ( !o._instanceKey ) { // TODO: use instanceOf model
-							var model = boxer;
-							if ( !gui.Type.isConstructor ( model )) { // model constructor or filter function?
-								model = boxer ( o ); // was: if ( !model.__data__ )...
+							var Model = boxer;
+							if ( !gui.Type.isConstructor ( Model )) { // model constructor or filter function?
+								Model = boxer ( o ); // was: if ( !model.__data__ )...
 							}
-							o = new model ( o );
+							o = new Model ( o );
 						}
 						Array.prototype.push.call ( this, o ); // bypass $pub() setup
 					}
@@ -324,7 +325,7 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	
 	__name__ : "DataList",
 	__data__ : true,
-	__content__ : null,
+	__content__ : null
 	
 	/**
 	 * @deprecated
@@ -379,7 +380,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 					
 				case "object" :
 				case "array" :
-					alert ( "TODO: complex stuff on edb.ArrayModel :)" );
 					console.warn ( "TODO: complex stuff on edb.ArrayModel :)" );
 					break;
 					
@@ -422,18 +422,19 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	_definitions : function ( handler ) {
 		
 		var keys = [];
-		for ( var key in handler ) {
-			( function ( key ) {
-				if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
-					if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-						if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
-							if ( !key.startsWith ( "_" )) {
-								keys.push ( key );
-							}
+		function fix ( key ) {
+			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
+				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
+					if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
+						if ( !key.startsWith ( "_" )) {
+							keys.push ( key );
 						}
 					}
 				}
-			})( key );
+			}
+		}
+		for ( var key in handler ) {
+			fix ( key );
 		}
 		return keys;
 	}
@@ -524,7 +525,7 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 edb.Service = function Service ( context ) {
 
 	this._context = context;
-}
+};
 
 edb.Service.prototype = {
 
@@ -807,11 +808,11 @@ edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 	 */
 	_format : function ( data, type ) {
 		
-		var result = data, type = type || this._type;
+		var result = data, Type = type || this._type;
 		if ( data instanceof edb.Input === false ) {
 			if ( type ) {
 				if ( data instanceof type === false ) {
-					data = new type ( data );
+					data = new Type ( data );
 				}
 			} else {
 				switch ( gui.Type.of ( data )) {
@@ -1199,15 +1200,15 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 */
 	_load : function ( src ) {
 		
-		var loader = edb.GenericLoader.get ( this.type );
-		new loader ( this.document ).load ( src, function ( source ) {
+		var Loader = edb.GenericLoader.get ( this.type );
+		new Loader ( this.document ).load ( src, function ( source ) {
 			this._init ( source );
 		}, this );
 	},
 	
 	/**
 	 * Is plain JS?
-	 * TODO: regexp this not to break on vendor subsets
+	 * TODO: regexp this not to break on vendor subsets (e4x etc)
 	 * @returns {boolean}
 	 */
 	_plainscript : function () {
@@ -1341,11 +1342,12 @@ edb.UpdateAssistant = {
 	 * @param {Document} doc
 	 * @param {String} markup
 	 * @param {String} id
+	 * @param {Element} element
 	 * @returns {Element}
 	 */
 	parse : function ( doc, markup, id, element ) { // gonna need to know the parent element type here...
 
-		var element = doc.createElement ( element.localName );
+		element = doc.createElement ( element.localName );
 		element.innerHTML = markup;
 		element.id = id;
 
@@ -2212,7 +2214,7 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 		 */
 		Array.forEach ( this._xnew.attributes, function ( newatt ) {
 			var oldatt = this._xold.getAttribute ( newatt.name );
-			if ( oldatt == null || oldatt != newatt.value ) {
+			if ( oldatt === null || oldatt !== newatt.value ) {
 				this._set ( element, newatt.name, newatt.value );
 				this._summary.push ( "@" + newatt.name );
 			}
@@ -2725,11 +2727,13 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	edb.UpdateManager.prototype._attschanged = function ( newatts, oldatts, ids, css ) {
 		if ( method.apply ( this, arguments )) { // attributes changed...
 			return !Array.every ( newatts, function ( newatt ) {
-				if ( newatt.name === "oninput" ) {
-					alert ( oldatt.value + "\n " + newatt.value + "\n" + ( oldatt !== null && oldatt.value === newatt.value ));
-				}				
 				var oldatt = oldatts.getNamedItem ( newatt.name );
 				var newhit = gui.KeyMaster.extractKey ( newatt.value );
+
+				if ( newatt.name === "oninput" ) { // TODO
+					console.error ( oldatt.value + "\n " + newatt.value + "\n" + ( oldatt !== null && oldatt.value === newatt.value ));
+				}
+				
 				if ( newhit ) {
 					var oldhit = gui.KeyMaster.extractKey ( oldatt.value );
 					var update = new edb.ScriptUpdate ( this._doc ).setup ( 
@@ -3037,11 +3041,11 @@ edb.Script = edb.GenericScript.extend ({
 	 */
 	input : null,
 
- 	/**
- 	 * Note to self: While loading the function we 
- 	 * are mapping variable name to function src...
- 	 * @type {Map<String,function>}
- 	 */
+	/**
+	 * Note to self: While loading the function we 
+	 * are mapping variable name to function src...
+	 * @type {Map<String,function>}
+	 */
 	functions : null,
 	
 	/**
@@ -3278,7 +3282,7 @@ edb.Script = edb.GenericScript.extend ({
 
 		var key = gui.KeyMaster.generateKey (),
 			msg = "// blob script generated in development mode\n",
-			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}";
+			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}",
 			win = this.context,
 			doc = win.document;
 
@@ -3377,7 +3381,8 @@ edb.Script = edb.GenericScript.extend ({
 	 */
 	invoke : function ( key, sig, log ) {
 		
-		var func = null, log = log || this._log;
+		var func = null;
+		log = log || this._log;
 
 		/*
 		  * Relay invokation to edb.Script in sandboxed context?
@@ -3418,9 +3423,9 @@ edb.Script = edb.GenericScript.extend ({
 			type : e.type,
 			value : e.target.value,
 			checked : e.target.checked
-		}
+		};
 		return this;
-	},
+	}
 });
 
 
@@ -3565,7 +3570,7 @@ edb.Instruction = function ( pi ) {
 
 	this.atts = Object.create ( null );
 	this.type = pi.split ( "<?" )[ 1 ].split ( " " )[ 0 ]; // TODO: regexp this
-	var atexp = edb.Instruction._ATEXP;
+	var hit, atexp = edb.Instruction._ATEXP;
 	while (( hit = atexp.exec ( pi ))) {
 		var n = hit [ 1 ], v = hit [ 2 ];
 		this.atts [ n ] = gui.Type.cast ( v );
@@ -3583,12 +3588,13 @@ edb.Instruction.prototype = {
 	toString : function () {
 		return "[object edb.Instruction]";
 	}
-}
+};
 
 
 // STATICS .............................................................................
 
 /**
+ * @static
  * Extract processing instructions from source.
  * @param {String} source
  * @returns {Array<edb.Instruction>}
@@ -3600,9 +3606,10 @@ edb.Instruction.from = function ( source ) {
 			pis.push ( new edb.Instruction ( hit [ 0 ]));
 	}
 	return pis;
-}
+};
 
 /**
+ * @static
  * Remove processing instructions from source.
  * @param {String} source
  * @returns {String}
@@ -3610,7 +3617,7 @@ edb.Instruction.from = function ( source ) {
 edb.Instruction.clean = function ( source ) {
 
 	return source.replace ( this._PIEXP, "" );
-}
+};
 
 /**
  * @static
@@ -3809,7 +3816,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
 		var vars = "";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
-			vars += ", " + name + " = null"
+			vars += ", " + name + " = null";
 		});
 		var html = "var out = new edb.Out () " + vars +";\n";
 		head.definitions.forEach ( function ( def ) {
@@ -4009,13 +4016,13 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		if ( window.btoa ) {
 			source = window.btoa ( "function debug () {\n" + source + "\n}" );
 			var script = document.createElement ( "script" );
-	  	script.src = "data:text/javascript;base64," + source;
-	  	document.querySelector ( "head" ).appendChild ( script );
-	  	script.onload = function () {
-	  		this.parentNode.removeChild ( this );
-	  	};
+			script.src = "data:text/javascript;base64," + source;
+			document.querySelector ( "head" ).appendChild ( script );
+			script.onload = function () {
+				this.parentNode.removeChild ( this );
+			};
 	  } else {
-	  	// TODO: IE!
+			// TODO: IE!
 	  }
 	},
 
@@ -4117,7 +4124,7 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 		}
 
 		return script;
-	},
+	}
 
 });
 
@@ -4176,12 +4183,12 @@ gui.module ( "edb", {
 
 		context.Object.model = function ( a1, a2 ) {
 			return edb.ObjectModel.extend ( a1, a2 );
-		}
+		};
 		context.Array.model = function ( a1, a2 ) {
 			return edb.ArrayModel.extend ( a1, a2 );
-		}
-		context.Map.model = function ( a2, a2 ) {
+		};
+		context.Map.model = function ( a1, a2 ) {
 			return edb.MapModel.extend ( a1, a2 );
-		}
+		};
 	}
 });

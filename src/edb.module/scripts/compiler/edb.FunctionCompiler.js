@@ -180,7 +180,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
 		var vars = "";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
-			vars += ", " + name + " = null"
+			vars += ", " + name + " = null";
 		});
 		var html = "var out = new edb.Out () " + vars +";\n";
 		head.definitions.forEach ( function ( def ) {
@@ -380,13 +380,13 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		if ( window.btoa ) {
 			source = window.btoa ( "function debug () {\n" + source + "\n}" );
 			var script = document.createElement ( "script" );
-	  	script.src = "data:text/javascript;base64," + source;
-	  	document.querySelector ( "head" ).appendChild ( script );
-	  	script.onload = function () {
-	  		this.parentNode.removeChild ( this );
-	  	};
+			script.src = "data:text/javascript;base64," + source;
+			document.querySelector ( "head" ).appendChild ( script );
+			script.onload = function () {
+				this.parentNode.removeChild ( this );
+			};
 	  } else {
-	  	// TODO: IE!
+			// TODO: IE!
 	  }
 	},
 

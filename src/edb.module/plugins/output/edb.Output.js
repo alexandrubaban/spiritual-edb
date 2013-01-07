@@ -71,11 +71,11 @@ edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 	 */
 	_format : function ( data, type ) {
 		
-		var result = data, type = type || this._type;
+		var result = data, Type = type || this._type;
 		if ( data instanceof edb.Input === false ) {
 			if ( type ) {
 				if ( data instanceof type === false ) {
-					data = new type ( data );
+					data = new Type ( data );
 				}
 			} else {
 				switch ( gui.Type.of ( data )) {

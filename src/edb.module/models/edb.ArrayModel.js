@@ -47,11 +47,11 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 				input.forEach ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
 						if ( !o._instanceKey ) { // TODO: use instanceOf model
-							var model = boxer;
-							if ( !gui.Type.isConstructor ( model )) { // model constructor or filter function?
-								model = boxer ( o ); // was: if ( !model.__data__ )...
+							var Model = boxer;
+							if ( !gui.Type.isConstructor ( Model )) { // model constructor or filter function?
+								Model = boxer ( o ); // was: if ( !model.__data__ )...
 							}
-							o = new model ( o );
+							o = new Model ( o );
 						}
 						Array.prototype.push.call ( this, o ); // bypass $pub() setup
 					}
@@ -69,7 +69,7 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	
 	__name__ : "DataList",
 	__data__ : true,
-	__content__ : null,
+	__content__ : null
 	
 	/**
 	 * @deprecated
@@ -124,7 +124,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 					
 				case "object" :
 				case "array" :
-					alert ( "TODO: complex stuff on edb.ArrayModel :)" );
 					console.warn ( "TODO: complex stuff on edb.ArrayModel :)" );
 					break;
 					
@@ -167,18 +166,19 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	_definitions : function ( handler ) {
 		
 		var keys = [];
-		for ( var key in handler ) {
-			( function ( key ) {
-				if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
-					if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-						if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
-							if ( !key.startsWith ( "_" )) {
-								keys.push ( key );
-							}
+		function fix ( key ) {
+			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
+				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
+					if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
+						if ( !key.startsWith ( "_" )) {
+							keys.push ( key );
 						}
 					}
 				}
-			})( key );
+			}
+		}
+		for ( var key in handler ) {
+			fix ( key );
 		}
 		return keys;
 	}

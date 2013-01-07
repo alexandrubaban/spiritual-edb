@@ -148,11 +148,13 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	edb.UpdateManager.prototype._attschanged = function ( newatts, oldatts, ids, css ) {
 		if ( method.apply ( this, arguments )) { // attributes changed...
 			return !Array.every ( newatts, function ( newatt ) {
-				if ( newatt.name === "oninput" ) {
-					alert ( oldatt.value + "\n " + newatt.value + "\n" + ( oldatt !== null && oldatt.value === newatt.value ));
-				}				
 				var oldatt = oldatts.getNamedItem ( newatt.name );
 				var newhit = gui.KeyMaster.extractKey ( newatt.value );
+
+				if ( newatt.name === "oninput" ) { // TODO
+					console.error ( oldatt.value + "\n " + newatt.value + "\n" + ( oldatt !== null && oldatt.value === newatt.value ));
+				}
+				
 				if ( newhit ) {
 					var oldhit = gui.KeyMaster.extractKey ( oldatt.value );
 					var update = new edb.ScriptUpdate ( this._doc ).setup ( 

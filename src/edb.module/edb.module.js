@@ -52,12 +52,12 @@ gui.module ( "edb", {
 
 		context.Object.model = function ( a1, a2 ) {
 			return edb.ObjectModel.extend ( a1, a2 );
-		}
+		};
 		context.Array.model = function ( a1, a2 ) {
 			return edb.ArrayModel.extend ( a1, a2 );
-		}
-		context.Map.model = function ( a2, a2 ) {
+		};
+		context.Map.model = function ( a1, a2 ) {
 			return edb.MapModel.extend ( a1, a2 );
-		}
+		};
 	}
 });

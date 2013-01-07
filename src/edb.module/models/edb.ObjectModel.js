@@ -22,7 +22,6 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 					"Unexpected argument of type " + 
 					type.toUpperCase () + ":\n" + data 
 				);
-				break;
 		}
 	}
 
@@ -30,7 +29,7 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 }, { // recurring static fields .........................................
 	
 	__name__ : "DataObject",
-	__data__ : true,
+	__data__ : true
 	
 	
 }, { // static fields ............................................
@@ -63,7 +62,8 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 					 * TODO: this for edb.MapModel
 					 */
 					if ( gui.Type.isConstructor ( def )) {
-						model [ key ] = new def ( proxy [ key ]);
+						var C = def;
+						model [ key ] = new C ( proxy [ key ]);
 
 						/*
 						hotfix [ key ] = true;
@@ -132,16 +132,17 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 	_definitions : function ( handler ) {
 			
 		var keys = [];
-		for ( var key in handler ) {
-			( function ( key ) {
-				if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
-					if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
-						if ( !key.startsWith ( "_" )) {
-							keys.push ( key );
-						}
+		function fix ( key ) {
+			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
+				if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
+					if ( !key.startsWith ( "_" )) {
+						keys.push ( key );
 					}
 				}
-			})( key );
+			}
+		}
+		for ( var key in handler ) {
+			fix ( key );
 		}
 		return keys;
 	}

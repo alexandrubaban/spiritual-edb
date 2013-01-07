@@ -6,7 +6,7 @@ edb.Instruction = function ( pi ) {
 
 	this.atts = Object.create ( null );
 	this.type = pi.split ( "<?" )[ 1 ].split ( " " )[ 0 ]; // TODO: regexp this
-	var atexp = edb.Instruction._ATEXP;
+	var hit, atexp = edb.Instruction._ATEXP;
 	while (( hit = atexp.exec ( pi ))) {
 		var n = hit [ 1 ], v = hit [ 2 ];
 		this.atts [ n ] = gui.Type.cast ( v );
@@ -24,12 +24,13 @@ edb.Instruction.prototype = {
 	toString : function () {
 		return "[object edb.Instruction]";
 	}
-}
+};
 
 
 // STATICS .............................................................................
 
 /**
+ * @static
  * Extract processing instructions from source.
  * @param {String} source
  * @returns {Array<edb.Instruction>}
@@ -41,9 +42,10 @@ edb.Instruction.from = function ( source ) {
 			pis.push ( new edb.Instruction ( hit [ 0 ]));
 	}
 	return pis;
-}
+};
 
 /**
+ * @static
  * Remove processing instructions from source.
  * @param {String} source
  * @returns {String}
@@ -51,7 +53,7 @@ edb.Instruction.from = function ( source ) {
 edb.Instruction.clean = function ( source ) {
 
 	return source.replace ( this._PIEXP, "" );
-}
+};
 
 /**
  * @static

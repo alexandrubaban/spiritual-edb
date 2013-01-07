@@ -102,7 +102,7 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 		 */
 		Array.forEach ( this._xnew.attributes, function ( newatt ) {
 			var oldatt = this._xold.getAttribute ( newatt.name );
-			if ( oldatt == null || oldatt != newatt.value ) {
+			if ( oldatt === null || oldatt !== newatt.value ) {
 				this._set ( element, newatt.name, newatt.value );
 				this._summary.push ( "@" + newatt.name );
 			}

@@ -83,15 +83,15 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 */
 	_load : function ( src ) {
 		
-		var loader = edb.GenericLoader.get ( this.type );
-		new loader ( this.document ).load ( src, function ( source ) {
+		var Loader = edb.GenericLoader.get ( this.type );
+		new Loader ( this.document ).load ( src, function ( source ) {
 			this._init ( source );
 		}, this );
 	},
 	
 	/**
 	 * Is plain JS?
-	 * TODO: regexp this not to break on vendor subsets
+	 * TODO: regexp this not to break on vendor subsets (e4x etc)
 	 * @returns {boolean}
 	 */
 	_plainscript : function () {

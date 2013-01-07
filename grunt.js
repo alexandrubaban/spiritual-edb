@@ -11,9 +11,9 @@ module.exports = function(grunt) {
 				' * Spiritual is freely distributable under the MIT license.\n' +
 				' */'
 		},
-		//lint: {
-		// files: ['grunt.js', 'src/**/*.js']
-		//},
+		lint: {
+			files: ['grunt.js', 'src/**/*.js']
+		},
 		concat: {
 			dist: {
 				src: [
@@ -69,7 +69,7 @@ module.exports = function(grunt) {
 		jshint: {
 			options: {
 				curly: true,
- 				eqeqeq: true,
+				eqeqeq: true,
 				immed: true,
 				latedef: true,
 				newcap: true,
@@ -77,13 +77,28 @@ module.exports = function(grunt) {
 				sub: true,
 				undef: true,
 				boss: true,
-				eqnull: true
+				eqnull: true,
+				browser: true,
+				smarttabs:true, // https://github.com/jshint/jshint/issues/585
+				onecase: true,
+				scripturl: true,
+				laxbreak: true,
+				supernew: true
 			},
-			globals: {}
+			globals: {
+				gui: true,
+				edb : true,
+				console: true,
+				setImmediate : true,
+				requestAnimationFrame : true,
+				Map : true,
+				Set : true,
+				WeakMap : true
+			}
 		},
 		uglify: {}
 	});
 
-	// Default task.
- 	grunt.registerTask('default', 'concat min'); // lint
+	// default task
+	grunt.registerTask('default', 'lint concat min');
 };

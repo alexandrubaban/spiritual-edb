@@ -49,19 +49,15 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 		var types = this._breakdown ( arg );
 		
 		types.forEach ( function ( type, index ) {
-
 			if ( !this._weakmap.get ( type )) {
 				this._weakmap.set ( type, []);
 			}
 			this._weakmap.get ( type ).push ( handler );
-			
 			if ( this._types.indexOf ( type ) === -1 ) {
-				
 				this._types.push ( type );
 				if ( this._types.length === 1 ) {
-					edb.Input.add ( this ); // await future output of type
+					edb.Input.add ( this ); // await future output of this type
 				}
-				
 				if ( type.output instanceof edb.Input ) { // type has been output?
 					if ( !this.spirit || this.spirit.life.ready ) {
 						var tick = gui.TICK_COLLECT_INPUT;

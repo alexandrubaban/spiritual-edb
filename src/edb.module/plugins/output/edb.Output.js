@@ -9,7 +9,7 @@ edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 	 * @param @optional {function} type
 	 */
 	dispatch : function ( data, type ) {
-		
+
 		var input = this._format ( data, type );
 		if ( input instanceof edb.Input ) {
 			if ( input.type ) {
@@ -73,22 +73,22 @@ edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 		
 		var result = data, Type = type || this._type;
 		if ( data instanceof edb.Input === false ) {
-			if ( type ) {
-				if ( data instanceof type === false ) {
+			if ( Type ) {
+				if ( data instanceof Type === false ) {
 					data = new Type ( data );
 				}
 			} else {
 				switch ( gui.Type.of ( data )) {
 					case "object" :
-						type = Object.model ();
+						Type = Object.model ();
 						break;
 					case "array" :
-						type = Array.model ();
+						Type = Array.model ();
 						break;
 				}
-				result = this._format ( data, type );
+				result = this._format ( data, Type );
 			}
-			result = new edb.Input ( type, data ); // data.constructor?
+			result = new edb.Input ( Type, data ); // data.constructor?
 		}
 		return result;
 	}

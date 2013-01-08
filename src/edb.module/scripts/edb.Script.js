@@ -5,7 +5,7 @@
  * @param {Global} context
  * @param {function} handler
  */
-edb.Script = edb.GenericScript.extend ({
+edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	
 	/**
 	 * The window context; where to lookup data types.
@@ -53,7 +53,8 @@ edb.Script = edb.GenericScript.extend ({
 		
 		/*
 		 * Redefine these terms into concepts that makes more 
-		 * sense when runinng script inside a worker context.
+		 * sense when runinng script inside a worker context. 
+		 * (related to a future "sandbox" project of some kind)
 		 */
 		this.pointer = this.spirit; this.spirit = null;
 		this.context = this.window; this.window = null;
@@ -67,7 +68,7 @@ edb.Script = edb.GenericScript.extend ({
 		/**
 		 * Hey mister.
 		 */
-		this.functions = {};
+		this.functions = Object.create ( null );
 
 		/*
 		 * TODO: This *must* be added before it can be removed ?????
@@ -82,7 +83,7 @@ edb.Script = edb.GenericScript.extend ({
 	 * @returns {edb.Script}
 	 */
 	compile : function ( source, debug ) {
-		
+
 		if ( this._function !== null ) {
 			throw new Error ( "not supported: compile script twice" ); // support this?
 		}
@@ -117,7 +118,7 @@ edb.Script = edb.GenericScript.extend ({
 			this.input.add ( type, this );
 		}, this );
 		
-		try { // in development mode, mount invokable function as a file; otherwise init
+		try { // in development mode, load invokable function as a blob file; otherwise just init
 			if ( gui.debug && gui.Client.hasBlob && !gui.Client.isExplorer && !gui.Client.isOpera ) {
 				this._blob ( compiler );
 			} else {

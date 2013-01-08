@@ -46,7 +46,7 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @param {function} handler
 	 */
 	onconstruct : function ( spirit, window, handler ) {
-		
+
 		this.spirit = spirit || null;
 		this.window = window || null;
 		this.onreadystatechange = handler || null;

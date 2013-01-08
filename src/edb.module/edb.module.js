@@ -26,7 +26,7 @@ gui.module ( "edb", {
 	},
 	
 	/*
-	 * Helo
+	 * Channeling spirits via CSS selectors.
 	 */
 	channels : [
 		
@@ -43,8 +43,8 @@ gui.module ( "edb", {
 		/*
 		 * TODO: detect sandbox...
 		 */
-		if ( context === gui.context ) {
-			if ( edb.GenericScript && edb.GenericLoader ) { // sandbox!
+		if ( context === gui.context ) { // TODO: better detect top context
+			if ( edb.GenericScript && edb.GenericLoader ) { // TODO: this check is for sandbox (future project)
 				edb.GenericScript.set ( edb.Script, "text/edbml" );
 				edb.GenericLoader.set ( edb.Loader, "text/edbml" );
 			}

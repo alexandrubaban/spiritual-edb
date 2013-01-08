@@ -44,7 +44,7 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 	compile : function ( source, type, debug ) {
 		
 		var Script = edb.GenericScript.get ( type );
-		
+
 		if ( !this.script ) {
 			var that = this;
 			this.script = new Script ( 
@@ -58,7 +58,6 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 				}
 			);
 			this.script.compile ( source, debug );
-			
 		} else {
 			throw new Error ( "not supported: recompile edb.SpiritView" ); // support this?
 		}

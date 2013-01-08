@@ -1,6 +1,10 @@
 /*global module:false*/
 
 module.exports = function(grunt) {
+
+	var sourcelist = grunt.file.readJSON("grunt.json");
+	sourcelist.unshift("<banner:meta.banner>");
+
 	grunt.initConfig({
 		meta: {
 			version: '0.0.1',
@@ -16,42 +20,7 @@ module.exports = function(grunt) {
 		},
 		concat: {
 			dist: {
-				src: [
-					"<banner:meta.banner>",
-					"src/edb.module/edb.js",
-					"src/edb.module/models/edb.Model.js",
-					"src/edb.module/models/edb.ObjectModel.js",
-					"src/edb.module/models/edb.ArrayModel.js",
-					"src/edb.module/models/edb.MapModel.js",
-					"src/edb.module/utils/edb.Service.js",
-					"src/edb.module/plugins/view/edb.SpiritView.js",
-					"src/edb.module/plugins/input/edb.Input.js",
-					"src/edb.module/plugins/output/edb.Output.js",
-					"src/edb.module/plugins/input/edb.InputTracker.js",
-					"src/edb.module/spirits/edb.ScriptSpirit.js",
-					"src/edb.module/spirits/edb.ServiceSpirit.js",
-					"src/edb.module/updates/edb.UpdateAssistant.js",
-					"src/edb.module/updates/edb.UpdateManager.js",
-					"src/edb.module/updates/edb.UpdateCollector.js",
-					"src/edb.module/updates/types/edb.Update.js",
-					"src/edb.module/updates/types/atts/edb.AttsUpdate.js",
-					"src/edb.module/updates/types/hard/edb.HardUpdate.js",
-					"src/edb.module/updates/types/soft/edb.SoftUpdate.js",
-					"src/edb.module/updates/types/soft/edb.InsertUpdate.js",
-					"src/edb.module/updates/types/soft/edb.AppendUpdate.js",
-					"src/edb.module/updates/types/soft/edb.RemoveUpdate.js",
-					"src/edb.module/updates/types/script/edb.ScriptUpdate.js",
-					"src/edb.module/scripts/generic/edb.GenericScript.js",
-					"src/edb.module/scripts/generic/edb.GenericLoader.js",
-					"src/edb.module/scripts/edb.Script.js",
-					"src/edb.module/scripts/edb.Loader.js",
-					"src/edb.module/scripts/edb.Out.js",
-					"src/edb.module/scripts/edb.Function.js",
-					"src/edb.module/scripts/compiler/edb.Instruction.js",
-					"src/edb.module/scripts/compiler/edb.FunctionCompiler.js",
-					"src/edb.module/scripts/compiler/edb.ScriptCompiler.js",
-					"src/edb.module/edb.module.js"
-				],
+				src: sourcelist,
 				dest: 'dist/spiritual-edb-<%= meta.version %>.js',
 				separator : "\n\n\n"
 			}

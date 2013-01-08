@@ -32,11 +32,11 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	},
 	
 	/**
-	 * Relay source code to the edb.GenericScriptPlugin of 
-	 * parent spirit. Might need to load it first.
+	 * Relay source code to the {edb.GenericScriptPlugin} 
+	 * of parent spirit. Might need to load it first...
 	 */
 	onenter : function () {
-		
+	
 		this._super.onenter ();
 		this.type = this.att.get ( "type" ) || this.type;
 		if ( !this._plainscript ()) {

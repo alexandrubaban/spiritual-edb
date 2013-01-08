@@ -10,7 +10,7 @@ edb.Function = {
 	 * @returns {function}
 	 */
 	get : function ( src, win ) { // TODO: pass document not window
-
+		
 		src = new gui.URL ( win.document, src ).href;
 		var result = this._map.get ( src ) || null;
 		if ( !result ) {

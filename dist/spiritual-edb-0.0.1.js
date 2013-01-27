@@ -20,13 +20,13 @@ gui.namespace ( "edb" );
 
 
 /**
- * Data.
+ * EDB model "base class" of sorts. 
  */
 edb.Model = function Model () {};
 edb.Model.prototype = {
 	
 	/**
-	 * Storage key; serverside or localstorage.
+	 * Storage key (whatever serverside or localstorage).
 	 * @type {String}
 	 */
 	$primaryKey : "id",
@@ -518,50 +518,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 
 
 /**
- * Load JSON data and dispatch EDB types.
- * TODO: support localstorage as alternative to server
- * @param {Window} context Might be a worker context
- */
-edb.Service = function Service ( context ) {
-
-	this._context = context;
-};
-
-edb.Service.prototype = {
-
-	/**
-	 * Window or worker context.
-	 * @type {Window}
-	 */
-	_context : null,
-
-	/**
-	 * @static
-	 * Fetch JSON from server and output EDB types in context document.
-	 * @param {object} type edb.Model constructor or string of type "my.data.Thing"
-	 * @param @optional {String} href
-	 */
-	get : function ( type, href ) {
-		
-		// lookup type in context.
-		var output = new edb.Output ();
-		output.context = this._context;
-		output.type ( type );
-
-		// TODO: ref to edb.ServiceSpirit as "target" of dispatch in edb.Output!
-
-		if ( href ) {
-			new gui.Request ( href ).acceptJSON ().get ( function ( status, data, text ) {
-				output.dispatch ( data );
-			}, this ); 
-		} else {
-			output.dispatch ();
-		}
-	}
-};
-
-
-/**
  * The SpiritView acts to update the HTML subtree of a spirit.
  * @extends {gui.SpiritPlugin}
  */
@@ -603,25 +559,28 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 	 * @param {String} source Script source code
 	 * @param {String} type Script mimetype (eg "text/edbml")
 	 * @param {boolean} debug Log something to console
+	 * @param {HashMap<String,String>} atts Script tag attributes
 	 */
-	compile : function ( source, type, debug ) {
+	compile : function ( source, type, debug, atts ) {
 		
 		var Script = edb.GenericScript.get ( type );
-		
+
 		if ( !this.script ) {
 			var that = this;
 			this.script = new Script ( 
 				this.spirit, this.spirit.window, 
 				function onreadystatechange () {
 					if ( this.readyState === edb.GenericScript.READY ) {
+						that.render ();
+						/*
 						if ( this.params.length === 0 ) { // auto-running script with zero params
 							that.render ();
 						}
+						*/
 					}
 				}
 			);
-			this.script.compile ( source, debug );
-			
+			this.script.compile ( source, debug, atts );
 		} else {
 			throw new Error ( "not supported: recompile edb.SpiritView" ); // support this?
 		}
@@ -633,7 +592,7 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 	 * @see {gui.SandBoxView#render}
 	 */
 	render : function () {
-
+		
 		if ( this.script ) {
 			this.write ( 
 				this.script.run.apply ( 
@@ -662,6 +621,7 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 
 		this.rendered = true;
 		this.spirit.life.dispatch ( "spirit-view-rendered" );
+		console.warn ( "TODO: life event fired apart from first time???" );
 		this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes
 	},
 	
@@ -736,21 +696,21 @@ edb.Input.remove = function ( handler ) {
 
 
 /**
- * TODO: comments go here
+ * Note: This plugin is used standalone, so don't reference associated spirit.
+ * @todo formalize how this is supposed to be clear
  */
 edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 
 	/**
-	 * Format data for publication and publish.
+	 * Dispatch data as type (eg. instantiate model with JSON and publish the instance on page).
 	 * @param {object} data
-	 * @param @optional {function} type
+	 * @param @optional {function|String} type edb.Model constructor or "my.ns.MyModel"
 	 */
 	dispatch : function ( data, type ) {
-		
 		var input = this._format ( data, type );
 		if ( input instanceof edb.Input ) {
 			if ( input.type ) {
-				input.type.output = input; // TODO: RENAME!!!
+				input.type.output = input; // TODO: RENAME this abomination
 				gui.Broadcast.dispatchGlobal ( 
 					this.sandboxed ? null : this.spirit, 
 					gui.BROADCAST_OUTPUT, 
@@ -765,12 +725,56 @@ edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 	},
 
 	/**
-	 * Set output type once and for all.
-	 * @param {String} string
-	 * @returns {edb.Output}
+	 * @deprecated
 	 */
-	type : function ( arg ) {
-		
+	type : function () {
+		throw new Error ( "deprecated" );
+	},
+
+	
+	// PRIVATES .........................................................................
+	
+	/**
+	 * Wrap data in edb.Input before we output.
+	 * TODO: DON'T AUTOMATE MODELS, let's just output JSON objects...
+	 * @param {object} data
+	 * @param @optional {function|String} type
+	 * @returns {edb.Input}
+	 */
+	_format : function ( data, Type ) {
+
+		var result = data;
+		if ( data instanceof edb.Input === false ) {
+			if ( Type ) {
+				Type = this._lookup ( Type );
+				if ( data instanceof Type === false ) {
+					result = new Type ( data );
+				}
+			} else if ( !data._instanceKey ) { // TODO: THE WEAKNESS
+				switch ( gui.Type.of ( data )) {
+					case "object" :
+						Type = Object.model ();
+						break;
+					case "array" :
+						Type = Array.model ();
+						break;
+				}
+				result = this._format ( data, Type );
+			} else {
+				Type = data.constructor;
+			}
+			result = new edb.Input ( Type, data ); // data.constructor?
+		}
+		return result;
+	},
+
+	/**
+	 * Lookup edb.Model constructor for argument (if not it is already).
+	 * @todo Check that it is actually an edb.Model thing...
+	 * @param {object} arg
+	 * @returns {function}
+	 */
+	_lookup : function ( arg ) {	
 		var type = null;
 		switch ( gui.Type.of ( arg )) {
 			case "function" :
@@ -780,55 +784,15 @@ edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 				type = gui.Object.lookup ( arg, this.context );
 				break;
 			case "object" :
-				console.error ( this + ": expected function (not object)" );
+				console.error ( this + ": expected edb.Model constructor (not an object)" );
 				break;
 		}
-		if ( type ) {
-			this._type = type;
-		} else {
+		if ( !type ) {
 			throw new TypeError ( "The type \"" + arg + "\" does not exist" );
 		}
-		return this;
-	},
-	
-	
-	// PRIVATES .........................................................................
-	
-	/**
-	 * Output model constructor.
-	 * @type {function}
-	 */
-	_type : null,
-	 
-	/**
-	 * Wrap data in edb.Input before we output.
-	 * @param {object} data
-	 * @param @optional {function} type
-	 * @returns {edb.Input}
-	 */
-	_format : function ( data, type ) {
-		
-		var result = data, Type = type || this._type;
-		if ( data instanceof edb.Input === false ) {
-			if ( type ) {
-				if ( data instanceof type === false ) {
-					data = new Type ( data );
-				}
-			} else {
-				switch ( gui.Type.of ( data )) {
-					case "object" :
-						type = Object.model ();
-						break;
-					case "array" :
-						type = Array.model ();
-						break;
-				}
-				result = this._format ( data, type );
-			}
-			result = new edb.Input ( type, data ); // data.constructor?
-		}
-		return result;
+		return type;
 	}
+
 });
 
 
@@ -883,19 +847,15 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 		var types = this._breakdown ( arg );
 		
 		types.forEach ( function ( type, index ) {
-
 			if ( !this._weakmap.get ( type )) {
 				this._weakmap.set ( type, []);
 			}
 			this._weakmap.get ( type ).push ( handler );
-			
 			if ( this._types.indexOf ( type ) === -1 ) {
-				
 				this._types.push ( type );
 				if ( this._types.length === 1 ) {
-					edb.Input.add ( this ); // await future output of type
+					edb.Input.add ( this ); // await future output of this type
 				}
-				
 				if ( type.output instanceof edb.Input ) { // type has been output?
 					if ( !this.spirit || this.spirit.life.ready ) {
 						var tick = gui.TICK_COLLECT_INPUT;
@@ -1122,7 +1082,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	
 	/**
 	 * Debug compiled function to console? You can set this in HTML:
-	 * <script type="text/edbml" gui.debug="true"/>
+	 * &lt;script type="text/edbml" debug="true"/&gt;
 	 * @type {boolean}
 	 */
 	debug : false,
@@ -1149,11 +1109,11 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	},
 	
 	/**
-	 * Relay source code to the edb.GenericScriptPlugin of 
-	 * parent spirit. Might need to load it first.
+	 * Relay source code to the {edb.GenericScriptPlugin} 
+	 * of parent spirit. Might need to load it first...
 	 */
 	onenter : function () {
-		
+	
 		this._super.onenter ();
 		this.type = this.att.get ( "type" ) || this.type;
 		if ( !this._plainscript ()) {
@@ -1161,7 +1121,9 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 			if ( src ) {
 				this._load ( src );
 			} else {
-				this._init ( this.dom.text ());
+				gui.Tick.next ( function () {
+					this._init ( this.dom.text ());
+				}, this );
 			}
 		}
 	},
@@ -1179,7 +1141,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 		var view = null;
 		var parent = this.dom.parent ();
 		if ( parent.localName === "head" ) {
-			console.warn ( "TODO: deprecate or fix EDBML in HEAD???" );
+			//console.warn ( "TODO: deprecate or fix EDBML in HEAD???" );
 			view = this.view;
 		} else {
 			if ( parent.spirit ) {
@@ -1190,7 +1152,8 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 		}
 		
 		if ( view ) {
-			view.compile ( source, this.type, this.debug );
+			var atts = this.att.getup (); // extra compile info
+			view.compile ( source, this.type, this.debug, atts );
 		}
 	},
 
@@ -1230,7 +1193,8 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 
 
 /**
- * Spirit of the service provider.
+ * Spirit of the service.
+ * @todo rename @type to @model
  * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
  */
 edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
@@ -1239,43 +1203,42 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 	 * Default to accept JSON and fetch data immediately.
 	 */
 	onconstruct : function () {
-		
 		this._super.onconstruct ();
-		if ( !this.att.get ( "disabled" )) {
-			this._resolve ();
+		var type = this.att.get ( "type" );
+		if ( type ) {
+			var Type = gui.Object.lookup ( type, this.window );
+			if ( this.att.get ( "href" )) {
+				new gui.Request ( this.element.href ).acceptJSON ().get ( function ( status, data ) {
+					this.output.dispatch ( new Type ( data ));
+				}, this );
+			} else {
+				this.output.dispatch ( new Type ());
+			}
+		} else {
+			throw new Error ( "TODO: formalize missing type somehow" );
 		}
 	},
-	
+
 	/**
-	 * TODO: comments go here...
+	 * TODO: enable this pipeline stuff
 	 * @param {edb.Input} input
-	 */
+	 *
 	oninput : function ( input ) {
-		
 		this._super.oninput ( input );
 		if ( this.att.get ( "type" ) && this.input.done ) {
 			this._pipeline ();
 		}
 	},
+	*/
 	
 	
 	// PRIVATES ...............................................................................................
 	
 	/**
-	 * Resolve data from service.
-	 */
-	_resolve : function () {
-
-		new edb.Service ( this.window ).get ( 
-			this.att.get ( "type" ), 
-			this.element.href
-		);
-	},
-	
-	/**
 	 * If both input type and output type is specified, the service will automatically output new data when all 
 	 * input is recieved. Input data will be supplied as constructor argument to output function; if A and B is 
 	 * input types while C is output type, then input instance a and b will be output as new C ( a, b ) 
+	 * @todo Implement support for this some day :)
 	 */
 	_pipeline : function () {
 		
@@ -2208,7 +2171,7 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 			same = true;
 		}
 		*/
-		
+
 		/*
 		 * Create and update attributes.
 		 */
@@ -2239,10 +2202,10 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @return
 	 */
 	_set : function ( element, name, value ) {
-		
+
 		var spirit = element.spirit;
 		if ( spirit ) {
-			spirit.att.set ( name, value ); // TODO!!!!!!!!!!!!!!
+			spirit.att.set ( name, value );
 		} else {
 			element.setAttribute ( name, value );
 			switch ( name ) {
@@ -2801,7 +2764,7 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @param {function} handler
 	 */
 	onconstruct : function ( spirit, window, handler ) {
-		
+
 		this.spirit = spirit || null;
 		this.window = window || null;
 		this.onreadystatechange = handler || null;
@@ -3013,7 +2976,7 @@ edb.GenericLoader = gui.FileLoader.extend ({
  * @param {Global} context
  * @param {function} handler
  */
-edb.Script = edb.GenericScript.extend ({
+edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	
 	/**
 	 * The window context; where to lookup data types.
@@ -3061,7 +3024,8 @@ edb.Script = edb.GenericScript.extend ({
 		
 		/*
 		 * Redefine these terms into concepts that makes more 
-		 * sense when runinng script inside a worker context.
+		 * sense when runinng script inside a worker context. 
+		 * (related to a future "sandbox" project of some kind)
 		 */
 		this.pointer = this.spirit; this.spirit = null;
 		this.context = this.window; this.window = null;
@@ -3075,7 +3039,7 @@ edb.Script = edb.GenericScript.extend ({
 		/**
 		 * Hey mister.
 		 */
-		this.functions = {};
+		this.functions = Object.create ( null );
 
 		/*
 		 * TODO: This *must* be added before it can be removed ?????
@@ -3087,16 +3051,17 @@ edb.Script = edb.GenericScript.extend ({
 	 * Compile source to invokable function.
 	 * @param {String} source
 	 * @param {boolean} debug
+	 * @param {HashMap<String,String>} atts Mapping script tag attributes.
 	 * @returns {edb.Script}
 	 */
-	compile : function ( source, debug ) {
-		
+	compile : function ( source, debug, atts ) {
+
 		if ( this._function !== null ) {
 			throw new Error ( "not supported: compile script twice" ); // support this?
 		}
 		
 		// create invokable function (signed for sandbox usage)
-		var compiler = new edb.ScriptCompiler ( source, debug );
+		var compiler = new edb.ScriptCompiler ( source, debug, atts );
 
 		if ( this._signature ) {
 			compiler.sign ( this._signature );
@@ -3125,7 +3090,7 @@ edb.Script = edb.GenericScript.extend ({
 			this.input.add ( type, this );
 		}, this );
 		
-		try { // in development mode, mount invokable function as a file; otherwise init
+		try { // in development mode, load invokable function as a blob file; otherwise just init
 			if ( gui.debug && gui.Client.hasBlob && !gui.Client.isExplorer && !gui.Client.isOpera ) {
 				this._blob ( compiler );
 			} else {
@@ -3163,10 +3128,12 @@ edb.Script = edb.GenericScript.extend ({
 			error = "Script not compiled";
 		} else if ( !this.input.done ) {
 			error = "Script awaits input";
-		} else {
+		}
+		/*
+		else {
 			error = this._validate ( arguments );
 		}
-		
+		*/
 		if ( error !== null ) {
 			throw new Error ( error );
 		} else {
@@ -3315,7 +3282,7 @@ edb.Script = edb.GenericScript.extend ({
 	 * must be left undefined, use null instead.
 	 * @param {Arguments} params
 	 * @returns {String} 
-	 */
+	 *
 	_validate : function ( params ) {
 		
 		var error = null, expected = this.params.length;
@@ -3328,6 +3295,7 @@ edb.Script = edb.GenericScript.extend ({
 		}
 		return error;
 	},
+	*/
 	
 	/**
 	 * Add-remove broadcast handlers.
@@ -3414,10 +3382,10 @@ edb.Script = edb.GenericScript.extend ({
 	},
 
 	/**
-	 * Log event details.
+	 * Keep a log on the latest DOM event.
 	 * @param {Event} e
 	 */
-	log : function ( e ) {
+	register : function ( e ) {
 
 		this._log = {
 			type : e.type,
@@ -3484,6 +3452,99 @@ edb.Loader = edb.GenericLoader.extend ( "edb.Loader", {
 
 
 /**
+ * Converts JS props to HTML attributes during EDBML rendering phase. 
+ * Any methods added to this prototype will become available in EDBML 
+ * scripts as: att.mymethod() TODO: How can Att instances be passed?
+ * @type {HashMap<String,Object>}
+ */
+edb.Att = function Att () {};
+
+edb.Att.prototype = gui.Object.create ( null, {
+
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+
+		return "[object edb.Att]";
+	},
+
+	/**
+	 * Resolve key-value to HTML attribute declaration.
+	 * @param {String} att
+	 * @returns {String} 
+	 */
+	_out : function ( att ) {
+
+		var val, html = "";
+		if ( gui.Type.isDefined ( this [ att ])) {
+			val = edb.Att.encode ( this [ att ]);
+			html += att + "=\"" + val + "\" ";
+		}
+		return html;
+	},
+
+	/**
+	 * Resolve key-value, then delete it to prevent reuse.
+	 * @param {String} att
+	 */
+	_pop : function ( att ) {
+
+		var html = this._out ( att );
+		delete this [ att ];
+		return html;
+	},
+
+	/**
+	 * Resolve all key-values to HTML attribute declarations.
+	 * @returns {String} 
+	 */
+	_all : function () {
+
+		var html = "";
+		gui.Object.nonmethods ( this ).forEach ( function ( att ) {
+			html += this._out ( att );
+		}, this );
+		return html;
+	}
+
+});
+
+/**
+ * @static
+ * Stringify stuff to be used as HTML attribute values.
+ * @param {object} data
+ * @returns {String}
+ */
+edb.Att.encode = function ( data ) {
+
+	var type = gui.Type.of ( data );
+	switch ( type ) {
+		case "string" :
+			break;
+		case "number" :
+		case "boolean" :
+			data = String ( data );
+			break;
+		case "object" :
+		case "array" :
+			try {
+				data = encodeURIComponent ( JSON.stringify ( data ));
+			} catch ( jsonex ) {
+				throw new Error ( "Could not create HTML attribute: " + jsonex );
+			}
+			break;
+		case "date" :
+			throw new Error ( "TODO: edb.Att.encode standard date format?" );
+		default :
+			throw new Error ( "Could not create HTML attribute for " + type );
+	}
+	return data;
+};
+
+
+/**
  * Collects HTML output during EDBML rendering phase.
  * Any methods added to this prototype will become 
  * available in EDBML scripts as: out.mymethod()
@@ -3505,7 +3566,7 @@ edb.Out.prototype = {
 	 * Get HTML result. Do your output modification here.
 	 * @returns {String}
 	 */
-	toString : function () {
+	write : function () {
 
 		return this.html;
 	}
@@ -3524,7 +3585,7 @@ edb.Function = {
 	 * @returns {function}
 	 */
 	get : function ( src, win ) { // TODO: pass document not window
-
+		
 		src = new gui.URL ( win.document, src ).href;
 		var result = this._map.get ( src ) || null;
 		if ( !result ) {
@@ -3635,7 +3696,7 @@ edb.Instruction._ATEXP = /(\S+)=["']?((?:.(?!["']?\s+(?:\S+)=|[>"']))+.)["']?/g;
 
 
 /**
- * Compile params-only ("functional") EDB script.
+ * Compile EDB function.
  */
 edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
@@ -3664,13 +3725,21 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	functions : null,
 
 	/**
+	 * Mapping script tag attributes.
+	 * @type {HashMap<String,String>}
+	 */
+	extras : null,
+
+	/**
 	 * Construction.
 	 * @param {String} script
 	 * @param {boolean} debug
+	 * 
 	 */
-	onconstruct : function ( script, debug ) {
+	onconstruct : function ( script, debug, atts ) {
 
 		this.script = script;
+		this.extras = atts;
 		this.debug = debug ? true : false;
 	},
 		
@@ -3692,15 +3761,15 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			definitions : [] // Array<String>
 		};
 
-		[ "_extract", "_declare", "_cornholio", "_compile" ].forEach ( function ( step ) {
+		[ "_validate", "_tag", "_extract", "_declare", "_cornholio", "_compile" ].forEach ( function ( step ) {
 			this.script = this [ step ] ( this.script, head );
 		}, this );
 		
 		try {
-			result = this._convert ( scope, this.script, this.params );
 			if ( this.debug ) {
-				console.log ( this.source ());
+				console.log ( this.source ( "\t", this.params ));
 			}
+			result = this._convert ( scope, this.script, this.params );
 		} catch ( exception ) {
 			if ( !fallback ) {
 				result = this._fail ( scope, exception );
@@ -3714,11 +3783,15 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * Get formatted source.
 	 * @returns {String}
 	 */
-	source : function ( tabs ) {
+	source : function ( tabs, params ) {
 
 		var source = this._format ( this.script );
 		if ( tabs ) {
 			source = tabs + source.replace ( /\n/g, "\n" + tabs );
+		}
+		if ( params ) {
+			var args = params.length ? "( " + params.join ( ", " ) + " )" : "()";
+			source = "function " + args + " {\n" + source + "\n}";
 		}
 		return source;
 	},
@@ -3749,15 +3822,51 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @type {Array<edb.Instruction>}
 	 */
 	_instructions : null,
+
+	/**
+	 * Confirm no nested EDBML scripts because it's not parsable in the browser.
+	 * @see http://stackoverflow.com/a/6322601
+	 * @param {String} script
+	 * @param {What?} head
+	 * @returns {String}
+	 */
+	_validate : function ( script ) {
+
+		if ( this.debug ) { // testing in debug mode only!
+			if ( edb.FunctionCompiler._NESTEXP.test ( script )) {
+				throw "Nested EDBML dysfunction";
+			}
+		}
+		return script;
+	},
+
+	/**
+	 * Insert default EDBML for tag declarations before we parse.
+	 * @param  {[type]} script [description]
+	 * @return {[type]}        [description]
+	 */
+	_tag : function ( script ) {
+
+		if ( this.extras ) { // TODO: how can it be "undefined"?
+			var tag = this.extras [ "tag" ];
+			if ( tag ) {
+				script = "\n" + 
+					'<?param name="__content__"?>\n' +
+					'<?param name="__attribs__"?>\n' +
+					'att = __attribs__;\n' + script;
+			}
+		}
+		return script;
+	},
 	
 	/**
-	 * Extract and evaluate script instructions.
+	 * Extract and evaluate processing instructions.
 	 * @param {String} script
 	 * @param {What?} head
 	 * @returns {String}
 	 */
 	_extract : function ( script, head ) {
-		
+
 		edb.Instruction.from ( script ).forEach ( function ( pi ) {
 			this._instruct ( pi );
 		}, this );
@@ -3765,7 +3874,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 
 	/**
-	 * Evaluate script instruction.
+	 * Evaluate processing instruction.
 	 * @param {edb.Instruction} pi
 	 */
 	_instruct : function ( pi ) {
@@ -3818,13 +3927,13 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
 			vars += ", " + name + " = null";
 		});
-		var html = "var out = new edb.Out () " + vars +";\n";
+		var html = "var out = new edb.Out (), att = new edb.Att ()" + vars +";\n";
 		head.definitions.forEach ( function ( def ) {
 			html += def +"\n";
 		});
 		return html + script;
 	},
-	
+
 	/**
 	 * Compile that script.
 	 * @param {String} script
@@ -3832,7 +3941,9 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_compile : function ( script, head ) {
-		
+
+		var attr = edb.FunctionCompiler._ATTREXP;
+
 		var body = '"use strict";\n',
 			html = false,
 			peek = false,
@@ -3845,15 +3956,61 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			spot = 0,
 			indx = 0;
 
+		/*
+		 * Parse @ notation in markup. 
+		 * @param {String} line
+		 * @param {number} i
+		 */
+		function atthtml ( line, i ) {
+			var rest, name, dels, what;
+			if ( this._behind ( line, i, "@" )) {}
+			else if ( this._ahead ( line, i, "@" )) {
+				body += "' + att._all () + '";
+				skip = 2;
+			} else {
+				rest = line.substring ( i + 1 );
+				name = attr.exec ( rest )[ 0 ];
+				dels = this._behind ( line, i, "-" );
+				what = dels ? "att._pop" : "att._out";
+				body = dels ? body.substring ( 0, body.length - 1 ) : body;
+				body += "' + " + what + " ( '" + name + "' ) + '";
+				skip = name.length + 1;
+			}
+		}
+
+		/*
+		 * Parse @ notation in script.
+		 * TODO: preserve email address and allow same-line @
+		 * @param {String} line
+		 * @param {number} i
+		 */
+		function attscript ( line, i ) {
+			var rest, name;
+			if ( this._behind ( line, i, "@" )) {} 
+			else if ( this._ahead ( line, i, "@" )) {
+				body += "var att = new edb.Att ();";
+				skip = 2;
+			} else {
+				rest = line.substring ( i + 1 );
+				name = attr.exec ( rest )[ 0 ];
+				if ( name ) {
+					body += rest.replace ( name, "att['" + name + "']" );
+					skip = rest.length;
+				} else {
+					throw "Bad @name: " + rest;
+				}
+			}
+		}
+
 		script.split ( "\n" ).forEach ( function ( line, index ) {
-			
+
 			line = line.trim ();
 			last = line.length - 1;
 			adds = line.charAt ( 0 ) === "+";
 			cont = cont || ( html && adds );
-			
+
 			if ( line.length > 0 ) {
-			
+
 				if ( index > 0 ) {
 					if ( html ) {	
 						if ( !cont ) {
@@ -3864,9 +4021,9 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 						body += "\n";
 					}
 				}
-				
+
 				cont = false;
-				
+
 				Array.forEach ( line, function ( c, i ) {
 					if ( html ) {
 						switch ( c ) {
@@ -3916,14 +4073,22 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 									body += "\\";
 								}
 								break;
+							case "@" :
+								atthtml.call ( this, line, i );
+								break;
 						}
 					} else {
-						if ( c === "<" ) {
-							if ( i === 0 ) {
-								html = true;
-								spot = body.length - 1;
-								body += "out.html += '";
-							}
+						switch ( c ) {
+							case "<" :
+								if ( i === 0 ) {
+									html = true;
+									spot = body.length - 1;
+									body += "out.html += '";
+								}
+								break;
+							case "@" :
+								attscript.call ( this, line, i );
+								break;
 						}
 					}
 					if ( skip-- <= 0 ) {
@@ -3936,11 +4101,11 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				}, this );
 			}
 		}, this );
-		
-		body += ( html ? "';" : "" ) + "\nreturn out.toString ();";
+
+		body += ( html ? "';" : "" ) + "\nreturn out.write ();";
 		return this.debug ? this._format ( body ) : body;
 	},
-		
+	
 	/**
 	 * Generate and inject poke function into main function body.
 	 * @param {String} body
@@ -3958,7 +4123,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			func + ";\n" +
 			"}, this );" +
 			body.substring ( spot ) +
-			"edb.Script.log ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
+			"edb.Script.register ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
 		);
 	},
 	
@@ -3989,6 +4154,19 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		
 		var i = index + 1, l = string.length;
 		return line.length > index + l && line.substring ( i, i + l ) === string;
+	},
+
+	/**
+	 * Line text before index equals string?
+	 * @param {String} line
+	 * @param {number} index
+	 * @param {String} string
+	 * @returns {boolean}
+	 */
+	_behind : function ( line, index, string ) {
+
+		var length = string.length, start = index - length;
+		return start >= 0 && line.substr ( start, length ) === string;
 	},
 
 	/**
@@ -4059,6 +4237,25 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	}
 
 });
+
+/**
+ * @static
+ * Test for nested scripts (because those are not parsable in the browser). 
+ * http://stackoverflow.com/questions/1441463/how-to-get-regex-to-match-multiple-script-tags
+ * http://stackoverflow.com/questions/1750567/regex-to-get-attributes-and-body-of-script-tags
+ * TODO: stress test for no SRC attribute!
+ * @type {RegExp}
+ */
+edb.FunctionCompiler._NESTEXP = /<script.*type=["']?text\/edbml["']?.*>([\s\S]+?)/g;
+
+/**
+ * @static
+ * Matches a qualified attribute name (class,id,src,href) allowing 
+ * underscores, dashes and dots while not starting with a number.
+ * TODO: https://github.com/jshint/jshint/issues/383
+ * @type {RegExp}
+ */
+edb.FunctionCompiler._ATTREXP = /^[^\d][a-zA-Z0-9-_\.]+/;
 
 
 /**
@@ -4135,19 +4332,19 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 gui.module ( "edb", {
 	
 	/*
-	 * Helo
+	 * Extending all spirits.
 	 */
-	addins : {
+	addins : { // TODO: rename "extensions" or something
 		
 		/**
 		 * Handle input.
 		 * @param {edb.Input} input
 		 */
-		oninput : function ( input ) {}
+		oninput : function ( input ) {} // TODO: rename "onedbinput"
 	},
 	
 	/*
-	 * Helo
+	 * Register default plugins for all spirits.
 	 */
 	plugins : {
 		
@@ -4157,7 +4354,7 @@ gui.module ( "edb", {
 	},
 	
 	/*
-	 * Helo
+	 * Channeling spirits to CSS selectors.
 	 */
 	channels : [
 		
@@ -4174,8 +4371,8 @@ gui.module ( "edb", {
 		/*
 		 * TODO: detect sandbox...
 		 */
-		if ( context === gui.context ) {
-			if ( edb.GenericScript && edb.GenericLoader ) { // sandbox!
+		if ( context === gui.context ) { // TODO: better detect top context
+			if ( edb.GenericScript && edb.GenericLoader ) { // TODO: this check is for sandbox (future project)
 				edb.GenericScript.set ( edb.Script, "text/edbml" );
 				edb.GenericLoader.set ( edb.Loader, "text/edbml" );
 			}

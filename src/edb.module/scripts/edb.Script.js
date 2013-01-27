@@ -80,16 +80,17 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * Compile source to invokable function.
 	 * @param {String} source
 	 * @param {boolean} debug
+	 * @param {HashMap<String,String>} atts Mapping script tag attributes.
 	 * @returns {edb.Script}
 	 */
-	compile : function ( source, debug ) {
+	compile : function ( source, debug, atts ) {
 
 		if ( this._function !== null ) {
 			throw new Error ( "not supported: compile script twice" ); // support this?
 		}
 		
 		// create invokable function (signed for sandbox usage)
-		var compiler = new edb.ScriptCompiler ( source, debug );
+		var compiler = new edb.ScriptCompiler ( source, debug, atts );
 
 		if ( this._signature ) {
 			compiler.sign ( this._signature );
@@ -156,10 +157,12 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			error = "Script not compiled";
 		} else if ( !this.input.done ) {
 			error = "Script awaits input";
-		} else {
+		}
+		/*
+		else {
 			error = this._validate ( arguments );
 		}
-		
+		*/
 		if ( error !== null ) {
 			throw new Error ( error );
 		} else {
@@ -308,7 +311,7 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * must be left undefined, use null instead.
 	 * @param {Arguments} params
 	 * @returns {String} 
-	 */
+	 *
 	_validate : function ( params ) {
 		
 		var error = null, expected = this.params.length;
@@ -321,6 +324,7 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 		}
 		return error;
 	},
+	*/
 	
 	/**
 	 * Add-remove broadcast handlers.
@@ -407,10 +411,10 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	},
 
 	/**
-	 * Log event details.
+	 * Keep a log on the latest DOM event.
 	 * @param {Event} e
 	 */
-	log : function ( e ) {
+	register : function ( e ) {
 
 		this._log = {
 			type : e.type,

@@ -52,7 +52,8 @@ module.exports = function(grunt) {
 				onecase: true,
 				scripturl: true,
 				laxbreak: true,
-				supernew: true
+				supernew: true,
+				regexdash: true
 			},
 			globals: {
 				gui: true,
@@ -69,5 +70,5 @@ module.exports = function(grunt) {
 	});
 
 	// default task
-	grunt.registerTask('default', 'lint concat min');
+	grunt.registerTask('default', 'concat min');
 };

@@ -1,5 +1,5 @@
 /**
- * Compile params-only ("functional") EDB script.
+ * Compile EDB function.
  */
 edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
@@ -28,13 +28,21 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	functions : null,
 
 	/**
+	 * Mapping script tag attributes.
+	 * @type {HashMap<String,String>}
+	 */
+	extras : null,
+
+	/**
 	 * Construction.
 	 * @param {String} script
 	 * @param {boolean} debug
+	 * 
 	 */
-	onconstruct : function ( script, debug ) {
+	onconstruct : function ( script, debug, atts ) {
 
 		this.script = script;
+		this.extras = atts;
 		this.debug = debug ? true : false;
 	},
 		
@@ -56,15 +64,15 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			definitions : [] // Array<String>
 		};
 
-		[ "_extract", "_declare", "_cornholio", "_compile" ].forEach ( function ( step ) {
+		[ "_validate", "_tag", "_extract", "_declare", "_cornholio", "_compile" ].forEach ( function ( step ) {
 			this.script = this [ step ] ( this.script, head );
 		}, this );
 		
 		try {
-			result = this._convert ( scope, this.script, this.params );
 			if ( this.debug ) {
-				console.log ( this.source ());
+				console.log ( this.source ( "\t", this.params ));
 			}
+			result = this._convert ( scope, this.script, this.params );
 		} catch ( exception ) {
 			if ( !fallback ) {
 				result = this._fail ( scope, exception );
@@ -78,11 +86,15 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * Get formatted source.
 	 * @returns {String}
 	 */
-	source : function ( tabs ) {
+	source : function ( tabs, params ) {
 
 		var source = this._format ( this.script );
 		if ( tabs ) {
 			source = tabs + source.replace ( /\n/g, "\n" + tabs );
+		}
+		if ( params ) {
+			var args = params.length ? "( " + params.join ( ", " ) + " )" : "()";
+			source = "function " + args + " {\n" + source + "\n}";
 		}
 		return source;
 	},
@@ -113,15 +125,51 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @type {Array<edb.Instruction>}
 	 */
 	_instructions : null,
+
+	/**
+	 * Confirm no nested EDBML scripts because it's not parsable in the browser.
+	 * @see http://stackoverflow.com/a/6322601
+	 * @param {String} script
+	 * @param {What?} head
+	 * @returns {String}
+	 */
+	_validate : function ( script ) {
+
+		if ( this.debug ) { // testing in debug mode only!
+			if ( edb.FunctionCompiler._NESTEXP.test ( script )) {
+				throw "Nested EDBML dysfunction";
+			}
+		}
+		return script;
+	},
+
+	/**
+	 * Insert default EDBML for tag declarations before we parse.
+	 * @param  {[type]} script [description]
+	 * @return {[type]}        [description]
+	 */
+	_tag : function ( script ) {
+
+		if ( this.extras ) { // TODO: how can it be "undefined"?
+			var tag = this.extras [ "tag" ];
+			if ( tag ) {
+				script = "\n" + 
+					'<?param name="__content__"?>\n' +
+					'<?param name="__attribs__"?>\n' +
+					'att = __attribs__;\n' + script;
+			}
+		}
+		return script;
+	},
 	
 	/**
-	 * Extract and evaluate script instructions.
+	 * Extract and evaluate processing instructions.
 	 * @param {String} script
 	 * @param {What?} head
 	 * @returns {String}
 	 */
 	_extract : function ( script, head ) {
-		
+
 		edb.Instruction.from ( script ).forEach ( function ( pi ) {
 			this._instruct ( pi );
 		}, this );
@@ -129,7 +177,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 
 	/**
-	 * Evaluate script instruction.
+	 * Evaluate processing instruction.
 	 * @param {edb.Instruction} pi
 	 */
 	_instruct : function ( pi ) {
@@ -182,13 +230,13 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
 			vars += ", " + name + " = null";
 		});
-		var html = "var out = new edb.Out () " + vars +";\n";
+		var html = "var out = new edb.Out (), att = new edb.Att ()" + vars +";\n";
 		head.definitions.forEach ( function ( def ) {
 			html += def +"\n";
 		});
 		return html + script;
 	},
-	
+
 	/**
 	 * Compile that script.
 	 * @param {String} script
@@ -196,7 +244,9 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_compile : function ( script, head ) {
-		
+
+		var attr = edb.FunctionCompiler._ATTREXP;
+
 		var body = '"use strict";\n',
 			html = false,
 			peek = false,
@@ -209,15 +259,61 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			spot = 0,
 			indx = 0;
 
+		/*
+		 * Parse @ notation in markup. 
+		 * @param {String} line
+		 * @param {number} i
+		 */
+		function atthtml ( line, i ) {
+			var rest, name, dels, what;
+			if ( this._behind ( line, i, "@" )) {}
+			else if ( this._ahead ( line, i, "@" )) {
+				body += "' + att._all () + '";
+				skip = 2;
+			} else {
+				rest = line.substring ( i + 1 );
+				name = attr.exec ( rest )[ 0 ];
+				dels = this._behind ( line, i, "-" );
+				what = dels ? "att._pop" : "att._out";
+				body = dels ? body.substring ( 0, body.length - 1 ) : body;
+				body += "' + " + what + " ( '" + name + "' ) + '";
+				skip = name.length + 1;
+			}
+		}
+
+		/*
+		 * Parse @ notation in script.
+		 * TODO: preserve email address and allow same-line @
+		 * @param {String} line
+		 * @param {number} i
+		 */
+		function attscript ( line, i ) {
+			var rest, name;
+			if ( this._behind ( line, i, "@" )) {} 
+			else if ( this._ahead ( line, i, "@" )) {
+				body += "var att = new edb.Att ();";
+				skip = 2;
+			} else {
+				rest = line.substring ( i + 1 );
+				name = attr.exec ( rest )[ 0 ];
+				if ( name ) {
+					body += rest.replace ( name, "att['" + name + "']" );
+					skip = rest.length;
+				} else {
+					throw "Bad @name: " + rest;
+				}
+			}
+		}
+
 		script.split ( "\n" ).forEach ( function ( line, index ) {
-			
+
 			line = line.trim ();
 			last = line.length - 1;
 			adds = line.charAt ( 0 ) === "+";
 			cont = cont || ( html && adds );
-			
+
 			if ( line.length > 0 ) {
-			
+
 				if ( index > 0 ) {
 					if ( html ) {	
 						if ( !cont ) {
@@ -228,9 +324,9 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 						body += "\n";
 					}
 				}
-				
+
 				cont = false;
-				
+
 				Array.forEach ( line, function ( c, i ) {
 					if ( html ) {
 						switch ( c ) {
@@ -280,14 +376,22 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 									body += "\\";
 								}
 								break;
+							case "@" :
+								atthtml.call ( this, line, i );
+								break;
 						}
 					} else {
-						if ( c === "<" ) {
-							if ( i === 0 ) {
-								html = true;
-								spot = body.length - 1;
-								body += "out.html += '";
-							}
+						switch ( c ) {
+							case "<" :
+								if ( i === 0 ) {
+									html = true;
+									spot = body.length - 1;
+									body += "out.html += '";
+								}
+								break;
+							case "@" :
+								attscript.call ( this, line, i );
+								break;
 						}
 					}
 					if ( skip-- <= 0 ) {
@@ -300,11 +404,11 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				}, this );
 			}
 		}, this );
-		
-		body += ( html ? "';" : "" ) + "\nreturn out.toString ();";
+
+		body += ( html ? "';" : "" ) + "\nreturn out.write ();";
 		return this.debug ? this._format ( body ) : body;
 	},
-		
+	
 	/**
 	 * Generate and inject poke function into main function body.
 	 * @param {String} body
@@ -322,7 +426,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			func + ";\n" +
 			"}, this );" +
 			body.substring ( spot ) +
-			"edb.Script.log ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
+			"edb.Script.register ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
 		);
 	},
 	
@@ -353,6 +457,19 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		
 		var i = index + 1, l = string.length;
 		return line.length > index + l && line.substring ( i, i + l ) === string;
+	},
+
+	/**
+	 * Line text before index equals string?
+	 * @param {String} line
+	 * @param {number} index
+	 * @param {String} string
+	 * @returns {boolean}
+	 */
+	_behind : function ( line, index, string ) {
+
+		var length = string.length, start = index - length;
+		return start >= 0 && line.substr ( start, length ) === string;
 	},
 
 	/**
@@ -423,3 +540,22 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	}
 
 });
+
+/**
+ * @static
+ * Test for nested scripts (because those are not parsable in the browser). 
+ * http://stackoverflow.com/questions/1441463/how-to-get-regex-to-match-multiple-script-tags
+ * http://stackoverflow.com/questions/1750567/regex-to-get-attributes-and-body-of-script-tags
+ * TODO: stress test for no SRC attribute!
+ * @type {RegExp}
+ */
+edb.FunctionCompiler._NESTEXP = /<script.*type=["']?text\/edbml["']?.*>([\s\S]+?)/g;
+
+/**
+ * @static
+ * Matches a qualified attribute name (class,id,src,href) allowing 
+ * underscores, dashes and dots while not starting with a number.
+ * TODO: https://github.com/jshint/jshint/issues/383
+ * @type {RegExp}
+ */
+edb.FunctionCompiler._ATTREXP = /^[^\d][a-zA-Z0-9-_\.]+/;

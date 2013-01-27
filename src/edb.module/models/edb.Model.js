@@ -1,11 +1,11 @@
 /**
- * Data.
+ * EDB model "base class" of sorts. 
  */
 edb.Model = function Model () {};
 edb.Model.prototype = {
 	
 	/**
-	 * Storage key; serverside or localstorage.
+	 * Storage key (whatever serverside or localstorage).
 	 * @type {String}
 	 */
 	$primaryKey : "id",

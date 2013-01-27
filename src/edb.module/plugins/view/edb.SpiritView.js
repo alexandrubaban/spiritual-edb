@@ -40,8 +40,9 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 	 * @param {String} source Script source code
 	 * @param {String} type Script mimetype (eg "text/edbml")
 	 * @param {boolean} debug Log something to console
+	 * @param {HashMap<String,String>} atts Script tag attributes
 	 */
-	compile : function ( source, type, debug ) {
+	compile : function ( source, type, debug, atts ) {
 		
 		var Script = edb.GenericScript.get ( type );
 
@@ -51,13 +52,16 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 				this.spirit, this.spirit.window, 
 				function onreadystatechange () {
 					if ( this.readyState === edb.GenericScript.READY ) {
+						that.render ();
+						/*
 						if ( this.params.length === 0 ) { // auto-running script with zero params
 							that.render ();
 						}
+						*/
 					}
 				}
 			);
-			this.script.compile ( source, debug );
+			this.script.compile ( source, debug, atts );
 		} else {
 			throw new Error ( "not supported: recompile edb.SpiritView" ); // support this?
 		}
@@ -69,7 +73,7 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 	 * @see {gui.SandBoxView#render}
 	 */
 	render : function () {
-
+		
 		if ( this.script ) {
 			this.write ( 
 				this.script.run.apply ( 
@@ -98,6 +102,7 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 
 		this.rendered = true;
 		this.spirit.life.dispatch ( "spirit-view-rendered" );
+		console.warn ( "TODO: life event fired apart from first time???" );
 		this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes
 	},
 	

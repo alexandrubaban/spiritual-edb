@@ -96,7 +96,7 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 			same = true;
 		}
 		*/
-		
+
 		/*
 		 * Create and update attributes.
 		 */
@@ -127,10 +127,10 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @return
 	 */
 	_set : function ( element, name, value ) {
-		
+
 		var spirit = element.spirit;
 		if ( spirit ) {
-			spirit.att.set ( name, value ); // TODO!!!!!!!!!!!!!!
+			spirit.att.set ( name, value );
 		} else {
 			element.setAttribute ( name, value );
 			switch ( name ) {

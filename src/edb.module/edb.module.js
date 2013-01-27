@@ -4,19 +4,19 @@
 gui.module ( "edb", {
 	
 	/*
-	 * Helo
+	 * Extending all spirits.
 	 */
-	addins : {
+	addins : { // TODO: rename "extensions" or something
 		
 		/**
 		 * Handle input.
 		 * @param {edb.Input} input
 		 */
-		oninput : function ( input ) {}
+		oninput : function ( input ) {} // TODO: rename "onedbinput"
 	},
 	
 	/*
-	 * Helo
+	 * Register default plugins for all spirits.
 	 */
 	plugins : {
 		
@@ -26,7 +26,7 @@ gui.module ( "edb", {
 	},
 	
 	/*
-	 * Channeling spirits via CSS selectors.
+	 * Channeling spirits to CSS selectors.
 	 */
 	channels : [
 		

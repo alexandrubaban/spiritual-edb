@@ -5,7 +5,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	
 	/**
 	 * Debug compiled function to console? You can set this in HTML:
-	 * <script type="text/edbml" gui.debug="true"/>
+	 * &lt;script type="text/edbml" debug="true"/&gt;
 	 * @type {boolean}
 	 */
 	debug : false,
@@ -44,7 +44,9 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 			if ( src ) {
 				this._load ( src );
 			} else {
-				this._init ( this.dom.text ());
+				gui.Tick.next ( function () {
+					this._init ( this.dom.text ());
+				}, this );
 			}
 		}
 	},
@@ -62,7 +64,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 		var view = null;
 		var parent = this.dom.parent ();
 		if ( parent.localName === "head" ) {
-			console.warn ( "TODO: deprecate or fix EDBML in HEAD???" );
+			//console.warn ( "TODO: deprecate or fix EDBML in HEAD???" );
 			view = this.view;
 		} else {
 			if ( parent.spirit ) {
@@ -73,7 +75,8 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 		}
 		
 		if ( view ) {
-			view.compile ( source, this.type, this.debug );
+			var atts = this.att.getup (); // extra compile info
+			view.compile ( source, this.type, this.debug, atts );
 		}
 	},
 

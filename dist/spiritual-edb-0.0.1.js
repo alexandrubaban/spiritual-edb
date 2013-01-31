@@ -519,9 +519,9 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 
 /**
  * The SpiritView acts to update the HTML subtree of a spirit.
- * @extends {gui.SpiritPlugin}
+ * @extends {gui.Plugin}
  */
-edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
+edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 
 	/**
 	 * The edb.Script is bookkeeping data type input. 
@@ -699,7 +699,7 @@ edb.Input.remove = function ( handler ) {
  * Note: This plugin is used standalone, so don't reference associated spirit.
  * @todo formalize how this is supposed to be clear
  */
-edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
+edb.Output = gui.Plugin.extend ( "edb.Output", {
 
 	/**
 	 * Dispatch data as type (eg. instantiate model with JSON and publish the instance on page).
@@ -798,9 +798,9 @@ edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 
 /**
  * Tracking EDB input.
- * @extends {gui.SpiritTracker} Note: Doesn't use a lot of super...
+ * @extends {gui.Tracker} Note: Doesn't use a lot of super...
  */
-edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
+edb.InputTracker = gui.Tracker.extend ( "edb.InputTracker", {
    
 	/**
 	 * True when one of each expected input type has been collected.
@@ -862,7 +862,7 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 						var sig = this.context.gui.signature;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );
 					} else {
-						this.spirit.life.add ( gui.SpiritLife.READY, this );
+						this.spirit.life.add ( gui.LIFE_READY, this );
 					}
 				}
 			}
@@ -934,7 +934,7 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 */
 	onlife : function ( life ) {
 		
-		if ( life.type === gui.SpiritLife.READY ) {
+		if ( life.type === gui.LIFE_READY ) {
 			this._todoname ();
 		}
 	},
@@ -952,7 +952,7 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 
 	/**
 	 * TODO: think about this...
-	 * @overwrites {gui.SpiritPlugin#destruct}
+	 * @overwrites {gui.Plugin#destruct}
 	 */
 	destruct : function () {
 		
@@ -2298,7 +2298,7 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 		this._super.update ();
 		var element = this.element ();
 		if ( this._beforeUpdate ( element )) {
-			gui.SpiritDOM.html ( element, this._serialize ());
+			gui.DOMPlugin.html ( element, this._serialize ());
 			this._afterUpdate ( element );
 			this._report ();
 		}

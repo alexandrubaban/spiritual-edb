@@ -1,8 +1,8 @@
 /**
  * Tracking EDB input.
- * @extends {gui.SpiritTracker} Note: Doesn't use a lot of super...
+ * @extends {gui.TrackerPlugin} Note: Doesn't use a lot of super...
  */
-edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
+edb.InputTracker = gui.TrackerPlugin.extend ( "edb.InputTracker", {
    
 	/**
 	 * True when one of each expected input type has been collected.
@@ -154,7 +154,7 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 
 	/**
 	 * TODO: think about this...
-	 * @overwrites {gui.SpiritPlugin#destruct}
+	 * @overwrites {gui.Plugin#destruct}
 	 */
 	destruct : function () {
 		

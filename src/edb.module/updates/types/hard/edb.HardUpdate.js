@@ -37,7 +37,7 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 		this._super.update ();
 		var element = this.element ();
 		if ( this._beforeUpdate ( element )) {
-			gui.SpiritDOM.html ( element, this._serialize ());
+			gui.DOMPlugin.html ( element, this._serialize ());
 			this._afterUpdate ( element );
 			this._report ();
 		}

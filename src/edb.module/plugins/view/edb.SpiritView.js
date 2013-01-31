@@ -1,8 +1,8 @@
 /**
  * The SpiritView acts to update the HTML subtree of a spirit.
- * @extends {gui.SpiritPlugin}
+ * @extends {gui.Plugin}
  */
-edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
+edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 
 	/**
 	 * The edb.Script is bookkeeping data type input. 

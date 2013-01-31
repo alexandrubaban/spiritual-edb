@@ -64,7 +64,7 @@ edb.InputTracker = gui.TrackerPlugin.extend ( "edb.InputTracker", {
 						var sig = this.context.gui.signature;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );
 					} else {
-						this.spirit.life.add ( gui.SpiritLife.READY, this );
+						this.spirit.life.add ( gui.LIFE_READY, this );
 					}
 				}
 			}
@@ -136,7 +136,7 @@ edb.InputTracker = gui.TrackerPlugin.extend ( "edb.InputTracker", {
 	 */
 	onlife : function ( life ) {
 		
-		if ( life.type === gui.SpiritLife.READY ) {
+		if ( life.type === gui.LIFE_READY ) {
 			this._todoname ();
 		}
 	},

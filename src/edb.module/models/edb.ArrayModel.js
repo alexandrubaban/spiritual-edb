@@ -7,7 +7,7 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	 * Autoboxed data model.
 	 * @type {function} model constructor (or filter function)
 	 */
-	$content : null,
+	$contentmodel : null,
 
 	/**
 	 * Secret constructor.
@@ -22,7 +22,7 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 		 */
 		var C = this.constructor;
 		if ( C.__content__ ) {
-			this.$content = C.__content__;
+			this.$contentmodel = C.__content__;
 			C.__content__ = null;
 		}
 		
@@ -42,7 +42,7 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 			}
 
 			// TODO: this less cryptic
-			var boxer = this.$content;
+			var boxer = this.$contentmodel || this.$cm;
 			if ( gui.Type.isFunction ( boxer )) {
 				input.forEach ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?

@@ -263,7 +263,7 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	 * Autoboxed data model.
 	 * @type {function} model constructor (or filter function)
 	 */
-	$content : null,
+	$contentmodel : null,
 
 	/**
 	 * Secret constructor.
@@ -278,7 +278,7 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 		 */
 		var C = this.constructor;
 		if ( C.__content__ ) {
-			this.$content = C.__content__;
+			this.$contentmodel = C.__content__;
 			C.__content__ = null;
 		}
 		
@@ -298,7 +298,7 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 			}
 
 			// TODO: this less cryptic
-			var boxer = this.$content;
+			var boxer = this.$contentmodel || this.$cm;
 			if ( gui.Type.isFunction ( boxer )) {
 				input.forEach ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
@@ -521,20 +521,13 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
  * The SpiritView acts to update the HTML subtree of a spirit.
  * @extends {gui.Plugin}
  */
-edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
+edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 	/**
-	 * The edb.Script is bookkeeping data type input. 
-	 * It triggers a readystate event when ready to run.  
-	 * @type {edb.Script}
-	 */
-	script : null,
-	
-	/**
-	 * Flipped after first render.
+	 * Flipped after first run.
 	 * @type {boolean}
 	 */
-	rendered : false,
+	ran : false,
 
 	/**
 	 * Use minimal updates? If false, we write 
@@ -547,13 +540,28 @@ edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 	 * Construction time again.
 	 */
 	onconstruct : function () {
-		
 		this._super.onconstruct ();
 		if ( this.updating ) { // using incremental updates?
 			this._updater = new edb.UpdateManager ( this.spirit );
 		}
 	},
 	
+	/**
+	 * Mapping imported functions to declared variable names.
+	 * @returns {Map<String,function>}
+	 */
+	functions : function () {
+		return this._script.functions;
+	},
+
+	/**
+	 * Hm.
+	 * returns {edb.Input}
+	 */
+	input : function () {
+		return this._script.input;
+	},
+
 	/**
 	 * Compile script and run it when ready.
 	 * @param {String} source Script source code
@@ -562,41 +570,32 @@ edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 	 * @param {HashMap<String,String>} atts Script tag attributes
 	 */
 	compile : function ( source, type, debug, atts ) {
-		
 		var Script = edb.GenericScript.get ( type );
-
-		if ( !this.script ) {
+		if ( !this._script ) {
 			var that = this;
-			this.script = new Script ( 
+			this._script = new Script ( 
 				this.spirit, this.spirit.window, 
 				function onreadystatechange () {
 					if ( this.readyState === edb.GenericScript.READY ) {
-						that.render ();
-						/*
-						if ( this.params.length === 0 ) { // auto-running script with zero params
-							that.render ();
-						}
-						*/
+						that.run ();
 					}
 				}
 			);
-			this.script.compile ( source, debug, atts );
+			this._script.compile ( source, debug, atts );
 		} else {
-			throw new Error ( "not supported: recompile edb.SpiritView" ); // support this?
+			throw new Error ( "not supported: recompile edb.ScriptPlugin" ); // support this?
 		}
 	},
 	
 	/**
-	 * Run script and write result. Arguments will be fed to the script as params. 
-	 * Nothing will happen if you serve the EDB script less params than expected!
+	 * Run script (with implicit arguments) and write result to DOM.
 	 * @see {gui.SandBoxView#render}
 	 */
-	render : function () {
-		
-		if ( this.script ) {
+	run : function () {		
+		if ( this._script ) {
 			this.write ( 
-				this.script.run.apply ( 
-					this.script, 
+				this._script.run.apply ( 
+					this._script, 
 					arguments 
 				)
 			);
@@ -612,14 +611,12 @@ edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 	 * @param {String} html
 	 */
 	write : function ( html ) {
-
 		if ( this.updating ) {
 			this._updater.update ( html );
 		} else {
 			this.spirit.dom.html ( html ); // TODO: forms markup make valid!
 		}
-
-		this.rendered = true;
+		this.ran = true;
 		this.spirit.life.dispatch ( "spirit-view-rendered" );
 		console.warn ( "TODO: life event fired apart from first time???" );
 		this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes
@@ -627,6 +624,12 @@ edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 	
 
 	// PRIVATES ...........................................................................
+
+	/**
+	 * Hello.
+	 * @type {edb.Script}
+	 */
+	_script : null,
 
 	/**
 	 * Update manager. 
@@ -638,68 +641,10 @@ edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 
 
 /**
- * Spirit input.
- * @param {object} data
- * @param {function} type
- */
-edb.Input = function SpiritInput ( type, data ) {
-	
-	this.type = type || null;
-	this.data = data || null;
-};
-
-edb.Input.prototype = {
-	
-	/**
-	 * Input type (is a function constructor)
-	 * @type {function}
-	 */
-	type : null,
-	
-	/**
-	 * Input data (is an instance of this.type)
-	 * @type {object} data
-	 */
-	data : null,
-	
-	/**
-	 * Identification.
-	 * @returns {String}
-	 */
-	toString : function () {
-		
-		return "[object edb.Input]";
-	}
-};
-
-/**
- * @static
- * TODO: out of global
- * Subscribe handler to input.
- * @param {object} handler Implements InputListener
- */
-edb.Input.add = function ( handler ) {
-	
-	gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, handler );
-};
-
-/**
- * @static
- * TODO: out of global
- * Unsubscribe handler from input.
- * @param {object} handler Implements InputListener
- */
-edb.Input.remove = function ( handler ) {
-	
-	gui.Broadcast.removeGlobal ( gui.BROADCAST_OUTPUT, handler );
-};
-
-
-/**
  * Note: This plugin is used standalone, so don't reference associated spirit.
  * @todo formalize how this is supposed to be clear
  */
-edb.Output = gui.Plugin.extend ( "edb.Output", {
+edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
 	 * Dispatch data as type (eg. instantiate model with JSON and publish the instance on page).
@@ -800,7 +745,7 @@ edb.Output = gui.Plugin.extend ( "edb.Output", {
  * Tracking EDB input.
  * @extends {gui.Tracker} Note: Doesn't use a lot of super...
  */
-edb.InputTracker = gui.Tracker.extend ( "edb.InputTracker", {
+edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
    
 	/**
 	 * True when one of each expected input type has been collected.
@@ -1076,6 +1021,64 @@ edb.InputTracker = gui.Tracker.extend ( "edb.InputTracker", {
 
 
 /**
+ * Spirit input.
+ * @param {object} data
+ * @param {function} type
+ */
+edb.Input = function SpiritInput ( type, data ) {
+	
+	this.type = type || null;
+	this.data = data || null;
+};
+
+edb.Input.prototype = {
+	
+	/**
+	 * Input type (is a function constructor)
+	 * @type {function}
+	 */
+	type : null,
+	
+	/**
+	 * Input data (is an instance of this.type)
+	 * @type {object} data
+	 */
+	data : null,
+	
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		
+		return "[object edb.Input]";
+	}
+};
+
+/**
+ * @static
+ * TODO: out of global
+ * Subscribe handler to input.
+ * @param {object} handler Implements InputListener
+ */
+edb.Input.add = function ( handler ) {
+	
+	gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, handler );
+};
+
+/**
+ * @static
+ * TODO: out of global
+ * Unsubscribe handler from input.
+ * @param {object} handler Implements InputListener
+ */
+edb.Input.remove = function ( handler ) {
+	
+	gui.Broadcast.removeGlobal ( gui.BROADCAST_OUTPUT, handler );
+};
+
+
+/**
  * TODO: Description goes here.
  */
 edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
@@ -1138,22 +1141,21 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 */
 	_init : function ( source ) {
 
-		var view = null;
+		var plugin = null;
 		var parent = this.dom.parent ();
 		if ( parent.localName === "head" ) {
-			//console.warn ( "TODO: deprecate or fix EDBML in HEAD???" );
-			view = this.view;
+			plugin = this.script;
 		} else {
 			if ( parent.spirit ) {
-				view = parent.spirit.view;
+				plugin = parent.spirit.script;
 			} else if ( gui.debug ) {
 				console.warn ( "templates in document.body should be direct child of a spirit" );
 			}
 		}
 		
-		if ( view ) {
+		if ( plugin ) {
 			var atts = this.att.getup (); // extra compile info
-			view.compile ( source, this.type, this.debug, atts );
+			plugin.compile ( source, this.type, this.debug, atts );
 		}
 	},
 
@@ -3033,7 +3035,7 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 		/*
 		 * Plugin an inputtracker; inject our scope.
 		 */
-		this.input = new edb.InputTracker ();
+		this.input = new edb.InputPlugin ();
 		this.input.context = this.context;
 		
 		/**
@@ -3909,7 +3911,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			head.definitions.push ( 
 				"( function lookup ( __functions__ ) {\n" +
 				funcs.join ( "" ) +
-				"})( this.view.script.functions );" 
+				"})( this.script.functions ());" 
 			);
 		}
 		return script;
@@ -4316,7 +4318,7 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 			head.definitions.push ( 
 				"( function lookup ( __input__ ) {\n" +
 				defs.join ( "" ) +
-				"})( this.view.script.input );" 
+				"})( this.script.input ());" 
 			);
 		}
 
@@ -4348,9 +4350,9 @@ gui.module ( "edb", {
 	 */
 	plugins : {
 		
-		view : edb.SpiritView,
-		input : edb.InputTracker,
-		output : edb.Output
+		script : edb.ScriptPlugin,
+		input : edb.InputPlugin,
+		output : edb.OutputPlugin
 	},
 	
 	/*

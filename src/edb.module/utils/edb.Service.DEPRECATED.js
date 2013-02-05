@@ -92,7 +92,7 @@ edb.Service.prototype = {
 	 */
 	_dispatch : function () {
 		if ( this._dodispatch && this._data ) {
-			var output = new edb.Output ();
+			var output = new edb.OutputPlugin ();
 			output.context = this._context;
 			output.dispatch ( this._data, this._model );
 		}

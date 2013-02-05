@@ -20,9 +20,9 @@ gui.module ( "edb", {
 	 */
 	plugins : {
 		
-		view : edb.SpiritView,
-		input : edb.InputTracker,
-		output : edb.Output
+		script : edb.ScriptPlugin,
+		input : edb.InputPlugin,
+		output : edb.OutputPlugin
 	},
 	
 	/*

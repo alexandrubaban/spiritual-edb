@@ -25,11 +25,11 @@ edb.Service.prototype = {
 	get : function ( type, href ) {
 		
 		// lookup type in context.
-		var output = new edb.Output ();
+		var output = new edb.OutputPlugin ();
 		output.context = this._context;
 		output.type ( type );
 
-		// TODO: ref to edb.ServiceSpirit as "target" of dispatch in edb.Output!
+		// TODO: ref to edb.ServiceSpirit as "target" of dispatch in edb.OutputPlugin!
 
 		if ( href ) {
 			new gui.Request ( href ).acceptJSON ().get ( function ( status, data, text ) {

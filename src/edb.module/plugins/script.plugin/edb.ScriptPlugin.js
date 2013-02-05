@@ -2,20 +2,13 @@
  * The SpiritView acts to update the HTML subtree of a spirit.
  * @extends {gui.Plugin}
  */
-edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
+edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 	/**
-	 * The edb.Script is bookkeeping data type input. 
-	 * It triggers a readystate event when ready to run.  
-	 * @type {edb.Script}
-	 */
-	script : null,
-	
-	/**
-	 * Flipped after first render.
+	 * Flipped after first run.
 	 * @type {boolean}
 	 */
-	rendered : false,
+	ran : false,
 
 	/**
 	 * Use minimal updates? If false, we write 
@@ -28,13 +21,28 @@ edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 	 * Construction time again.
 	 */
 	onconstruct : function () {
-		
 		this._super.onconstruct ();
 		if ( this.updating ) { // using incremental updates?
 			this._updater = new edb.UpdateManager ( this.spirit );
 		}
 	},
 	
+	/**
+	 * Mapping imported functions to declared variable names.
+	 * @returns {Map<String,function>}
+	 */
+	functions : function () {
+		return this._script.functions;
+	},
+
+	/**
+	 * Hm.
+	 * returns {edb.Input}
+	 */
+	input : function () {
+		return this._script.input;
+	},
+
 	/**
 	 * Compile script and run it when ready.
 	 * @param {String} source Script source code
@@ -43,41 +51,32 @@ edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 	 * @param {HashMap<String,String>} atts Script tag attributes
 	 */
 	compile : function ( source, type, debug, atts ) {
-		
 		var Script = edb.GenericScript.get ( type );
-
-		if ( !this.script ) {
+		if ( !this._script ) {
 			var that = this;
-			this.script = new Script ( 
+			this._script = new Script ( 
 				this.spirit, this.spirit.window, 
 				function onreadystatechange () {
 					if ( this.readyState === edb.GenericScript.READY ) {
-						that.render ();
-						/*
-						if ( this.params.length === 0 ) { // auto-running script with zero params
-							that.render ();
-						}
-						*/
+						that.run ();
 					}
 				}
 			);
-			this.script.compile ( source, debug, atts );
+			this._script.compile ( source, debug, atts );
 		} else {
-			throw new Error ( "not supported: recompile edb.SpiritView" ); // support this?
+			throw new Error ( "not supported: recompile edb.ScriptPlugin" ); // support this?
 		}
 	},
 	
 	/**
-	 * Run script and write result. Arguments will be fed to the script as params. 
-	 * Nothing will happen if you serve the EDB script less params than expected!
+	 * Run script (with implicit arguments) and write result to DOM.
 	 * @see {gui.SandBoxView#render}
 	 */
-	render : function () {
-		
-		if ( this.script ) {
+	run : function () {		
+		if ( this._script ) {
 			this.write ( 
-				this.script.run.apply ( 
-					this.script, 
+				this._script.run.apply ( 
+					this._script, 
 					arguments 
 				)
 			);
@@ -93,14 +92,12 @@ edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 	 * @param {String} html
 	 */
 	write : function ( html ) {
-
 		if ( this.updating ) {
 			this._updater.update ( html );
 		} else {
 			this.spirit.dom.html ( html ); // TODO: forms markup make valid!
 		}
-
-		this.rendered = true;
+		this.ran = true;
 		this.spirit.life.dispatch ( "spirit-view-rendered" );
 		console.warn ( "TODO: life event fired apart from first time???" );
 		this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes
@@ -108,6 +105,12 @@ edb.SpiritView = gui.Plugin.extend ( "edb.SpiritView", {
 	
 
 	// PRIVATES ...........................................................................
+
+	/**
+	 * Hello.
+	 * @type {edb.Script}
+	 */
+	_script : null,
 
 	/**
 	 * Update manager. 

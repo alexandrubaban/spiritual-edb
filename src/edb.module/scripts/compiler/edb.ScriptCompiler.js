@@ -56,7 +56,7 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 			head.definitions.push ( 
 				"( function lookup ( __input__ ) {\n" +
 				defs.join ( "" ) +
-				"})( this.view.script.input );" 
+				"})( this.script.input ());" 
 			);
 		}
 

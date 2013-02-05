@@ -61,22 +61,21 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 */
 	_init : function ( source ) {
 
-		var view = null;
+		var plugin = null;
 		var parent = this.dom.parent ();
 		if ( parent.localName === "head" ) {
-			//console.warn ( "TODO: deprecate or fix EDBML in HEAD???" );
-			view = this.view;
+			plugin = this.script;
 		} else {
 			if ( parent.spirit ) {
-				view = parent.spirit.view;
+				plugin = parent.spirit.script;
 			} else if ( gui.debug ) {
 				console.warn ( "templates in document.body should be direct child of a spirit" );
 			}
 		}
 		
-		if ( view ) {
+		if ( plugin ) {
 			var atts = this.att.getup (); // extra compile info
-			view.compile ( source, this.type, this.debug, atts );
+			plugin.compile ( source, this.type, this.debug, atts );
 		}
 	},
 

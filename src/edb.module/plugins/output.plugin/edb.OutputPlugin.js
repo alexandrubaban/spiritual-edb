@@ -2,7 +2,7 @@
  * Note: This plugin is used standalone, so don't reference associated spirit.
  * @todo formalize how this is supposed to be clear
  */
-edb.Output = gui.Plugin.extend ( "edb.Output", {
+edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
 	 * Dispatch data as type (eg. instantiate model with JSON and publish the instance on page).

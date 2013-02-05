@@ -2,7 +2,7 @@
  * Tracking EDB input.
  * @extends {gui.Tracker} Note: Doesn't use a lot of super...
  */
-edb.InputTracker = gui.Tracker.extend ( "edb.InputTracker", {
+edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
    
 	/**
 	 * True when one of each expected input type has been collected.

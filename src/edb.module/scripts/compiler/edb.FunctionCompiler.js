@@ -212,7 +212,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			head.definitions.push ( 
 				"( function lookup ( __functions__ ) {\n" +
 				funcs.join ( "" ) +
-				"})( this.view.script.functions );" 
+				"})( this.script.functions ());" 
 			);
 		}
 		return script;

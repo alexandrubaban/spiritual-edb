@@ -62,7 +62,7 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 		/*
 		 * Plugin an inputtracker; inject our scope.
 		 */
-		this.input = new edb.InputTracker ();
+		this.input = new edb.InputPlugin ();
 		this.input.context = this.context;
 		
 		/**

@@ -7,9 +7,7 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 	 * Hello.
 	 */
 	__construct__ : function ( data ) {
-		
 		this._instanceKey = gui.KeyMaster.generateKey ();
-
 		var type = gui.Type.of ( data );
 		switch ( type ) {
 			case "object" :
@@ -40,17 +38,13 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 	 * @param {object} proxy The object whose properties are being intercepted (the JSON data)
 	 */
 	approximate : function ( handler, proxy ) {
-		
 		var def = null;
 		proxy = proxy || {};
 		var model = {}; // mapping properties that redefine from "function" to "object"
-		
 		this._definitions ( handler ).forEach ( function ( key ) {
-			
 			def = handler [ key ];
-			
 			switch ( gui.Type.of ( def )) {
-				
+
 				/*
 				 * Method type functions are skipped, constructors get instantiated. 
 				 * Similar (named) property in proxy becomes the constructor argument.
@@ -130,7 +124,6 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 	 * @returns {Array<String>}
 	 */
 	_definitions : function ( handler ) {
-			
 		var keys = [];
 		function fix ( key ) {
 			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {

@@ -35,7 +35,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @param {Document} doc
 	 */
 	__construct__ : function ( doc ) {
-		
 		this.onconstruct ( doc );
 	},
 	
@@ -44,7 +43,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @param {Document} doc
 	 */
 	onconstruct : function ( doc ) {
-
 		this.document = doc;
 		this.window = doc.defaultView;
 	},
@@ -54,7 +52,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @returns {edb.Update}
 	 */
 	setup : function () {
-		
 		return this;
 	},
 	
@@ -70,7 +67,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @returns {Element}
 	 */
 	element : function () {
-		
 		/*
 		 * The root element (the one whose spirit is assigned the script) 
 		 * may be indexed by "spiritkey" if no ID attribute is specified.
@@ -91,7 +87,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * Clean stuff up for what it's worth.
 	 */
 	dispose: function () {
-		
 		delete this.window;
 		delete this.document;
 	},
@@ -105,7 +100,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @return {boolean}
 	 */
 	_beforeUpdate : function ( element ) {
-		
 		var event = "x-beforeupdate-" + this.type;
 		return this._dispatch ( element, event );
 	},
@@ -116,7 +110,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @return {boolean}
 	 */
 	_afterUpdate : function ( element ) {
-		
 		var event = "x-aftrerupdate-" + this.type;
 		return this._dispatch ( element, event );
 	},
@@ -128,7 +121,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @return {boolean} False if event was canceled
 	 */
 	_dispatch : function ( element, name ) {
-
 		var event = this.document.createEvent ( "UIEvents" );
 		event.initEvent ( name, true, true );
 		return element.dispatchEvent ( event );
@@ -139,7 +131,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @param {String} report
 	 */
 	_report : function ( report ) {
-		
 		if ( this.window.gui.debug ) {
 			if ( gui.KeyMaster.isKey ( this.id )) {
 				report = report.replace ( this.id, "(anonymous)" );

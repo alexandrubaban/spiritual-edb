@@ -12,7 +12,6 @@ edb.Loader = edb.GenericLoader.extend ( "edb.Loader", {
 	 * @param @optional {object} thisp
 	 */
 	onload : function ( text, url, callback, thisp ) {
-		
 		if ( url.external ) {
 			text = this._extract ( text, url );
 		}
@@ -28,12 +27,10 @@ edb.Loader = edb.GenericLoader.extend ( "edb.Loader", {
 	 * @returns {String} Template source code
 	 */
 	_extract : function ( text, url ) {
-		
 		// TODO: cache this element for repeated lookups
 		var temp = this._document.createElement ( "div" );
 		temp.innerHTML = text;
 		var script = temp.querySelector ( url.hash || "script" );
-		
 		var source = null;
 		if ( script ) {
 			switch ( script.type ) {

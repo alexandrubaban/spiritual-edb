@@ -9,8 +9,7 @@ edb.Function = {
 	 * @param {Window} win
 	 * @returns {function}
 	 */
-	get : function ( src, win ) { // TODO: pass document not window
-		
+	get : function ( src, win ) { // TODO: pass document not window	
 		src = new gui.URL ( win.document, src ).href;
 		var result = this._map.get ( src ) || null;
 		if ( !result ) {
@@ -34,7 +33,6 @@ edb.Function = {
 	 * @param {Window} win
 	 */
 	_load : function ( src, win ) {
-
 		new edb.Loader ( win.document ).load ( src, function ( source ) {
 			new edb.Script ( null, win, function onreadystatechange () {
 				if ( this.readyState === edb.GenericScript.READY ) {

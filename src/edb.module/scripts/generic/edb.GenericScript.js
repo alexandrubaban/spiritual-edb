@@ -34,7 +34,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @returns {String}
 	 */
 	toString : function () {
-		
 		return "[object edb.GenericScript]";
 	},
 	
@@ -46,7 +45,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @param {function} handler
 	 */
 	onconstruct : function ( spirit, window, handler ) {
-
 		this.spirit = spirit || null;
 		this.window = window || null;
 		this.onreadystatechange = handler || null;
@@ -76,7 +74,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @param {String} state
 	 */
 	_gostate : function ( state ) {
-		
 		if ( state !== this.readyState ) {
 			this.readyState = state;
 			if ( gui.Type.isFunction ( this.onreadystatechange )) {
@@ -85,6 +82,7 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 		}
 	},
 	
+
 	// Secrets .....................................................................
 	
 	/**
@@ -94,7 +92,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @param {function} handler
 	 */
 	__construct__ : function ( spirit, window, handler ) {
-		
 		this.onconstruct ( spirit, window, handler );
 	}	
 	
@@ -139,7 +136,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * TODO: rename
 	 */
 	set : function () { // implementation, ...mimetypes
-		
 		var args = gui.Type.list ( arguments );
 		var impl = args.shift ();
 		args.forEach ( function ( type ) {
@@ -153,7 +149,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @returns {edb.GenericScript}
 	 */
 	get : function ( type ) {
-		
 		var impl = this._scripts.get ( type );
 		if ( !impl ) {
 			throw new Error ( "No script engine registered for type: " + type );

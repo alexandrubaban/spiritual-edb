@@ -1,5 +1,5 @@
 /**
- * Utilities for the UpdateManager.
+ * Utilities for the {edb.UpdateManager}.
  */
 edb.UpdateAssistant = {
 
@@ -10,7 +10,6 @@ edb.UpdateAssistant = {
 	 * @returns {String}
 	 */
 	id : function ( element ) {
-
 		return gui.Type.isDefined ( element.id ) ? 
 			element.id || null : 
 			element.getAttribute ( "id" ) || null;
@@ -29,14 +28,10 @@ edb.UpdateAssistant = {
 	 * @returns {Element}
 	 */
 	parse : function ( doc, markup, id, element ) { // gonna need to know the parent element type here...
-
 		element = doc.createElement ( element.localName );
 		element.innerHTML = markup;
 		element.id = id;
-
-		/*
-		 * TODO: Plugin this!
-		 */
+		// TODO: Plugin this!
 		Array.forEach ( element.querySelectorAll ( "option" ), function ( option ) {
 			switch ( option.getAttribute ( "selected" )) {
 				case "true" :
@@ -47,10 +42,7 @@ edb.UpdateAssistant = {
 					break;
 			}
 		});
-
-		/*
-		 * TODO: Plugin this!
-		 */
+		// TODO: Plugin this!
 		Array.forEach ( element.querySelectorAll ( "input[type=checkbox],input[type=radio]" ), function ( option ) {
 			switch ( option.getAttribute ( "checked" )) {
 				case "true" :
@@ -61,7 +53,6 @@ edb.UpdateAssistant = {
 					break;
 			}
 		});
-
 		return element;
 	},
 
@@ -71,7 +62,6 @@ edb.UpdateAssistant = {
 	 * @returns {Map<String,number>}
 	 */
 	order : function ( nodes ) {
-		
 		var order = new Map ();
 		Array.forEach ( nodes, function ( node, index ) {
 			if ( node.nodeType === Node.ELEMENT_NODE ) {
@@ -88,7 +78,6 @@ edb.UpdateAssistant = {
 	 * @return {Map<String,Element>}
 	 */
 	index : function ( nodes ) {
-		
 		var result = Object.create ( null );
 		Array.forEach ( nodes, function ( node, index ) {
 			if ( node.nodeType === Node.ELEMENT_NODE ) {

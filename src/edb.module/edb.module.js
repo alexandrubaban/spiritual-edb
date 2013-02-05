@@ -19,7 +19,6 @@ gui.module ( "edb", {
 	 * Register default plugins for all spirits.
 	 */
 	plugins : {
-		
 		script : edb.ScriptPlugin,
 		input : edb.InputPlugin,
 		output : edb.OutputPlugin
@@ -29,7 +28,6 @@ gui.module ( "edb", {
 	 * Channeling spirits to CSS selectors.
 	 */
 	channels : [
-		
 		[ "script[type='text/edbml']", "edb.ScriptSpirit" ],
 		[ "link[rel='service']", "edb.ServiceSpirit" ]
 	],
@@ -40,16 +38,13 @@ gui.module ( "edb", {
 	 */
 	init : function ( context ) {
 
-		/*
-		 * TODO: detect sandbox...
-		 */
+		// TODO: detect sandbox...
 		if ( context === gui.context ) { // TODO: better detect top context
 			if ( edb.GenericScript && edb.GenericLoader ) { // TODO: this check is for sandbox (future project)
 				edb.GenericScript.set ( edb.Script, "text/edbml" );
 				edb.GenericLoader.set ( edb.Loader, "text/edbml" );
 			}
 		}
-
 		context.Object.model = function ( a1, a2 ) {
 			return edb.ObjectModel.extend ( a1, a2 );
 		};

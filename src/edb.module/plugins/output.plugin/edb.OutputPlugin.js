@@ -45,7 +45,6 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	 * @returns {edb.Input}
 	 */
 	_format : function ( data, Type ) {
-
 		var result = data;
 		if ( data instanceof edb.Input === false ) {
 			if ( Type ) {

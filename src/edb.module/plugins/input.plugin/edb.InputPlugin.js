@@ -37,17 +37,13 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {gui.Spirit}
 	 */
 	add : function ( arg, handler ) {
-
 		this.done = false; // TODO: check has() already around here?
 		this.latest = this.latest || [];
 		this._types = this._types || [];
 		this._weakmap = this._weakmap || new WeakMap ();
-		
 		handler = handler ? handler : this.spirit;
-		
 		var maybe = [];
 		var types = this._breakdown ( arg );
-		
 		types.forEach ( function ( type, index ) {
 			if ( !this._weakmap.get ( type )) {
 				this._weakmap.set ( type, []);
@@ -75,15 +71,12 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 	/**
 	 * Remove one or output handlers.
+	 * @todo various updates after this operation
 	 * @param {object} arg
 	 * @param @optional {object} handler implements InputListener (defaults to this)
 	 * @returns {gui.Spirit}
 	 */
 	remove : function ( arg, handler ) {
-		
-		/*
-		 * TODO: various updates after this operation
-		 */
 		handler = handler ? handler : this;
 		this._breakdown ( arg ).forEach ( function ( type ) {
 			var index = this._types.indexOf ( type );
@@ -103,7 +96,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {object}
 	 */
 	get : function ( type ) {
-		
 		var data;
 		if ( this.latest ) {
 			this.latest.every ( function ( input ) {
@@ -121,7 +113,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {gui.Broadcast} b
 	 */
 	onbroadcast : function ( b ) {
-		
 		if ( b.type === gui.BROADCAST_OUTPUT ) {
 			this._maybeinput ( b.data );
 		}
@@ -135,7 +126,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {gui.SpiritLife} life
 	 */
 	onlife : function ( life ) {
-		
 		if ( life.type === gui.LIFE_READY ) {
 			this._todoname ();
 		}
@@ -146,7 +136,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {gui.Tick} tick
 	 */
 	ontick : function ( tick ) {
-
 		if ( tick.type === gui.TICK_COLLECT_INPUT ) {
 			this._todoname ();
 		}
@@ -157,7 +146,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @overwrites {gui.Plugin#destruct}
 	 */
 	destruct : function () {
-		
 		this._super.destruct ();
 		gui.Tick.remove ( gui.TICK_COLLECT_INPUT, this, this.context.gui.signature );
 		if ( this._types ) {
@@ -179,7 +167,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * TODO: Update the above to reflect modern API
 	 */
 	_todoname : function () {
-
 		this._types.forEach ( function ( type ) {
 			if ( type.output instanceof edb.Input ) {
 				this._maybeinput ( type.output );
@@ -192,10 +179,8 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {edb.Input} input
 	 */
 	_maybeinput : function ( input ) {
-
 		var type = input.type;
 		if ( this._types.indexOf ( type ) >-1 ) {
-
 			// remove old entry (no longer latest)
 			this.latest.every ( function ( collected, i ) {
 				var match = ( collected.type === type );
@@ -204,10 +189,8 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 				}
 				return !match;
 			}, this );
-
 			// add latest entry and flag all accounted for
 			this.done = ( this.latest.push ( input ) === this._types.length );
-
 			// handlers updated even when not all accounted for
 			this._weakmap.get ( type ).forEach ( function ( handler ) {
 				handler.oninput ( input );
@@ -221,7 +204,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {Array<function>}
 	 */
 	_breakdown : function ( arg ) {
-		
 		var result = null;
 		if ( gui.Type.isArray ( arg )) {
 			result = this._breakarray ( arg );
@@ -236,7 +218,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {Array<function>}
 	 */
 	_breakarray : function ( array ) {
-		
 		return array.map ( function ( o ) {
 			var res = null;
 			switch ( gui.Type.of ( o )) {
@@ -259,7 +240,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {Array<function>}
 	 */
 	_breakother : function ( arg ) {
-		
 		var result = null;
 		switch ( gui.Type.of ( arg )) {
 			case "function" :

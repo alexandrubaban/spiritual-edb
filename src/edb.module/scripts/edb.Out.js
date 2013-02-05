@@ -21,7 +21,6 @@ edb.Out.prototype = {
 	 * @returns {String}
 	 */
 	write : function () {
-
 		return this.html;
 	}
 };

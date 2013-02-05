@@ -47,10 +47,8 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param {function} handler
 	 */
 	onconstruct : function ( pointer, context, handler ) {
-		
 		this._keys = new Set (); // tracking data model changes
 		this._super.onconstruct ( pointer, context, handler );
-		
 		/*
 		 * Redefine these terms into concepts that makes more 
 		 * sense when runinng script inside a worker context. 
@@ -58,7 +56,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 		 */
 		this.pointer = this.spirit; this.spirit = null;
 		this.context = this.window; this.window = null;
-		
 		/*
 		 * Plugin an inputtracker; inject our scope.
 		 */
@@ -91,17 +88,13 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 		
 		// create invokable function (signed for sandbox usage)
 		var compiler = new edb.ScriptCompiler ( source, debug, atts );
-
 		if ( this._signature ) {
 			compiler.sign ( this._signature );
 		}
-		
 		// compile source to invokable function
 		this._function = compiler.compile ( this.context );
-
 		// copy expected params
 		this.params = compiler.params;
-
 		// waiting for functions to load?
 		gui.Object.each ( compiler.functions, function ( name, src ) {
 			src = new gui.URL ( this.context.document, src ).href;
@@ -113,12 +106,10 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 				this.functions [ name ] = src;
 			}
 		}, this );
-
 		// waiting for datatypes to load?
 		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
-		
 		try { // in development mode, load invokable function as a blob file; otherwise just init
 			if ( gui.debug && gui.Client.hasBlob && !gui.Client.isExplorer && !gui.Client.isOpera ) {
 				this._blob ( compiler );
@@ -128,7 +119,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 		} catch ( workerexception ) {
 			this._maybeready ();
 		}
-		
 		return this;
 	},
 
@@ -138,7 +128,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @returns {edb.Script}
 	 */
 	sign : function ( signature ) {
-		
 		this._signature = signature;
 		return this;
 	},
@@ -148,21 +137,14 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @returns {String} 
 	 */
 	run : function () { // arguments via apply()
-
 		this._keys = new Set ();
 		var error = null;
 		var result = null;
-		 
 		if ( !this._function ) {
 			error = "Script not compiled";
 		} else if ( !this.input.done ) {
 			error = "Script awaits input";
 		}
-		/*
-		else {
-			error = this._validate ( arguments );
-		}
-		*/
 		if ( error !== null ) {
 			throw new Error ( error );
 		} else {
@@ -170,7 +152,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			result = this._function.apply ( this.pointer, arguments );
 			this._subscribe ( false );
 		}
-
 		return result;
 	},
 	
@@ -179,14 +160,11 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param {gui.Broadcast} broadcast
 	 */
 	onbroadcast : function ( broadcast ) {
-		
 		switch ( broadcast.type ) {
-			
 			case gui.BROADCAST_DATA_SUB :
 				var key = broadcast.data;
 				this._keys.add ( key );
 				break;
-				
 			/*
 			 * Timeout allows multiple data model 
 			 * updates before we rerun the script.
@@ -201,7 +179,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 					}
 				}
 				break;
-
 			case edb.BROADCAST_FUNCTION_LOADED :
 				var src = broadcast.data;
 				gui.Object.each ( this.functions, function ( name, value ) {
@@ -219,7 +196,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param {gui.Tick} tick
 	 */
 	ontick : function ( tick ) {
-
 		switch ( tick.type ) {
 			case gui.TICK_SCRIPT_UPDATE :
 				this._gostate ( edb.GenericScript.READY );
@@ -233,7 +209,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param {edb.Input} input
 	 */
 	oninput : function ( input ) {
-		
 		this._maybeready ();
 	},
 	
@@ -263,7 +238,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * All functions imported?
 	 */
 	_functionsdone : function () {
-
 		return Object.keys ( this.functions ).every ( function ( name ) {
 			return gui.Type.isFunction ( this.functions [ name ]);
 		}, this );
@@ -275,13 +249,11 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param {edb.ScriptCompiler} compiler
 	 */
 	_blob : function ( compiler ) {
-
 		var key = gui.KeyMaster.generateKey (),
 			msg = "// blob script generated in development mode\n",
 			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}",
 			win = this.context,
 			doc = win.document;
-
 		this._gostate ( edb.GenericScript.LOADING );
 		gui.BlobLoader.loadScript ( doc, src, function onload () {
 			this._gostate ( edb.GenericScript.WORKING );
@@ -295,7 +267,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * for data types to initialize...
 	 */
 	_maybeready : function () {
-
 		if ( this.readyState !== edb.GenericScript.LOADING ) {
 			this._gostate ( edb.GenericScript.WORKING );
 			if ( this.input.done && this._functionsdone ()) {
@@ -307,31 +278,10 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	},
 	
 	/**
-	 * Confirm correct number of args. No arg 
-	 * must be left undefined, use null instead.
-	 * @param {Arguments} params
-	 * @returns {String} 
-	 *
-	_validate : function ( params ) {
-		
-		var error = null, expected = this.params.length;
-		var i = 0; while ( i < expected ) {
-			if ( !gui.Type.isDefined ( params [ i ])) {
-				error = "Script param undefined: " + this.params [ i ];
-				break;
-			}
-			i++;
-		}
-		return error;
-	},
-	*/
-	
-	/**
 	 * Add-remove broadcast handlers.
 	 * @param {boolean} isBuilding
 	 */
 	_subscribe : function ( isBuilding ) {
-		
 		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( gui.BROADCAST_DATA_SUB, this );
 		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( gui.BROADCAST_DATA_PUB, this );
 	}
@@ -361,7 +311,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @returns {String}
 	 */
 	assign : function ( func, thisp ) {
-		
 		var key = gui.KeyMaster.generateKey ();
 		edb.Script._invokables.set ( key, function ( value, checked ) {
 			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
@@ -377,10 +326,8 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param @optional {Map<String,object>} log
 	 */
 	invoke : function ( key, sig, log ) {
-		
 		var func = null;
 		log = log || this._log;
-
 		/*
 		  * Relay invokation to edb.Script in sandboxed context?
 		 */
@@ -391,7 +338,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 				log : log
 			});
 		} else {
-
 			/*
 			 * Timeout is a cosmetic stunt to unfreeze a pressed 
 			 * button case the function takes a while to complete. 
@@ -409,13 +355,11 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			}
 		}
 	},
-
 	/**
 	 * Keep a log on the latest DOM event.
 	 * @param {Event} e
 	 */
 	register : function ( e ) {
-
 		this._log = {
 			type : e.type,
 			value : e.target.value,

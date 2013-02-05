@@ -2,7 +2,6 @@
  * @param {gui.Spirit} spirit
  */
 edb.UpdateManager = function UpdateManager ( spirit ) {
-	
 	this._keyid = spirit.dom.id () || spirit.spiritkey;
 	this._spirit = spirit;
 	this._doc = spirit.document;
@@ -15,20 +14,16 @@ edb.UpdateManager.prototype = {
 	 * @param {String} html
 	 */
 	update : function ( html ) {
-
 		this._updates = new edb.UpdateCollector ();
-
 		if ( this._olddom === null ) {
 			this._first ( html );
 		} else {
 			this._next ( html );
 		}
-
 		this._updates.eachRelevant ( function ( update ) {
 			update.update ();
 			update.dispose ();
 		});
-
 		this._updates.dispose ();
 		delete this._updates;
 	},
@@ -85,7 +80,6 @@ edb.UpdateManager.prototype = {
 	 * @param {String} html
 	 */
 	_first : function ( html ) {
-
 		this._olddom = this._parse ( html );
 		this._updates.collect ( 
 			new edb.HardUpdate ( this._doc ).setup ( this._keyid, this._olddom )
@@ -97,7 +91,6 @@ edb.UpdateManager.prototype = {
 	 * @param {String} html
 	 */
 	_next : function ( html ) {
-
 		this._newdom = this._parse ( html );
 		this._crawl ( this._newdom, this._olddom, this._newdom, this._keyid, {}, null );
 		this._olddom = this._newdom;
@@ -109,7 +102,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {Element}
 	 */
 	_parse : function ( html ) {
-
 		return this._assistant.parse ( 
 			this._doc, 
 			html, 
@@ -128,7 +120,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_crawl : function ( newchild, oldchild, lastnode, id, ids, css ) {
-
 		var result = true, n = 1;
 		while ( newchild && oldchild && !this._updates.hardupdates ( id )) {
 			switch ( newchild.nodeType ) {
@@ -156,7 +147,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_scan : function ( newnode, oldnode, lastnode, id, ids, css, n ) {
-
 		var result = true, oldid = this._assistant.id ( oldnode );
 		css = css ? oldid ? "#" + oldid : css + ">" + oldnode.localName + ":nth-child(" + n + ")" : "this";
 		if (( result = this._check ( newnode, oldnode, lastnode, id, ids, css, n )))  {	
@@ -181,11 +171,9 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_check : function ( newnode, oldnode, lastnode, id, ids, css, n ) {
-		
 		var result = true;
 		var isSoftUpdate = false;
 		var isPluginUpdate = false; // TODO: plugins...
-
 		if (( newnode && !oldnode ) || ( !newnode && oldnode )) {  
 			result = false;
 		} else if (( result = newnode.nodeType === oldnode.nodeType )) {
@@ -229,7 +217,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_familiar : function ( newnode, oldnode ) {
-		
 		return [ "namespaceURI", "localName" ].every ( function ( prop ) {
 			return newnode [ prop ] === oldnode [ prop ];
 		});
@@ -244,10 +231,8 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean} When false, replace "hard" and stop crawling.
 	 */
 	_checkatts : function ( newnode, oldnode, ids, css ) {
-		
 		var result = true;
 		var update = null;
-		
 		if ( this._attschanged ( newnode.attributes, oldnode.attributes, ids, css )) {
 			var newid = this._assistant.id ( newnode );
 			var oldid = this._assistant.id ( oldnode );
@@ -272,7 +257,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_attschanged : function ( newatts, oldatts, ids, css ) {
-
 		return newatts.length !== oldatts.length || !Array.every ( newatts, function ( newatt ) {
 			var oldatt = oldatts.getNamedItem ( newatt.name );
 			/*
@@ -293,7 +277,6 @@ edb.UpdateManager.prototype = {
 	 * @return {boolean}
 	 */
 	_maybesoft : function ( newnode, oldnode ) {
-		
 		if ( newnode && oldnode ) {
 			return this._maybesoft ( newnode ) && this._maybesoft ( oldnode );
 		} else {	
@@ -323,7 +306,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_confirmsoft : function ( newnode, oldnode ) {
-		
 		var res = true, prev = null;
 		var oldorder = this._assistant.order ( oldnode.childNodes );
 		return Array.every ( newnode.childNodes, function ( node, index ) {
@@ -346,11 +328,9 @@ edb.UpdateManager.prototype = {
 	 * @return {boolean}
 	 */
 	_updatesoft : function ( newnode, oldnode, ids, css, n ) {
-		
 		var updates = [];
 		var news = this._assistant.index ( newnode.childNodes );
 		var olds = this._assistant.index ( oldnode.childNodes );
-		
 		/*
 		 * Add elements?
 		 */
@@ -358,7 +338,6 @@ edb.UpdateManager.prototype = {
 			topid = this._assistant.id ( oldnode ),
 			oldid = null,
 			newid = null;
-		
 		while ( child ) {
 			newid = this._assistant.id ( child );
 			if ( !olds [ newid ]) {

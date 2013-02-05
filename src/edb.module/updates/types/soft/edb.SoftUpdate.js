@@ -21,7 +21,6 @@ edb.SoftUpdate = edb.Update.extend ( "edb.SoftUpdate", {
 	 * Clean stuff up for what it's worth.
 	 */
 	dispose : function () {
-		
 		this._super.dispose ();
 		delete this.xelement;
 	},
@@ -34,7 +33,6 @@ edb.SoftUpdate = edb.Update.extend ( "edb.SoftUpdate", {
 	 * @param {HTMLElement} element
 	 */
 	_import : function ( parent ) {
-		
 		var temp = this.document.createElement ( parent.nodeName );
 		temp.innerHTML = new XMLSerializer ().serializeToString ( this.xelement );
 		return temp.firstChild;

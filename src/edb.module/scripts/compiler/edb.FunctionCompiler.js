@@ -40,7 +40,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * 
 	 */
 	onconstruct : function ( script, debug, atts ) {
-
 		this.script = script;
 		this.extras = atts;
 		this.debug = debug ? true : false;
@@ -53,21 +52,17 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {function}
 	 */
 	compile : function ( scope, fallback ) {
-		
 		var result = null;
 		this.params = [];
 		this.functions = Object.create ( null );
 		this._vars = [];
-		
 		var head = {
 			declarations : Object.create ( null ), // Map<String,boolean>
 			definitions : [] // Array<String>
 		};
-
 		[ "_validate", "_tag", "_extract", "_declare", "_cornholio", "_compile" ].forEach ( function ( step ) {
 			this.script = this [ step ] ( this.script, head );
 		}, this );
-		
 		try {
 			if ( this.debug ) {
 				console.log ( this.source ( "\t", this.params ));
@@ -78,7 +73,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				result = this._fail ( scope, exception );
 			}
 		}
-		
 		return result;
 	},
 
@@ -87,7 +81,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	source : function ( tabs, params ) {
-
 		var source = this._format ( this.script );
 		if ( tabs ) {
 			source = tabs + source.replace ( /\n/g, "\n" + tabs );
@@ -106,7 +99,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {edb.ScriptCompiler}
 	 */
 	sign : function ( signature ) {
-		
 		this._signature = signature;
 		return this;
 	},
@@ -134,7 +126,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_validate : function ( script ) {
-
 		if ( this.debug ) { // testing in debug mode only!
 			if ( edb.FunctionCompiler._NESTEXP.test ( script )) {
 				throw "Nested EDBML dysfunction";
@@ -149,7 +140,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @return {[type]}        [description]
 	 */
 	_tag : function ( script ) {
-
 		if ( this.extras ) { // TODO: how can it be "undefined"?
 			var tag = this.extras [ "tag" ];
 			if ( tag ) {
@@ -169,7 +159,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_extract : function ( script, head ) {
-
 		edb.Instruction.from ( script ).forEach ( function ( pi ) {
 			this._instruct ( pi );
 		}, this );
@@ -181,7 +170,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @param {edb.Instruction} pi
 	 */
 	_instruct : function ( pi ) {
-
 		var atts = pi.atts;
 		switch ( pi.type ) {
 			case "param" :
@@ -200,14 +188,11 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_declare : function ( script, head ) {
-
 		var funcs = [];
-
 		gui.Object.each ( this.functions, function ( name, func ) {
 			head.declarations [ name ] = true;
 			funcs.push ( name + " = __functions__ [ '" + name + "' ];\n" );
 		}, this );
-
 		if ( funcs [ 0 ]) {
 			head.definitions.push ( 
 				"( function lookup ( __functions__ ) {\n" +
@@ -225,7 +210,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_cornholio : function ( script, head ) {
-
 		var vars = "";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
 			vars += ", " + name + " = null";
@@ -244,9 +228,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_compile : function ( script, head ) {
-
 		var attr = edb.FunctionCompiler._ATTREXP;
-
 		var body = '"use strict";\n',
 			html = false,
 			peek = false,
@@ -258,7 +240,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			last = 0,
 			spot = 0,
 			indx = 0;
-
 		/*
 		 * Parse @ notation in markup. 
 		 * @param {String} line
@@ -280,7 +261,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				skip = name.length + 1;
 			}
 		}
-
 		/*
 		 * Parse @ notation in script.
 		 * TODO: preserve email address and allow same-line @
@@ -304,16 +284,12 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				}
 			}
 		}
-
 		script.split ( "\n" ).forEach ( function ( line, index ) {
-
 			line = line.trim ();
 			last = line.length - 1;
 			adds = line.charAt ( 0 ) === "+";
 			cont = cont || ( html && adds );
-
 			if ( line.length > 0 ) {
-
 				if ( index > 0 ) {
 					if ( html ) {	
 						if ( !cont ) {
@@ -324,9 +300,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 						body += "\n";
 					}
 				}
-
 				cont = false;
-
 				Array.forEach ( line, function ( c, i ) {
 					if ( html ) {
 						switch ( c ) {
@@ -404,7 +378,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				}, this );
 			}
 		}, this );
-
 		body += ( html ? "';" : "" ) + "\nreturn out.write ();";
 		return this.debug ? this._format ( body ) : body;
 	},
@@ -417,9 +390,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_inject : function ( body, spot, func, index ) {
-		
 		var sig = this._signature ?  ( ", &quot;" + this._signature + "&quot;" ) : "";
-
 		return (
 			body.substring ( 0, spot ) + "\n" + 
 			"var __edb__" + index + " = edb.Script.assign ( function ( value, checked ) { \n" +
@@ -438,7 +409,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {function}
 	 */
 	_convert : function ( scope, script, params ) {
-		
 		var args = "";
 		if ( gui.Type.isArray ( params )) {
 			args = params.join ( "," );
@@ -454,7 +424,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {boolean}
 	 */
 	_ahead : function ( line, index, string ) {
-		
 		var i = index + 1, l = string.length;
 		return line.length > index + l && line.substring ( i, i + l ) === string;
 	},
@@ -467,7 +436,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {boolean}
 	 */
 	_behind : function ( line, index, string ) {
-
 		var length = string.length, start = index - length;
 		return start >= 0 && line.substr ( start, length ) === string;
 	},
@@ -479,7 +447,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {function}
 	 */
 	_fail : function ( scope, exception ) {
-		
 		this._debug ( this._format ( this.script ));
 		this.script = "<p class=\"error\">" + exception.message + "</p>";
 		return this.compile ( scope, true );
@@ -493,7 +460,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @param {String} source
 	 */
 	_debug : function ( source ) {
-
 		if ( window.btoa ) {
 			source = window.btoa ( "function debug () {\n" + source + "\n}" );
 			var script = document.createElement ( "script" );
@@ -514,14 +480,12 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_format : function ( body ) {
-		
 		var debug = "",
 			tabs = "",
 			first = null,
 			last = null,
 			fixt = null,
 			flast = null;
-		
 		body.split ( "\n" ).forEach ( function ( line ) {
 			line = line.trim ();
 			first = line.charAt ( 0 );
@@ -538,7 +502,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		});
 		return debug;
 	}
-
+	
 });
 
 /**

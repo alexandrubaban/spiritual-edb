@@ -13,7 +13,6 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	 * @param @optional {object} thisp
 	 */
 	load : function ( src, callback, thisp ) {
-		
 		var url = new gui.URL ( this._document, src );
 		if ( this._cache.has ( url.location )) {
 			this._cached ( url, callback, thisp );
@@ -35,7 +34,6 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	 * @param @optional {object} thisp
 	 */
 	_lookup : function ( url, callback, thisp ) {
-		
 		var script = this._document.querySelector ( url.hash );
 		this.onload ( script.textContent, url, callback, thisp );
 	}
@@ -56,7 +54,6 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	 * TODO: rename!
 	 */
 	set : function () { // implementation, ...mimetypes
-		
 		var args = gui.Type.list ( arguments );
 		var impl = args.shift ();
 		args.forEach ( function ( type ) {
@@ -73,7 +70,6 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	 * @returns {edb.GenericLoader}
 	 */
 	get : function ( type ) {
-		
 		var impl = edb.GenericLoader;
 		if ( type ) {
 			impl = this._loaders.get ( type );

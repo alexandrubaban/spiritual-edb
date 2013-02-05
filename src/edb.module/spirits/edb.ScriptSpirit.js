@@ -36,7 +36,6 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 * of parent spirit. Might need to load it first...
 	 */
 	onenter : function () {
-	
 		this._super.onenter ();
 		this.type = this.att.get ( "type" ) || this.type;
 		if ( !this._plainscript ()) {
@@ -60,7 +59,6 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 * @param {String} source
 	 */
 	_init : function ( source ) {
-
 		var plugin = null;
 		var parent = this.dom.parent ();
 		if ( parent.localName === "head" ) {
@@ -72,7 +70,6 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 				console.warn ( "templates in document.body should be direct child of a spirit" );
 			}
 		}
-		
 		if ( plugin ) {
 			var atts = this.att.getup (); // extra compile info
 			plugin.compile ( source, this.type, this.debug, atts );
@@ -84,7 +81,6 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 * @param {String} src
 	 */
 	_load : function ( src ) {
-		
 		var Loader = edb.GenericLoader.get ( this.type );
 		new Loader ( this.document ).load ( src, function ( source ) {
 			this._init ( source );
@@ -97,7 +93,6 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 * @returns {boolean}
 	 */
 	_plainscript : function () {
-		
 		var is = false;
 		switch ( this.att.get ( "type" )) {
 			case null :

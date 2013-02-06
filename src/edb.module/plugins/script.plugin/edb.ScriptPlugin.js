@@ -98,9 +98,11 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			this.spirit.dom.html ( html ); // TODO: forms markup make valid!
 		}
 		this.ran = true;
-		this.spirit.life.dispatch ( "spirit-view-rendered" );
-		console.warn ( "TODO: life event fired apart from first time???" );
-		this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes
+		this.spirit.life.dispatch ( 
+			edb.LIFE_SCRIPT_DID_RUN,  
+			( this._latest = html ) !== this._latest
+		);
+		this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes (?)
 	},
 	
 

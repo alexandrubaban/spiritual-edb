@@ -56,20 +56,12 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 		 */
 		this.pointer = this.spirit; this.spirit = null;
 		this.context = this.window; this.window = null;
-		/*
-		 * Plugin an inputtracker; inject our scope.
-		 */
+		// plugin an inputtracker; inject our scope.
 		this.input = new edb.InputPlugin ();
 		this.input.context = this.context;
-		
-		/**
-		 * Hey mister.
-		 */
+		// hey
 		this.functions = Object.create ( null );
-
-		/*
-		 * TODO: This *must* be added before it can be removed ?????
-		 */
+		// @todo this *must* be added before it can be removed ?????
 		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
 	},
 	
@@ -81,11 +73,9 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @returns {edb.Script}
 	 */
 	compile : function ( source, debug, atts ) {
-
 		if ( this._function !== null ) {
 			throw new Error ( "not supported: compile script twice" ); // support this?
 		}
-		
 		// create invokable function (signed for sandbox usage)
 		var compiler = new edb.ScriptCompiler ( source, debug, atts );
 		if ( this._signature ) {

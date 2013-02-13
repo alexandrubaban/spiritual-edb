@@ -104,7 +104,10 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			if ( this._useblob ()) {
 				this._loadblob ( compiler );
 			} else {
-				this._maybeready ();
+				gui.Tick.next ( function () { // @todo don't async here!
+					console.warn ( "TODO: Don't async here!" );
+					this._maybeready ();
+				}, this );
 			}
 		} catch ( workerexception ) {
 			this._maybeready ();
@@ -162,7 +165,7 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			case gui.BROADCAST_DATA_PUB :
 				if ( this._keys.has ( broadcast.data )) {
 					if ( this.readyState !== edb.GenericScript.WAITING ) {
-						var tick = gui.TICK_SCRIPT_UPDATE;
+						var tick = edb.TICK_SCRIPT_UPDATE;
 						var sig = this.context.gui.signature;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );	
 						this._gostate ( edb.GenericScript.WAITING );
@@ -187,7 +190,7 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 */
 	ontick : function ( tick ) {
 		switch ( tick.type ) {
-			case gui.TICK_SCRIPT_UPDATE :
+			case edb.TICK_SCRIPT_UPDATE :
 				this._gostate ( edb.GenericScript.READY );
 				break;
 		}

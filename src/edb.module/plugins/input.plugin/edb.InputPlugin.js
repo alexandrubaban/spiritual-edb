@@ -56,7 +56,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 				}
 				if ( type.output instanceof edb.Input ) { // type has been output?
 					if ( !this.spirit || this.spirit.life.ready ) {
-						var tick = gui.TICK_COLLECT_INPUT;
+						var tick = edb.TICK_COLLECT_INPUT;
 						var sig = this.context.gui.signature;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );
 					} else {
@@ -136,7 +136,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {gui.Tick} tick
 	 */
 	ontick : function ( tick ) {
-		if ( tick.type === gui.TICK_COLLECT_INPUT ) {
+		if ( tick.type === edb.TICK_COLLECT_INPUT ) {
 			this._todoname ();
 		}
 	},
@@ -147,7 +147,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	destruct : function () {
 		this._super.destruct ();
-		gui.Tick.remove ( gui.TICK_COLLECT_INPUT, this, this.context.gui.signature );
+		gui.Tick.remove ( edb.TICK_COLLECT_INPUT, this, this.context.gui.signature );
 		if ( this._types ) {
 			this._types.forEach ( function ( type ) {
 				this._weakmap.del ( type );

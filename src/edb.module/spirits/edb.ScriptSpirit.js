@@ -11,19 +11,8 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	debug : false,
 	
 	/**
-	 * Script file location (if not inline).
-	 * @type {String}
-	 */
-	src : null,
-	
-	/**
-	 * Script type.
-	 * @type {String}
-	 */
-	type : "text/edbml",
-
-	/**
-	 * Map "gui.debug" to simply "debug".
+	 * Map the attribute "gui.debug" to simply "debug".
+	 * @todo Deprecate this silliness
 	 */
 	config : {
 		map : {
@@ -32,60 +21,17 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	},
 	
 	/**
-	 * Relay source code to the {edb.GenericScriptPlugin} 
-	 * of parent spirit. Might need to load it first...
+	 * Relay source code to the {edb.ScriptPlugin} of either this or parent spirit.
 	 */
 	onenter : function () {
 		this._super.onenter ();
-		this.type = this.att.get ( "type" ) || this.type;
 		if ( !this._plainscript ()) {
-			var src = this.att.get ( "src" ) || this.src;
-			if ( src ) {
-				this._load ( src );
-			} else {
-				gui.Tick.next ( function () {
-					this._init ( this.dom.text ());
-				}, this );
-			}
+			this._initplugin ();
 		}
 	},
 	
 	
 	// PRIVATES ............................................................................
-	
-	/**
-	 * Init view from source code. If script is placed in the BODY section, 
-	 * we target the parent spirits view. TODO: functional-only in HEAD?
-	 * @param {String} source
-	 */
-	_init : function ( source ) {
-		var plugin = null;
-		var parent = this.dom.parent ();
-		if ( parent.localName === "head" ) {
-			plugin = this.script;
-		} else {
-			if ( parent.spirit ) {
-				plugin = parent.spirit.script;
-			} else if ( gui.debug ) {
-				console.warn ( "templates in document.body should be direct child of a spirit" );
-			}
-		}
-		if ( plugin ) {
-			var atts = this.att.getup (); // extra compile info
-			plugin.compile ( source, this.type, this.debug, atts );
-		}
-	},
-
-	/**
-	 * Load source code from external location.
-	 * @param {String} src
-	 */
-	_load : function ( src ) {
-		var Loader = edb.GenericLoader.get ( this.type );
-		new Loader ( this.document ).load ( src, function ( source ) {
-			this._init ( source );
-		}, this );
-	},
 	
 	/**
 	 * Is plain JS?
@@ -104,5 +50,31 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 				break;
 		}
 		return is;
+	},
+
+	/**
+	 * Init an {edb.ScriptPlugin} from source code. If this script is placed directly
+	 * inside a parent spirit, we target the parent spirits {edb.ScriptPlugin}. To avoid 
+	 * such a scenario, perhaps scripts might be placed in the document HEAD section.
+	 */
+	_initplugin : function () {
+		var src = this.att.get ( "src" ) || this.src,
+			type = this.att.get ( "type" ) || this.type,
+			debug = this.att.get ( "debug" ) || this.debug,
+			parent = this.dom.parent (),
+			extras = this.att.getup (),
+			plugin = this.script;
+		if ( parent.spirit ) {
+			plugin = parent.spirit.script;
+		}
+		if ( plugin ) {
+			plugin.extras = extras;
+			if ( src ) {
+				plugin.load ( src, type, debug, extras );
+			} else {
+				plugin.compile ( this.dom.text (), type, debug, extras );
+			}
+		}
 	}
+
 });

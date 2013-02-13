@@ -101,8 +101,8 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			this.input.add ( type, this );
 		}, this );
 		try { // in development mode, load invokable function as a blob file; otherwise just init
-			if ( gui.debug && gui.Client.hasBlob && !gui.Client.isExplorer && !gui.Client.isOpera ) {
-				this._blob ( compiler );
+			if ( this._useblob ()) {
+				this._loadblob ( compiler );
 			} else {
 				this._maybeready ();
 			}
@@ -232,14 +232,27 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			return gui.Type.isFunction ( this.functions [ name ]);
 		}, this );
 	},
+
+	/**
+	 * Use blob files?
+	 * @returns {boolean} Always false if not development mode
+	 */
+	_useblob : function () {
+		return edb.Script.useblob && 
+			this.context.gui.debug && 
+			gui.Client.hasBlob && 
+			!gui.Client.isExplorer && 
+			!gui.Client.isOpera;
+	},
 	
 	/**
 	 * In development mode, load compiled script source as a file. 
-	 * This allows browser developer tools to assist in debugging.
+	 * This allows browser developer tools to assist in debugging. 
+	 * Note that this introduces an async step of some kind...
 	 * @param {edb.ScriptCompiler} compiler
 	 */
-	_blob : function ( compiler ) {
-		var key = gui.KeyMaster.generateKey (),
+	_loadblob : function ( compiler ) {
+		var key = gui.KeyMaster.generateKey ( "script" ),
 			msg = "// blob script generated in development mode\n",
 			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}",
 			win = this.context,
@@ -279,6 +292,12 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 
 }, {}, { // STATICS .....................................................................................
 	
+
+	/**
+	 * Mount compiled scripts as blob files in development mode for easier debugging?
+	 * @type {Bboolean}
+	 */
+	useblob : true,
 	
 	/**
 	 * @static

@@ -1,5 +1,5 @@
 /**
- * Note: This plugin is used standalone, so don't reference associated spirit.
+ * Note: This plugin may be used standalone, so don't reference any spirits around here.
  * @todo formalize how this is supposed to be clear
  */
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
@@ -9,8 +9,8 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	 * @param {object} data
 	 * @param @optional {function|String} type edb.Model constructor or "my.ns.MyModel"
 	 */
-	dispatch : function ( data, type ) {
-		var input = this._format ( data, type );
+	dispatch : function ( data, Type ) {
+		var input = this._format ( data, Type );
 		if ( input instanceof edb.Input ) {
 			if ( input.type ) {
 				input.type.output = input; // TODO: RENAME this abomination
@@ -41,16 +41,15 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	 * Wrap data in edb.Input before we output.
 	 * TODO: DON'T AUTOMATE MODELS, let's just output JSON objects...
 	 * @param {object} data
-	 * @param @optional {function|String} type
+	 * @param @optional {function|String} Type
 	 * @returns {edb.Input}
 	 */
 	_format : function ( data, Type ) {
-		var result = data;
 		if ( data instanceof edb.Input === false ) {
 			if ( Type ) {
 				Type = this._lookup ( Type );
 				if ( data instanceof Type === false ) {
-					result = new Type ( data );
+					data = new Type ( data );
 				}
 			} else if ( !data._instanceKey ) { // TODO: THE WEAKNESS
 				switch ( gui.Type.of ( data )) {
@@ -61,13 +60,13 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 						Type = Array.model ();
 						break;
 				}
-				result = this._format ( data, Type );
+				data = this._format ( data, Type );
 			} else {
 				Type = data.constructor;
 			}
-			result = new edb.Input ( Type, data ); // data.constructor?
+			data = new edb.Input ( Type, data ); // data.constructor?
 		}
-		return result;
+		return data;
 	},
 
 	/**

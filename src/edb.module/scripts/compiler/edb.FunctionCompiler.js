@@ -37,11 +37,11 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * Construction.
 	 * @param {String} script
 	 * @param {boolean} debug
-	 * 
+	 * @param {Map<String,String} extras
 	 */
-	onconstruct : function ( script, debug, atts ) {
+	onconstruct : function ( script, debug, extras ) {
 		this.script = script;
-		this.extras = atts;
+		this.extras = extras;
 		this.debug = debug ? true : false;
 	},
 		
@@ -135,9 +135,8 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 
 	/**
-	 * Insert default EDBML for tag declarations before we parse.
-	 * @param  {[type]} script [description]
-	 * @return {[type]}        [description]
+	 * Insert default EDBML for tag declarations before we parse (future project).
+	 * @param  {String} script
 	 */
 	_tag : function ( script ) {
 		if ( this.extras ) { // TODO: how can it be "undefined"?
@@ -475,7 +474,8 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
 	/**
 	 * Format script output for debugging, adding indentation.
-	 * TODO: indent switch cases
+	 * @todo Indent switch cases
+	 * @todo Remove blank lines
 	 * @param {String} body
 	 * @returns {String}
 	 */

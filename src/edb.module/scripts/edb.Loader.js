@@ -19,7 +19,7 @@ edb.Loader = edb.GenericLoader.extend ( "edb.Loader", {
 	},
 	
 	/**
-	 * EDB templates are loaded as HTML documents with one or more script 
+	 * EDBML templates are loaded as HTML documents with one or more script 
 	 * tags. The requested script should have an @id to match the URL #hash.  
 	 * If no hash was given, we return the source code of first script found.
 	 * @param {String} text HTML with one or more script tags

@@ -1,8 +1,8 @@
 /**
  * EDB template loader.
- * @extends {edb.GenericLoader}
+ * @extends {edb.BaseLoader}
  */
-edb.Loader = edb.GenericLoader.extend ( "edb.Loader", {
+edb.Loader = edb.BaseLoader.extend ( "edb.Loader", {
 	
 	/**
 	 * Handle loaded script source; externally loaded file may contain multiple scripts.

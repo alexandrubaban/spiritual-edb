@@ -76,7 +76,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @param @optional {String} type Script mimetype (eg "text/edbml")
 	 */
 	load : function ( src, type ) {
-		var ScriptLoader = edb.GenericLoader.get ( type || "text/edbml" );
+		var ScriptLoader = edb.BaseLoader.get ( type || "text/edbml" );
 		new ScriptLoader ( this.spirit.document ).load ( src, function ( source ) {
 			this.compile ( source, this.type, this.debug );
 		}, this );
@@ -106,11 +106,11 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @param @optional {HashMap<String,String>} extras Optional compiler directives
 	 */
 	compile : function ( source, type, debug, extras ) {
-		var Script = edb.GenericScript.get ( type || "text/edbml" );
+		var Script = edb.BaseScript.get ( type || "text/edbml" );
 		if ( !this._script ) {
 			var that = this, spirit = this.spirit, context = spirit.window;
 			this._script = new Script ( spirit, context, function onreadystatechange () {
-				if ( this.readyState === edb.GenericScript.READY ) {
+				if ( this.readyState === edb.BaseScript.READY ) {
 					that._compiled ();
 				}
 			});

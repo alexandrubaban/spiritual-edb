@@ -40,9 +40,9 @@ gui.module ( "edb", {
 
 		// TODO: detect sandbox...
 		if ( context === gui.context ) { // TODO: better detect top context
-			if ( edb.GenericScript && edb.GenericLoader ) { // TODO: this check is for sandbox (future project)
-				edb.GenericScript.set ( edb.Script, "text/edbml" );
-				edb.GenericLoader.set ( edb.Loader, "text/edbml" );
+			if ( edb.BaseScript && edb.BaseLoader ) { // TODO: this check is for sandbox (future project)
+				edb.BaseScript.set ( edb.Script, "text/edbml" );
+				edb.BaseLoader.set ( edb.Loader, "text/edbml" );
 			}
 		}
 		context.Object.model = function ( a1, a2 ) {

@@ -35,7 +35,7 @@ edb.Function = {
 	_load : function ( src, win ) {
 		new edb.Loader ( win.document ).load ( src, function ( source ) {
 			new edb.Script ( null, win, function onreadystatechange () {
-				if ( this.readyState === edb.GenericScript.READY ) {
+				if ( this.readyState === edb.BaseScript.READY ) {
 					edb.Function._map.set ( src, this._function );
 					gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_FUNCTION_LOADED, src );
 				}

@@ -3,7 +3,7 @@
  * The onreadystatechange method fires when ready.
  * The method "run" has then been made available.
  */
-edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype, {
+edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 	
 	/**
 	 * Script may be run when this switches to "ready".
@@ -34,7 +34,7 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @returns {String}
 	 */
 	toString : function () {
-		return "[object edb.GenericScript]";
+		return "[object edb.BaseScript]";
 	},
 	
 	/**
@@ -55,7 +55,7 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * Compile source to invokable function.
 	 * @param {String} source
 	 * @param {boolean} debug
-	 * @returns {edb.GenericScript}
+	 * @returns {edb.BaseScript}
 	 */
 	compile : function ( source, debug ) {},
 	
@@ -127,7 +127,7 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	
 	/**
 	 * Mapping implementations to mimetypes.
-	 * @type {Map<String,edb.GenericScript>}
+	 * @type {Map<String,edb.BaseScript>}
 	 */
 	_scripts : new Map (),
 		
@@ -146,7 +146,7 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	/**
 	 * Get implementation for mimetype.
 	 * TODO: rename
-	 * @returns {edb.GenericScript}
+	 * @returns {edb.BaseScript}
 	 */
 	get : function ( type ) {
 		var impl = this._scripts.get ( type );

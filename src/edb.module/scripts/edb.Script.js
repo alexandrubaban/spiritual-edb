@@ -1,11 +1,11 @@
 /**
  * EDB script.
- * @extends {edb.GenericScript}
+ * @extends {edb.BaseScript}
  * @param {object} pointer
  * @param {Global} context
  * @param {function} handler
  */
-edb.Script = edb.GenericScript.extend ( "edb.Script", {
+edb.Script = edb.BaseScript.extend ( "edb.Script", {
 	
 	/**
 	 * The window context; where to lookup data types.
@@ -164,11 +164,11 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			 */
 			case gui.BROADCAST_DATA_PUB :
 				if ( this._keys.has ( broadcast.data )) {
-					if ( this.readyState !== edb.GenericScript.WAITING ) {
+					if ( this.readyState !== edb.BaseScript.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
 						var sig = this.context.gui.signature;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );	
-						this._gostate ( edb.GenericScript.WAITING );
+						this._gostate ( edb.BaseScript.WAITING );
 					}
 				}
 				break;
@@ -191,7 +191,7 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	ontick : function ( tick ) {
 		switch ( tick.type ) {
 			case edb.TICK_SCRIPT_UPDATE :
-				this._gostate ( edb.GenericScript.READY );
+				this._gostate ( edb.BaseScript.READY );
 				break;
 		}
 	},
@@ -260,9 +260,9 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}",
 			win = this.context,
 			doc = win.document;
-		this._gostate ( edb.GenericScript.LOADING );
+		this._gostate ( edb.BaseScript.LOADING );
 		gui.BlobLoader.loadScript ( doc, src, function onload () {
-			this._gostate ( edb.GenericScript.WORKING );
+			this._gostate ( edb.BaseScript.WORKING );
 			this._function = win [ key ];
 			this._maybeready ();
 		}, this );
@@ -273,12 +273,12 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * for data types to initialize...
 	 */
 	_maybeready : function () {
-		if ( this.readyState !== edb.GenericScript.LOADING ) {
-			this._gostate ( edb.GenericScript.WORKING );
+		if ( this.readyState !== edb.BaseScript.LOADING ) {
+			this._gostate ( edb.BaseScript.WORKING );
 			if ( this.input.done && this._functionsdone ()) {
-				this._gostate ( edb.GenericScript.READY );
+				this._gostate ( edb.BaseScript.READY );
 			} else {
-				this._gostate ( edb.GenericScript.WAITING );
+				this._gostate ( edb.BaseScript.WAITING );
 			}
 		}
 	},

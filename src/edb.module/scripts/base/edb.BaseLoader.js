@@ -4,7 +4,7 @@
  * @todo Rename to edb.TemplateLoader perhaps?
  * @extends {gui.FileLoader}
  */
-edb.GenericLoader = gui.FileLoader.extend ({
+edb.BaseLoader = gui.FileLoader.extend ({
 	
 	/**
 	 * Load script source as text/plain.
@@ -45,7 +45,7 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	/**
 	 * @static
 	 * Mapping scriptloaders to mimetypes.
-	 * @type {Map<String,edb.GenericLoader>}
+	 * @type {Map<String,edb.BaseLoader>}
 	 */
 	_loaders : new Map (),
 
@@ -68,10 +68,10 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	 * to the "type" attribute of a script tag),
 	 * TODO: rename!
 	 * @param {String} type
-	 * @returns {edb.GenericLoader}
+	 * @returns {edb.BaseLoader}
 	 */
 	get : function ( type ) {
-		var impl = edb.GenericLoader;
+		var impl = edb.BaseLoader;
 		if ( type ) {
 			impl = this._loaders.get ( type );
 			if ( !impl ) {

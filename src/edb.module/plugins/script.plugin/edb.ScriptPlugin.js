@@ -1,5 +1,5 @@
 /**
- * The ScriptPlugin renders the spirit HTML subtree somewhat like a template engine.
+ * The ScriptPlugin shall render the spirits HTML.
  * @extends {gui.Plugin} (should perhaps extend some kind of genericscriptplugin)
  */
 edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
@@ -11,15 +11,23 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	type : "text/edbml",
 
 	/**
-	 * The Script SRC must be set *before* spirit.onenter() 
-	 * to automatically load when spirit enters the DOM. 
-	 * @todo Perhaps a setter to fix this defect
+	 * The Script SRC must be set before spirit.onenter() 
+	 * to automatically load when spirit enters the DOM.
 	 * @type {String}
 	 */
 	src : null,
 
 	/**
-	 * Flipped after first run.
+	 * Automatically run the script on spirit.onenter()? 
+	 *
+	 * - any added <?param?> value will be undefined at this point
+	 * - adding <?input?> will delay run until all input is loaded
+	 * @type {boolean}
+	 */
+	autorun : true,
+
+	/**
+	 * Script has been run? Flipped after first run.
 	 * @type {boolean}
 	 */
 	ran : false,
@@ -43,42 +51,59 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @type {Map<String,object>}
 	 */
 	extras : null,
-
-	/**
-	 * Automatically run script as soon as possible?
-	 *
-	 * 1. On startup if no input data is expected
-	 * 2. Otherwise, when all input data is collected
-	 * @type {Boolean}
-	 */
-	autorun : true,
 	
 	/**
 	 * Construction time.
+	 *
+	 * 1. don't autorun service scripts
+	 * 2. use minimal updating system?
+	 * 3. import script on startup 
 	 */
 	onconstruct : function () {
 		this._super.onconstruct ();
-		if ( this.spirit instanceof edb.ScriptSpirit ) {
+		var spirit = this.spirit;
+		if ( spirit instanceof edb.ScriptSpirit ) {
 			this.autorun = false;
-		}
-		if ( this.diff ) {
-			this._updater = new edb.UpdateManager ( this.spirit );
+		} else if ( this.diff ) {
+			this._updater = new edb.UpdateManager ( spirit );
 		}
 		if ( this.src ) {
+			spirit.life.add ( gui.LIFE_ENTER, this );
+		}
+	},
+
+	/**
+	 * Waiting for onenter() to load the script. For some reason.
+	 * @param {gui.Life} life
+	 */
+	onlife : function ( life ) {
+		if ( life.type === gui.LIFE_ENTER ) {
 			this.load ( this.src );
 		}
 	},
 
 	/**
-	 * Load script from SRC (async unless source points 
-	 * to a script embedded in spirits own document). 
+	 * Load script from SRC. This happens async unless the SRC 
+	 * points to a script embedded in the spirits own document. 
 	 * @param {String} src 
 	 * @param @optional {String} type Script mimetype (eg "text/edbml")
 	 */
 	load : function ( src, type ) {
 		var ScriptLoader = edb.BaseLoader.get ( type || "text/edbml" );
 		new ScriptLoader ( this.spirit.document ).load ( src, function ( source ) {
-			this.compile ( source, this.type, this.debug );
+			var url = new gui.URL ( this.spirit.document, src );
+			var script = edb.Script.get ( url.href );
+			if ( !script ) {
+				script = this.compile ( source, this.type, this.debug );
+				edb.Script.set ( url.href, script );
+			} else {
+				if ( script.readyState === edb.BaseScript.READY ) {
+					this._script = script;
+					this._compiled ();
+				} else {
+					console.error ( "Unhandled :(" );
+				}
+			}
 		}, this );
 	},
 	
@@ -91,7 +116,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	},
 
 	/**
-	 * Thing to resolve expected script input (edb.Data objects).
+	 * Returns something to resolve expected script input (edb.Data).
 	 * returns {edb.Input}
 	 */
 	input : function () {
@@ -115,19 +140,19 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 				}
 			});
 			this._script.compile ( source, debug, extras );
+			return this._script;
 		} else {
 			throw new Error ( "not supported: recompile edb.ScriptPlugin" ); // support this?
 		}
 	},
 
-	consume : function () {},
-	
 	/**
 	 * Run script (with implicit arguments) and write result to DOM.
 	 * @see {gui.SandBoxView#render}
 	 */
-	run : function () {		
+	run : function () {
 		if ( this._script ) {
+			this._script.pointer = this.spirit; // TODO!
 			this.write ( 
 				this._script.run.apply ( 
 					this._script, 
@@ -189,6 +214,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 }, { // STATICS .........................................................................
 
 	/**
+	 * Construct when spirit constructs.
 	 * @type {boolean}
 	 */
 	lazy : false

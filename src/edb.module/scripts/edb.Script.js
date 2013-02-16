@@ -100,14 +100,11 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
-		try { // in development mode, load invokable function as a blob file; otherwise just init
+		try { // in development mode, load invokable function as a blob file; otherwise skip to init
 			if ( this._useblob ()) {
 				this._loadblob ( compiler );
 			} else {
-				gui.Tick.next ( function () { // @todo don't async here!
-					console.warn ( "TODO: Don't async here!" );
-					this._maybeready ();
-				}, this );
+				this._maybeready ();
 			}
 		} catch ( workerexception ) {
 			this._maybeready ();
@@ -298,13 +295,14 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 
 	/**
 	 * Mount compiled scripts as blob files in development mode for easier debugging?
-	 * @type {Bboolean}
+	 * @todo map to gui.Client.hasBlob somehow...
+	 * @type {boolean}
 	 */
 	useblob : true,
 	
 	/**
 	 * @static
-	 * Mapping functions to keys.
+	 * Mapping compiled functions to keys.
 	 * @type {Map<String,function>}
 	 */
 	_invokables : new Map (),
@@ -378,5 +376,30 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 			checked : e.target.checked
 		};
 		return this;
-	}
+	},
+
+	/**
+	 * Experimental.
+	 * @param {String} key
+	 * @returns {edb.Script}
+	 */
+	get : function ( key ) {
+		return this._scripts [ key ];
+	},
+
+	/**
+	 * Experimental.
+	 * @param {String} key
+	 * @param {edb.Script} script
+	 */
+	set : function ( key, script ) {
+		this._scripts [ key ] = script;
+	},
+
+	/**
+	 * Mapping scripts to keys.
+	 * @type {Map<String,edb.Script>}
+	 */
+	_scripts : Object.create ( null )
+
 });

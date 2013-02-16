@@ -99,7 +99,7 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 }, {}, { // STATICS ................................................................
 	
 	/**
-	 * Used only in development mode.
+	 * Used only in development mode (or how was it?).
 	 * @type {String}
 	 */
 	LOADING : "loading",
@@ -113,7 +113,7 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 
 	/**
 	 * @static
-	 * Hm...
+	 * Script is processing something.
 	 * @type {String}
 	 */
 	WORKING : "working",

@@ -6,13 +6,13 @@ gui.module ( "edb", {
 	/*
 	 * Extending all spirits.
 	 */
-	addins : { // TODO: rename "extensions" or something
+	mixin : {
 		
 		/**
 		 * Handle input.
 		 * @param {edb.Input} input
 		 */
-		oninput : function ( input ) {} // TODO: rename "onedbinput"
+		oninput : function ( input ) {}
 	},
 	
 	/*

@@ -18,6 +18,14 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	src : null,
 
 	/**
+	 * True when there's a script; and when it's loaded.
+	 * @todo Should there also be a "loading" boolean?
+	 * @todo Should all this happen via life events?
+	 * @type {boolean}
+	 */
+	loaded : true,
+
+	/**
 	 * Automatically run the script on spirit.onenter()? 
 	 *
 	 * - any added <?param?> value will be undefined at this point
@@ -182,7 +190,13 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			edb.LIFE_SCRIPT_DID_RUN,  
 			( this._latest = html ) !== this._latest // @todo Support this kind of arg...
 		);
-		this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes (?)
+
+		/*
+		 * Time consume detected. Let's either not do this or 
+		 * refactor into combo of tick, broadcast and action. 
+		 * (no dom traversal should be involved in what it is)
+		 */
+		// this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes (?)
 	},
 	
 
@@ -205,6 +219,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @todo life-event should probably go here...
 	 */
 	_compiled : function () {
+		this.loaded = true;
 		if ( this.autorun ) {
 			this.run ();
 		}

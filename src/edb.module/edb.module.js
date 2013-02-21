@@ -6,7 +6,7 @@ gui.module ( "edb", {
 	/*
 	 * Extending all spirits.
 	 */
-	mixin : {
+	mixins : {
 		
 		/**
 		 * Handle input.

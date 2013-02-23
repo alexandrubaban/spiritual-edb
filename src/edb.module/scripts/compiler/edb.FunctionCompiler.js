@@ -146,7 +146,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			case "param" :
 				this.params.push ( atts.name );
 				break;
-			case "script" :
+			case "function" :
 				this.functions [ atts.name ] = atts.src;
 				break;
 		}

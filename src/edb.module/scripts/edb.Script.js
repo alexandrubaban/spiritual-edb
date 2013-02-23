@@ -92,7 +92,7 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 			if ( func ) {
 				this.functions [ name ] = func;
 			} else {
-				gui.Broadcast.addGlobal ( edb.BROADCAST_FUNCTION_LOADED, this );
+				gui.Broadcast.add ( edb.BROADCAST_FUNCTION_LOADED, this, this.context.gui.signature );
 				this.functions [ name ] = src;
 			}
 		}, this );
@@ -148,8 +148,8 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 			this._subscribe ( true );
 			try {
 				result = this._function.apply ( this.pointer, arguments );
-			} catch ( x ) {
-				alert ( this._function )
+			} catch ( exception ) {
+				console.error ( exception.message + ":\n\n" + this._source );
 			}
 			this._subscribe ( false );
 		}
@@ -160,10 +160,10 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 	 * Handle broadcast.
 	 * @param {gui.Broadcast} broadcast
 	 */
-	onbroadcast : function ( broadcast ) {
-		switch ( broadcast.type ) {
+	onbroadcast : function ( b ) {
+		switch ( b.type ) {
 			case gui.BROADCAST_DATA_SUB :
-				var key = broadcast.data;
+				var key = b.data;
 				this._keys.add ( key );
 				break;
 			/*
@@ -171,7 +171,7 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 			 * updates before we rerun the script.
 			 */
 			case gui.BROADCAST_DATA_PUB :
-				if ( this._keys.has ( broadcast.data )) {
+				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.BaseScript.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
 						var sig = this.context.gui.signature;
@@ -181,15 +181,22 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 				}
 				break;
 			case edb.BROADCAST_FUNCTION_LOADED :
-				var src = broadcast.data;
-				gui.Object.each ( this.functions, function ( name, value ) {
-					if ( value === src ) {
-						this.functions [ name ] = edb.Function.get ( src, this.context );
-					}
-				}, this );
-				this._maybeready ();
+				this._statusfunction ( b.data );
 				break;
 		}
+	},
+
+	/**
+	 * Resolve funtion loaded.
+	 * @param {String} src
+	 */
+	_statusfunction : function ( src ) {
+		gui.Object.each ( this.functions, function ( name, value ) {
+			if ( value === src ) {
+				this.functions [ name ] = edb.Function.get ( src, this.context );
+			}
+		}, this );
+		this._maybeready ();
 	},
 	
 	/**

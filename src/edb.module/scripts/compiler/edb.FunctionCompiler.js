@@ -52,7 +52,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			declarations : Object.create ( null ), // Map<String,boolean>
 			definitions : [] // Array<String>
 		};
-		[ "_validate", "_tag", "_extract", "_declare", "_define", "_compile" ].forEach ( function ( step ) {
+		[ "_validate", "_extract", "_tag", "_declare", "_define", "_compile" ].forEach ( function ( step ) {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
@@ -114,10 +114,9 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		if ( this.extras ) { // TODO: how can it be "undefined"?
 			var tag = this.extras [ "tag" ];
 			if ( tag ) {
-				script = "\n" + 
-					'<?param name="__content__"?>\n' +
-					'<?param name="__attribs__"?>\n' +
-					'att = __attribs__;\n' + script;
+				this.params.push ( "__content__" );
+				this.params.push ( "__attribs__" );
+				script = "att = __attribs__;\n" + script;
 			}
 		}
 		return script;
@@ -451,8 +450,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	_source : function ( source, params ) {
 		var lines = source.split ( "\n" ); lines.pop (); // empty line :/
 		var args = params.length ? "( " + params.join ( ", " ) + " )" : "()";
-		source = lines.map ( function ( line ) { return "\t" + line; }).join ( "\n" );
-		return "function " + args + " {\n" + source + "\n}";
+		return "function " + args + " {\n" + lines.join ( "\n" ) + "\n}";
 	},
 
 	/**
@@ -465,7 +463,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 */
 	_format : function ( body ) {
 		var result = "",
-			tabs = "",
+			tabs = "\t",
 			first = null,
 			last = null,
 			fixt = null,

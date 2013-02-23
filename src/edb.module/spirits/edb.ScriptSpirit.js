@@ -26,7 +26,9 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	onenter : function () {
 		this._super.onenter ();
 		if ( !this._plainscript ()) {
-			this._initplugin ();
+			if ( this.dom.parent ( gui.Spirit )) {
+				this._initplugin ();
+			}
 		}
 	},
 	
@@ -62,7 +64,16 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 			type = this.att.get ( "type" ) || this.type,
 			parent = this.dom.parent (),
 			extras = this.att.getup (),
-			plugin = this.script;
+			plugin = parent.spirit.script;
+		plugin.extras = extras;
+		plugin.debug = this.debug;
+		if ( src ) {
+			plugin.load ( src, type, extras );
+		} else {
+			plugin.compile ( this.dom.text (), type, extras );
+		}
+
+		/*
 		if ( parent.spirit ) {
 			plugin = parent.spirit.script;
 		}
@@ -75,6 +86,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 				plugin.compile ( this.dom.text (), type, extras );
 			}
 		}
+		*/
 	}
 
 });

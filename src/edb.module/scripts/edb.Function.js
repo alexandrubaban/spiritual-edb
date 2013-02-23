@@ -13,7 +13,7 @@ edb.Function = {
 		src = new gui.URL ( win.document, src ).href;
 		var result = this._map.get ( src ) || null;
 		if ( !result ) {
-			this._load ( src, win );
+			result = this._load ( src, win );
 		}
 		return result;
 	},
@@ -31,16 +31,20 @@ edb.Function = {
 	 * Load dimsedut.
 	 * @param {String} src
 	 * @param {Window} win
+	 * @returns {function} only if synchronous, otherwise wait for broadcast
 	 */
 	_load : function ( src, win ) {
-		new edb.Loader ( win.document ).load ( src, function ( source ) {
+		var result = null, loader = new edb.Loader ( win.document );
+		loader.load ( src, function ( source ) {
 			new edb.Script ( null, win, function onreadystatechange () {
 				if ( this.readyState === edb.BaseScript.READY ) {
 					edb.Function._map.set ( src, this._function );
-					gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_FUNCTION_LOADED, src );
+					gui.Broadcast.dispatch ( null, edb.BROADCAST_FUNCTION_LOADED, src, win.gui.signature );
+					result = this._function;
 				}
-			}).compile ( source, win.gui.debug );
+			}).compile ( source, loader.directives );
 		});
+		return result; // might be undefined at this point if src is external...
 	}
 
 };

@@ -60,7 +60,6 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	_initplugin : function () {
 		var src = this.att.get ( "src" ) || this.src,
 			type = this.att.get ( "type" ) || this.type,
-			debug = this.att.get ( "debug" ) || this.debug,
 			parent = this.dom.parent (),
 			extras = this.att.getup (),
 			plugin = this.script;
@@ -69,10 +68,11 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 		}
 		if ( plugin ) {
 			plugin.extras = extras;
+			plugin.debug = this.debug;
 			if ( src ) {
-				plugin.load ( src, type, debug, extras );
+				plugin.load ( src, type, extras );
 			} else {
-				plugin.compile ( this.dom.text (), type, debug, extras );
+				plugin.compile ( this.dom.text (), type, extras );
 			}
 		}
 	}

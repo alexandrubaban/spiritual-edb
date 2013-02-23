@@ -49,7 +49,6 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 	/**
 	 * Log development stuff to console?
-	 * @todo Move this to "extras" below..,
 	 * @type {boolean}
 	 */
 	debug : false,
@@ -102,7 +101,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			var url = new gui.URL ( this.spirit.document, src );
 			var script = edb.Script.get ( url.href );
 			if ( !script ) {
-				script = this.compile ( source, this.type, this.debug );
+				script = this.compile ( source, this.type );
 				edb.Script.set ( url.href, script );
 			} else {
 				if ( script.readyState === edb.BaseScript.READY ) {
@@ -135,10 +134,9 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * Compile script and run it when ready.
 	 * @param {String} source Script source code
 	 * @param @optional {String} type Script mimetype (eg "text/edbml")
-	 * @param @optional {boolean} debug Log something to console
 	 * @param @optional {HashMap<String,String>} extras Optional compiler directives
 	 */
-	compile : function ( source, type, debug, extras ) {
+	compile : function ( source, type, extras ) {
 		var Script = edb.BaseScript.get ( type || "text/edbml" );
 		if ( !this._script ) {
 			var that = this, spirit = this.spirit, context = spirit.window;
@@ -147,7 +145,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 					that._compiled ();
 				}
 			});
-			this._script.compile ( source, debug, extras );
+			this._script.compile ( source, extras );
 			return this._script;
 		} else {
 			throw new Error ( "not supported: recompile edb.ScriptPlugin" ); // support this?
@@ -220,6 +218,9 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 */
 	_compiled : function () {
 		this.loaded = true;
+		if ( this.debug ) {
+			this._script.debug ();
+		}
 		if ( this.autorun ) {
 			this.run ();
 		}

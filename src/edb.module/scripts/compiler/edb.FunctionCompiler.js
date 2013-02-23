@@ -4,16 +4,10 @@
 edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
 	/**
-	 * Compiled script text.
+	 * Compiled script source.
 	 * @type {String}
 	 */
-	script : null,
-	
-	/**
-	 * Debug script text?
-	 * @type {}
-	 */
-	debug : false,
+	source : null,
 	
 	/**
 	 * Arguments expected for compiled function. 
@@ -35,14 +29,12 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
 	/**
 	 * Construction.
-	 * @param {String} script
-	 * @param {boolean} debug
+	 * @param {String} source
 	 * @param {Map<String,String} extras
 	 */
-	onconstruct : function ( script, debug, extras ) {
-		this.script = script;
+	onconstruct : function ( source, extras ) {
+		this.source = source;
 		this.extras = extras;
-		this.debug = debug ? true : false;
 	},
 		
 	/**
@@ -61,35 +53,17 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			definitions : [] // Array<String>
 		};
 		[ "_validate", "_tag", "_extract", "_declare", "_cornholio", "_compile" ].forEach ( function ( step ) {
-			this.script = this [ step ] ( this.script, head );
+			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
-			if ( this.debug ) {
-				console.log ( this.source ( "\t", this.params ));
-			}
-			result = this._convert ( scope, this.script, this.params );
+			result = this._convert ( scope, this.source, this.params );
+			this.source = this._source ( this.source, this.params );
 		} catch ( exception ) {
 			if ( !fallback ) {
 				result = this._fail ( scope, exception );
 			}
 		}
 		return result;
-	},
-
-	/**
-	 * Get formatted source.
-	 * @returns {String}
-	 */
-	source : function ( tabs, params ) {
-		var source = this._format ( this.script );
-		if ( tabs ) {
-			source = tabs + source.replace ( /\n/g, "\n" + tabs );
-		}
-		if ( params ) {
-			var args = params.length ? "( " + params.join ( ", " ) + " )" : "()";
-			source = "function " + args + " {\n" + source + "\n}";
-		}
-		return source;
 	},
 
 	/**
@@ -126,10 +100,8 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_validate : function ( script ) {
-		if ( this.debug ) { // testing in debug mode only!
-			if ( edb.FunctionCompiler._NESTEXP.test ( script )) {
-				throw "Nested EDBML dysfunction";
-			}
+		if ( edb.FunctionCompiler._NESTEXP.test ( script )) {
+			throw "Nested EDBML dysfunction";
 		}
 		return script;
 	},
@@ -196,7 +168,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			head.definitions.push ( 
 				"( function lookup ( __functions__ ) {\n" +
 				funcs.join ( "" ) +
-				"})( this.script.functions ());" 
+				"})( this.source.functions ());" 
 			);
 		}
 		return script;
@@ -378,7 +350,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			}
 		}, this );
 		body += ( html ? "';" : "" ) + "\nreturn out.write ();";
-		return this.debug ? this._format ( body ) : body;
+		return this._format ( body );
 	},
 	
 	/**
@@ -446,8 +418,8 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {function}
 	 */
 	_fail : function ( scope, exception ) {
-		this._debug ( this._format ( this.script ));
-		this.script = "<p class=\"error\">" + exception.message + "</p>";
+		this._debug ( this._format ( this.source ));
+		this.source = "<p class=\"error\">" + exception.message + "</p>";
 		return this.compile ( scope, true );
 	},
 
@@ -473,14 +445,26 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 
 	/**
-	 * Format script output for debugging, adding indentation.
+	 * Compute full script source (including arguments) for debugging stuff.
+	 * @returns {String}
+	 */
+	_source : function ( source, params ) {
+		var lines = source.split ( "\n" ); lines.pop (); // empty line :/
+		var args = params.length ? "( " + params.join ( ", " ) + " )" : "()";
+		source = lines.map ( function ( line ) { return "\t" + line; }).join ( "\n" );
+		return "function " + args + " {\n" + source + "\n}";
+	},
+
+	/**
+	 * Format script output.
+	 * @todo Investigate overhead
 	 * @todo Indent switch cases
 	 * @todo Remove blank lines
 	 * @param {String} body
 	 * @returns {String}
 	 */
 	_format : function ( body ) {
-		var debug = "",
+		var result = "",
 			tabs = "",
 			first = null,
 			last = null,
@@ -495,12 +479,12 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			if (( first === "}" || first === "]" ) && tabs !== "" ) {				
 				tabs = tabs.slice ( 0, -1 );
 			}
-			debug += tabs + line + "\n";
+			result += tabs + line + "\n";
 			if ( last === "{" || last === "[" || flast === "{" || flast === "[" ) {
 				tabs += "\t";
 			}
 		});
-		return debug;
+		return result;
 	}
 	
 });

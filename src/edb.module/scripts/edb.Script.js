@@ -68,21 +68,21 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 	/**
 	 * Compile source to invokable function.
 	 * @param {String} source
-	 * @param {boolean} debug
 	 * @param {HashMap<String,String>} atts Mapping script tag attributes.
 	 * @returns {edb.Script}
 	 */
-	compile : function ( source, debug, atts ) {
+	compile : function ( source, atts ) {
 		if ( this._function !== null ) {
 			throw new Error ( "not supported: compile script twice" ); // support this?
 		}
 		// create invokable function (signed for sandbox usage)
-		var compiler = new edb.ScriptCompiler ( source, debug, atts );
+		var compiler = new edb.ScriptCompiler ( source, atts );
 		if ( this._signature ) {
 			compiler.sign ( this._signature );
 		}
 		// compile source to invokable function
 		this._function = compiler.compile ( this.context );
+		this._source = compiler.source;
 		// copy expected params
 		this.params = compiler.params;
 		// waiting for functions to load?
@@ -110,6 +110,13 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 			this._maybeready ();
 		}
 		return this;
+	},
+
+	/**
+	 * Log script source to console.
+	 */
+	debug : function () {
+		console.debug ( this._source );
 	},
 
 	/**

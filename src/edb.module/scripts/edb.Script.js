@@ -146,7 +146,11 @@ edb.Script = edb.BaseScript.extend ( "edb.Script", {
 			throw new Error ( error );
 		} else {
 			this._subscribe ( true );
-			result = this._function.apply ( this.pointer, arguments );
+			try {
+				result = this._function.apply ( this.pointer, arguments );
+			} catch ( x ) {
+				alert ( this._function )
+			}
 			this._subscribe ( false );
 		}
 		return result;

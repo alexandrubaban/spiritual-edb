@@ -52,7 +52,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			declarations : Object.create ( null ), // Map<String,boolean>
 			definitions : [] // Array<String>
 		};
-		[ "_validate", "_tag", "_extract", "_declare", "_cornholio", "_compile" ].forEach ( function ( step ) {
+		[ "_validate", "_tag", "_extract", "_declare", "_define", "_compile" ].forEach ( function ( step ) {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
@@ -168,19 +168,19 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			head.definitions.push ( 
 				"( function lookup ( __functions__ ) {\n" +
 				funcs.join ( "" ) +
-				"})( this.source.functions ());" 
+				"})( this.script.functions ());" 
 			);
 		}
 		return script;
 	},
 
 	/**
-	 * I am Cornholio.
+	 * Define more stuff in head.
 	 * @param {String} script
 	 * @param {What?} head
 	 * @returns {String}
 	 */
-	_cornholio : function ( script, head ) {
+	_define : function ( script, head ) {
 		var vars = "";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
 			vars += ", " + name + " = null";

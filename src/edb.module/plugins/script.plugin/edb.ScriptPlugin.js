@@ -3,13 +3,7 @@
  * @extends {gui.Plugin} (should perhaps extend some kind of genericscriptplugin)
  */
 edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
-
-	/**
-	 * Script type (in case we want to support other types).
-	 * @type {String}
-	 */
-	type : "text/edbml",
-
+	
 	/**
 	 * The Script SRC must be set before spirit.onenter() 
 	 * to automatically load when spirit enters the DOM.

@@ -90,31 +90,6 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	},
 
 	/**
-	 * Load script from SRC. This happens async unless the SRC 
-	 * points to a script embedded in the spirits own document. 
-	 * @param {String} src 
-	 * @param @optional {String} type Script mimetype (eg "text/edbml")
-	 */
-	load : function ( src, type ) {
-		var ScriptLoader = edb.BaseLoader.get ( type || "text/edbml" );
-		new ScriptLoader ( this.spirit.document ).load ( src, function ( source ) {
-			var url = new gui.URL ( this.spirit.document, src );
-			var script = edb.Script.get ( url.href );
-			if ( !script ) {
-				script = this.compile ( source, this.type );
-				edb.Script.set ( url.href, script );
-			} else {
-				if ( script.readyState === edb.BaseScript.READY ) {
-					this._script = script;
-					this._compiled ();
-				} else {
-					console.error ( "The gui.FileLoader should prevent this scenario" );
-				}
-			}
-		}, this );
-	},
-	
-	/**
 	 * Mapping imported functions to declared variable names.
 	 * @returns {Map<String,function>}
 	 */
@@ -131,25 +106,28 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	},
 
 	/**
+	 * Load script from SRC. This happens async unless the SRC 
+	 * points to a script embedded in the spirits own document 
+	 * (and unless script has already been loaded into context).
+	 * @param {String} src 
+	 * @param @optional {String} type Script mimetype (eg "text/edbml")
+	 */
+	load : function ( src, type ) {
+		edb.BaseScript.load ( this.spirit.window, src, type, function ( script ) {
+			this._compiled ( script );
+		}, this );
+	},
+
+	/**
 	 * Compile script and run it when ready.
 	 * @param {String} source Script source code
 	 * @param @optional {String} type Script mimetype (eg "text/edbml")
 	 * @param @optional {HashMap<String,String>} extras Optional compiler directives
 	 */
 	compile : function ( source, type, extras ) {
-		var Script = edb.BaseScript.get ( type || "text/edbml" );
-		if ( !this._script ) {
-			var that = this, spirit = this.spirit, context = spirit.window;
-			this._script = new Script ( spirit, context, function onreadystatechange () {
-				if ( this.readyState === edb.BaseScript.READY ) {
-					that._compiled ();
-				}
-			});
-			this._script.compile ( source, extras );
-			return this._script;
-		} else {
-			throw new Error ( "not supported: recompile edb.ScriptPlugin" ); // support this?
-		}
+		edb.BaseScript.compile ( this.spirit.window, source, type, extras, function ( script ) {
+			this._compiled ( script );
+		}, this );
 	},
 
 	/**
@@ -213,10 +191,12 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	_updater : null,
 
 	/**
-	 * Script compiled.
+	 * Script compiled. Let's do this.
 	 * @todo life-event should probably go here...
+	 * @param {edb.BaseScript} script
 	 */
-	_compiled : function () {
+	_compiled : function ( script ) {
+		this._script = script;
 		this.loaded = true;
 		if ( this.debug ) {
 			this._script.debug ();

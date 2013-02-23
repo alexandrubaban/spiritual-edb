@@ -154,5 +154,48 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 			throw new Error ( "No script engine registered for type: " + type );
 		}
 		return impl;
+	},
+
+	/**
+	 * Load and compile script from SRC.
+	 * @param {Window} context
+	 * @param {String} src
+	 * @param {String} type
+	 * @param {function} callback
+	 * @param {object} thisp
+	 */
+	load : function ( context, src, type, callback, thisp ) {
+		var ScriptLoader = edb.BaseLoader.get ( type || "text/edbml" );
+		new ScriptLoader ( context.document ).load ( src, function ( source ) {
+			var url = new gui.URL ( context.document, src );
+			var script = edb.Script.get ( url.href ); // todo - localize!
+			if ( !script ) {
+				this.compile ( context, source, type, null, function ( script ) {
+					edb.Script.set ( url.href, script );
+					callback.call ( thisp, script );
+				}, this );
+			} else {
+				callback.call ( thisp, script );
+			}
+		}, this );
+	},
+
+	/**
+	 * Compile script from source text.
+	 * @param {Window} context
+	 * @param {String} src
+	 * @param {String} type
+	 * @param {Mao<String,object>} extras
+	 * @param {function} callback
+	 * @param {object} thisp
+	 */
+	compile : function ( context, source, type, extras, callback, thisp ) {
+		var Script = this.get ( type || "text/edbml" );
+		var script = new Script ( null, context, function onreadystatechange () {
+			if ( this.readyState === edb.BaseScript.READY ) {
+				callback.call ( thisp, this );
+			}
+		});
+		script.compile ( source, extras );
 	}
 });

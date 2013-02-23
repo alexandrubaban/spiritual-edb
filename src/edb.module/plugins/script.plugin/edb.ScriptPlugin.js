@@ -5,7 +5,7 @@
 edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 	/**
-	 * We don't really handle anything else.
+	 * Script type (in case we want to support other types).
 	 * @type {String}
 	 */
 	type : "text/edbml",
@@ -109,7 +109,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 					this._script = script;
 					this._compiled ();
 				} else {
-					console.error ( "Unhandled :(" );
+					console.error ( "The gui.FileLoader should prevent this scenario" );
 				}
 			}
 		}, this );

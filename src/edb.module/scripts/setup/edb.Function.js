@@ -22,29 +22,29 @@ edb.Function = {
 	// PRIVATES ..................................................
 
 	/**
-	 * Mapping src to function.
+	 * Mapping src to resolved function.
 	 * @type {Map<String,function>}
 	 */
 	_map : new Map (),
 
 	/**
-	 * Load dimsedut.
+	 * Load function from SRC or lookup in local document.
 	 * @param {String} src
 	 * @param {Window} win
-	 * @returns {function} only if synchronous, otherwise wait for broadcast
+	 * @returns {function} only if synchronous (otherwise we wait for broadcast)
 	 */
 	_load : function ( src, win ) {
-		var result = null, loader = new edb.Loader ( win.document );
-		loader.load ( src, function ( source ) {
+		var result = null;
+		new edb.ScriptLoader ( win.document ).load ( src, function ( source, directives ) {
 			new edb.Script ( null, win, function onreadystatechange () {
-				if ( this.readyState === edb.BaseScript.READY ) {
+				if ( this.readyState === edb.ScriptBase.READY ) {
 					edb.Function._map.set ( src, this._function );
 					gui.Broadcast.dispatch ( null, edb.BROADCAST_FUNCTION_LOADED, src, win.gui.signature );
 					result = this._function;
 				}
-			}).compile ( source, loader.directives );
+			}).compile ( source, directives );
 		});
-		return result; // might be undefined at this point if src is external...
+		return result;
 	}
 
 };

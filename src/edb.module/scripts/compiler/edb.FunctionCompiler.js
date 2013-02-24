@@ -25,16 +25,16 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * Mapping script tag attributes.
 	 * @type {HashMap<String,String>}
 	 */
-	extras : null,
+	directives : null,
 
 	/**
 	 * Construction.
 	 * @param {String} source
-	 * @param {Map<String,String} extras
+	 * @param {Map<String,String} directives
 	 */
-	onconstruct : function ( source, extras ) {
+	onconstruct : function ( source, directives ) {
+		this.directives = directives;
 		this.source = source;
-		this.extras = extras;
 	},
 		
 	/**
@@ -43,7 +43,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @param @optional {boolean} fallback
 	 * @returns {function}
 	 */
-	compile : function ( scope, fallback ) {
+	compile : function ( scope ) {
 		var result = null;
 		this.params = [];
 		this.functions = Object.create ( null );
@@ -52,16 +52,21 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			declarations : Object.create ( null ), // Map<String,boolean>
 			definitions : [] // Array<String>
 		};
-		[ "_validate", "_extract", "_tag", "_declare", "_define", "_compile" ].forEach ( function ( step ) {
+		[ 
+			"_validate", 
+			"_extract", 
+			"_direct", 
+			"_declare", 
+			"_define", 
+			"_compile" 
+		].forEach ( function ( step ) {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
 			result = this._convert ( scope, this.source, this.params );
 			this.source = this._source ( this.source, this.params );
 		} catch ( exception ) {
-			if ( !fallback ) {
-				result = this._fail ( scope, exception );
-			}
+			result = this._fail ( scope, exception );
 		}
 		return result;
 	},
@@ -107,12 +112,12 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 
 	/**
-	 * Insert default EDBML for tag declarations before we parse (future project).
+	 * Resolve directives (eg. tag declarations).
 	 * @param  {String} script
 	 */
-	_tag : function ( script ) {
-		if ( this.extras ) { // TODO: how can it be "undefined"?
-			var tag = this.extras [ "tag" ];
+	_direct : function ( script ) {
+		if ( this.directives ) { // TODO: how can it be "undefined"?
+			var tag = this.directives [ "tag" ];
 			if ( tag ) {
 				this.params.push ( "__content__" );
 				this.params.push ( "__attribs__" );

@@ -1,9 +1,9 @@
 /**
  * This fellow compiles a template source string. 
- * The onreadystatechange method fires when ready.
- * The method "run" has then been made available.
+ * The onreadystatechange method fires when ready, 
+ * the method "run" may by then invoke the script.
  */
-edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
+edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
 	
 	/**
 	 * Script may be run when this switches to "ready".
@@ -21,7 +21,7 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 	 * The window context (or any kind of global context).
 	 * @type {Window}
 	 */
-	window : null,
+	context : null,
 	
 	/**
 	 * Spirit (or potentital other entity) running the script.
@@ -34,7 +34,7 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 	 * @returns {String}
 	 */
 	toString : function () {
-		return "[object edb.BaseScript]";
+		return "[object edb.ScriptBase]";
 	},
 	
 	/**
@@ -46,22 +46,20 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 	 */
 	onconstruct : function ( spirit, window, handler ) {
 		this.spirit = spirit || null;
-		this.window = window || null;
+		this.context = window || null;
 		this.onreadystatechange = handler || null;
 	},
 	
 	/**
-	 * @abstract
-	 * Compile source to invokable function.
+	 * Compile source to invokable function (open for implementation).
 	 * @param {String} source
-	 * @param {boolean} debug
-	 * @returns {edb.BaseScript}
+	 * @param {Map<String,object>} directives
+	 * @returns {edb.ScriptBase}
 	 */
-	compile : function ( source, debug ) {},
+	compile : function ( source, directives ) {},
 	
 	/**
-	 * @abstract
-	 * Run the script to produce HTML. Arguments via apply().
+	 * Run the script to produce some HTML (open for implementation).
 	 * @returns {String} 
 	 */
 	run : function () {},
@@ -81,19 +79,6 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 			}
 		}
 	},
-	
-
-	// Secrets .....................................................................
-	
-	/**
-	 * Secret constructor. Nothing special.
-	 * @param {gui.Spirit} spirit
-	 * @param {Window} window
-	 * @param {function} handler
-	 */
-	__construct__ : function ( spirit, window, handler ) {
-		this.onconstruct ( spirit, window, handler );
-	}	
 	
 	
 }, {}, { // STATICS ................................................................
@@ -124,34 +109,29 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 	 * @type {String}
 	 */
 	READY : "ready",
-	
-	/**
-	 * Mapping implementations to mimetypes.
-	 * @type {Map<String,edb.BaseScript>}
-	 */
-	_scripts : new Map (),
 		
 	/**
 	 * Register implementation for one or more mimetypes. 
-	 * TODO: rename
+	 * @param {function} implementation
+	 * @param {String} mimeype (accepts multiple mimetype args)
 	 */
-	set : function () { // implementation, ...mimetypes
+	setImplementation : function () { // implementation, ...mimetypes
 		var args = gui.Type.list ( arguments );
 		var impl = args.shift ();
 		args.forEach ( function ( type ) {
-			this._scripts.set ( type, impl );
+			this._implementations.set ( type, impl );
 		}, this );
 	},
 	
 	/**
 	 * Get implementation for mimetype.
 	 * TODO: rename
-	 * @returns {edb.BaseScript}
+	 * @returns {edb.ScriptBase}
 	 */
-	get : function ( type ) {
-		var impl = this._scripts.get ( type );
+	getImplementation : function ( type ) {
+		var impl = this._implementations.get ( type );
 		if ( !impl ) {
-			throw new Error ( "No script engine registered for type: " + type );
+			throw new Error ( "No implementation for: " + type );
 		}
 		return impl;
 	},
@@ -165,8 +145,7 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 	 * @param {object} thisp
 	 */
 	load : function ( context, src, type, callback, thisp ) {
-		var ScriptLoader = edb.BaseLoader.get ( type || "text/edbml" );
-		new ScriptLoader ( context.document ).load ( src, function ( source ) {
+		new edb.ScriptLoader ( context.document ).load ( src, function ( source ) {
 			var url = new gui.URL ( context.document, src );
 			var script = edb.Script.get ( url.href ); // todo - localize!
 			if ( !script ) {
@@ -190,12 +169,22 @@ edb.BaseScript = gui.Exemplar.create ( "edb.BaseScript", Object.prototype, {
 	 * @param {object} thisp
 	 */
 	compile : function ( context, source, type, extras, callback, thisp ) {
-		var Script = this.get ( type || "text/edbml" );
+		var Script = this.getImplementation ( type );
 		var script = new Script ( null, context, function onreadystatechange () {
-			if ( this.readyState === edb.BaseScript.READY ) {
+			if ( this.readyState === edb.ScriptBase.READY ) {
 				callback.call ( thisp, this );
 			}
 		});
 		script.compile ( source, extras );
-	}
+	},
+
+
+	// Private static .........................................................
+
+	/**
+	 * Mapping implementations to mimetypes.
+	 * @type {Map<String,edb.ScriptBase>}
+	 */
+	_implementations : new Map ()
+
 });

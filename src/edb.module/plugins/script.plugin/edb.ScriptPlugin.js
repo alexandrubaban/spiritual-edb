@@ -5,6 +5,13 @@
 edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	
 	/**
+	 * The {gui.BaseScript} is rigged up to support alternative 
+	 * template languages, but we default to EDBML around here.
+	 * @type {String}
+	 */
+	type : "text/edbml",
+
+	/**
 	 * The Script SRC must be set before spirit.onenter() 
 	 * to automatically load when spirit enters the DOM.
 	 * @type {String}
@@ -107,19 +114,21 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @param @optional {String} type Script mimetype (eg "text/edbml")
 	 */
 	load : function ( src, type ) {
-		edb.BaseScript.load ( this.spirit.window, src, type, function ( script ) {
+		var context = this.spirit.window;
+		edb.ScriptBase.load ( context, src, type || this.type, function ( script ) {
 			this._compiled ( script );
 		}, this );
 	},
 
 	/**
-	 * Compile script and run it when ready.
+	 * Compile script from source text and run it when ready.
 	 * @param {String} source Script source code
 	 * @param @optional {String} type Script mimetype (eg "text/edbml")
-	 * @param @optional {HashMap<String,String>} extras Optional compiler directives
+	 * @param @optional {HashMap<String,String>} directives Optional compiler directives
 	 */
-	compile : function ( source, type, extras ) {
-		edb.BaseScript.compile ( this.spirit.window, source, type, extras, function ( script ) {
+	compile : function ( source, type, directives ) {
+		var context = this.spirit.window;
+		edb.ScriptBase.compile ( context, source,  type || this.type, directives, function ( script ) {
 			this._compiled ( script );
 		}, this );
 	},
@@ -187,7 +196,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	/**
 	 * Script compiled. Let's do this.
 	 * @todo life-event should probably go here...
-	 * @param {edb.BaseScript} script
+	 * @param {edb.ScriptBase} script
 	 */
 	_compiled : function ( script ) {
 		this._script = script;

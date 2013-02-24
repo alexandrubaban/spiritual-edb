@@ -37,14 +37,6 @@ gui.module ( "edb", {
 	 * @param {Window} context
 	 */
 	init : function ( context ) {
-
-		// TODO: detect sandbox...
-		if ( context === gui.context ) { // TODO: better detect top context
-			if ( edb.BaseScript && edb.BaseLoader ) { // TODO: this check is for sandbox (future project)
-				edb.BaseScript.set ( edb.Script, "text/edbml" );
-				edb.BaseLoader.set ( edb.Loader, "text/edbml" );
-			}
-		}
 		context.Object.model = function ( a1, a2 ) {
 			return edb.ObjectModel.extend ( a1, a2 );
 		};
@@ -54,5 +46,17 @@ gui.module ( "edb", {
 		context.Map.model = function ( a1, a2 ) {
 			return edb.MapModel.extend ( a1, a2 );
 		};
+		// TODO: detect sandbox...
+		if ( context === gui.context ) { // TODO: better detect top context
+			if ( edb.ScriptBase && edb.ScriptLoader ) { // bypass the sandbox (future project)
+				edb.ScriptBase.setImplementation ( 
+					edb.Script, 
+					"application/x-edbml",
+					"application/edbml",
+					"text/edbml",
+					"edbml"
+				);
+			}
+		}
 	}
 });

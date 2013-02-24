@@ -164,18 +164,18 @@ edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
 	 * @param {Window} context
 	 * @param {String} src
 	 * @param {String} type
-	 * @param {Mao<String,object>} extras
+	 * @param {Mao<String,object>} directives
 	 * @param {function} callback
 	 * @param {object} thisp
 	 */
-	compile : function ( context, source, type, extras, callback, thisp ) {
+	compile : function ( context, source, type, directives, callback, thisp ) {
 		var Script = this.getImplementation ( type );
 		var script = new Script ( null, context, function onreadystatechange () {
 			if ( this.readyState === edb.ScriptBase.READY ) {
 				callback.call ( thisp, this );
 			}
 		});
-		script.compile ( source, extras );
+		script.compile ( source, directives );
 	},
 
 

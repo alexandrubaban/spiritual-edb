@@ -33,7 +33,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @param {Map<String,String} directives
 	 */
 	onconstruct : function ( source, directives ) {
-		this.directives = directives;
+		this.directives = directives || Object.create ( null );
 		this.source = source;
 	},
 		
@@ -58,7 +58,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			"_direct", 
 			"_declare", 
 			"_define", 
-			"_compile" 
+			"_compile",
 		].forEach ( function ( step ) {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
@@ -112,17 +112,16 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 
 	/**
-	 * Resolve directives (eg. tag declarations).
+	 * Resolve directives (tag declarations for now).
 	 * @param  {String} script
 	 */
 	_direct : function ( script ) {
-		if ( this.directives ) { // TODO: how can it be "undefined"?
-			var tag = this.directives [ "tag" ];
-			if ( tag ) {
-				this.params.push ( "__content__" );
-				this.params.push ( "__attribs__" );
-				script = "att = __attribs__;\n" + script;
-			}
+		if ( this.directives.tag ) {
+			var content = /<content(.*)>(.*)<\/content>|<content(.*)(\/?)>/;
+			this.params.push ( "__content__" );
+			this.params.push ( "__attribs__" );
+			script = "att = __attribs__;\n" + script;
+			script = script.replace ( content, "__content__  ( out );" );
 		}
 		return script;
 	},
@@ -356,7 +355,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		body += ( html ? "';" : "" ) + "\nreturn out.write ();";
 		return this._format ( body );
 	},
-	
+
 	/**
 	 * Generate and inject poke function into main function body.
 	 * @param {String} body

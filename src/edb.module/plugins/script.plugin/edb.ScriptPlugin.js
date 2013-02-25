@@ -196,7 +196,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	/**
 	 * Script compiled. Let's do this.
 	 * @todo life-event should probably go here...
-	 * @param {edb.Template} script
+	 * @param {edb.Script} script
 	 */
 	_compiled : function ( script ) {
 		this._script = script;

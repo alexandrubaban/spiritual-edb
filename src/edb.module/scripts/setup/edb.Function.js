@@ -61,15 +61,15 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * Compile source to invokable function.
 	 * @overwrites {edb.Template#compile}
 	 * @param {String} source
-	 * @param {HashMap<String,String>} atts Mapping script tag attributes.
+	 * @param {HashMap<String,String>} directives
 	 * @returns {edb.Function}
 	 */
-	compile : function ( source, atts ) {
+	compile : function ( source, directives ) {
 		if ( this._function !== null ) {
 			throw new Error ( "not supported: compile script twice" ); // support this?
 		}
 		// create invokable function (signed for sandbox usage)
-		var compiler = this._compiler = new ( this.Compiler ) ( source, atts );
+		var compiler = this._compiler = new ( this.Compiler ) ( source, directives );
 		if ( this._signature ) {
 			compiler.sign ( this._signature );
 		}
@@ -157,18 +157,6 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		}
 	},
 	
-	/**
-	 * Handle tick.
-	 * @param {gui.Tick} tick
-	 */
-	ontick : function ( tick ) {
-		switch ( tick.type ) {
-			case edb.TICK_SCRIPT_UPDATE :
-				this._gostate ( edb.Template.READY );
-				break;
-		}
-	},
-	
 	
 	// PRIVATES ..........................................................................................
 	
@@ -244,6 +232,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		if ( this.readyState !== edb.Template.LOADING ) {
 			this._gostate ( edb.Template.WORKING );
 			if ( this._done ()) {
+
 				this._gostate ( edb.Template.READY );
 			} else {
 				this._gostate ( edb.Template.WAITING );
@@ -287,18 +276,11 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	get : function ( src, win ) { // TODO: pass document not window	
 		src = new gui.URL ( win.document, src ).href;
-		var result = this._map [ src ];
-		if ( !result ) {
-			result = this._load ( src, win );
+		var has = gui.Type.isFunction ( this._map [ src ]);
+		if ( !has ) {
+			return this._load ( src, win );
 		}
-		return result;
-	},
-
-	/**
-	 * Set function for SRC.
-	 */
-	set : function ( src, func ) {
-		this._map [ src ] = func;
+		return this._map [ src ];
 	},
 
 	// Private static ...............................................
@@ -308,6 +290,15 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @type {Map<String,function>}
 	 */
 	_map : Object.create ( null ),
+
+	/**
+	 * Set function for SRC.
+	 * @param {String} src
+	 * @param {function} func
+	 */
+	_set : function ( src, func ) {
+		this._map [ src ] = func;
+	},
 
 	/**
 	 * Load function from SRC (async) or lookup in local document (sync).
@@ -322,13 +313,12 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		new edb.TemplateLoader ( win.document ).load ( src, function ( source, directives ) {
 			new edb.Function ( null, win, function onreadystatechange () {
 				if ( this.readyState === edb.Template.READY ) {
-					if ( directives.debug ) {
-						this.debug ();
-					}
+					edb.Function._set ( src, this._function );
 					if ( directives.tag ) {
 						edb.Tag.set ( win, directives.tag, src );
-					} else {
-						edb.Function.set ( src, this._function );
+					}
+					if ( directives.debug ) {
+						this.debug ();
 					}
 					gui.Broadcast.dispatch ( null, msg, src, sig );
 					result = this._function;

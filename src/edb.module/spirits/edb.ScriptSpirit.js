@@ -72,21 +72,6 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 		} else {
 			plugin.compile ( this.dom.text (), type, extras );
 		}
-
-		/*
-		if ( parent.spirit ) {
-			plugin = parent.spirit.script;
-		}
-		if ( plugin ) {
-			plugin.extras = extras;
-			plugin.debug = this.debug;
-			if ( src ) {
-				plugin.load ( src, type, extras );
-			} else {
-				plugin.compile ( this.dom.text (), type, extras );
-			}
-		}
-		*/
 	}
 
 });

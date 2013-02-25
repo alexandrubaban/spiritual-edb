@@ -43,8 +43,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		this._super.onbroadcast ( b );
 		switch ( b.type ) {
 			case gui.BROADCAST_DATA_SUB :
-				var key = b.data;
-				this._keys.add ( key );
+				this._keys.add ( b.data );
 				break;
 			/*
 			 * Timeout allows multiple data model 
@@ -64,14 +63,26 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	},
 
 	/**
+	 * Handle tick.
+	 * @param {gui.Tick} tick
+	 */
+	ontick : function ( tick ) {
+		switch ( tick.type ) {
+			case edb.TICK_SCRIPT_UPDATE :
+				this._gostate ( edb.Template.READY );
+				break;
+		}
+	},
+
+	/**
 	 * Compile source to invokable function.
 	 * @overwrites {edb.Function#compile}
 	 * @param {String} source
-	 * @param {HashMap<String,String>} atts Mapping script tag attributes.
+	 * @param {HashMap<String,String>} directives
 	 * @returns {edb.Script}
 	 */
-	compile : function ( source, atts ) {
-		this._super.compile ( source, atts );
+	compile : function ( source, directives ) {
+		this._super.compile ( source, directives );
 		gui.Object.each ( this._compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );

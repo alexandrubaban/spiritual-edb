@@ -48,8 +48,8 @@ gui.module ( "edb", {
 		};
 		// TODO: detect sandbox...
 		if ( context === gui.context ) { // TODO: better detect top context
-			if ( edb.ScriptBase && edb.ScriptLoader ) { // bypass the sandbox (future project)
-				edb.ScriptBase.setImplementation ( 
+			if ( edb.Template && edb.TemplateLoader ) { // hack to bypass the sandbox (future project)
+				edb.Template.setImplementation ( 
 					edb.Script, 
 					"application/x-edbml",
 					"application/edbml",

@@ -105,6 +105,12 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	_instructions : null,
 
 	/**
+	 * Did compilation fail just yet?
+	 * @type {boolean}
+	 */
+	_failed : false,
+
+	/**
 	 * Confirm no nested EDBML scripts because it's not parsable in the browser.
 	 * @see http://stackoverflow.com/a/6322601
 	 * @param {String} script
@@ -126,8 +132,8 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		if ( this.directives.tag ) {
 			var content = /<content(.*)>(.*)<\/content>|<content(.*)(\/?)>/;
 			this.params.push ( "content" );
-			this.params.push ( "config" );
-			//script = "att = attribs;\n" + script;
+			this.params.push ( "attribs" );
+			script = "att = attribs;\n" + script;
 			script = script.replace ( content, "content ( out );" );
 		}
 		return script;
@@ -455,9 +461,14 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {function}
 	 */
 	_fail : function ( scope, exception ) {
-		this._debug ( this._format ( this.source ));
-		this.source = "<p class=\"error\">" + exception.message + "</p>";
-		return this.compile ( scope, true );
+		if ( !this._failed ) {
+			this._failed = true;
+			this._debug ( this._format ( this.source ));
+			this.source = "<p class=\"error\">" + exception.message + "</p>";
+			return this.compile ( scope, true );
+		} else {
+			throw ( exception );
+		}
 	},
 
 	/**

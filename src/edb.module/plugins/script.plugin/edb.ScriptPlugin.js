@@ -115,7 +115,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 */
 	load : function ( src, type ) {
 		var context = this.spirit.window;
-		edb.ScriptBase.load ( context, src, type || this.type, function ( script ) {
+		edb.Template.load ( context, src, type || this.type, function ( script ) {
 			this._compiled ( script );
 		}, this );
 	},
@@ -128,7 +128,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 */
 	compile : function ( source, type, directives ) {
 		var context = this.spirit.window;
-		edb.ScriptBase.compile ( context, source,  type || this.type, directives, function ( script ) {
+		edb.Template.compile ( context, source,  type || this.type, directives, function ( script ) {
 			this._compiled ( script );
 		}, this );
 	},
@@ -196,7 +196,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	/**
 	 * Script compiled. Let's do this.
 	 * @todo life-event should probably go here...
-	 * @param {edb.ScriptBase} script
+	 * @param {edb.Template} script
 	 */
 	_compiled : function ( script ) {
 		this._script = script;

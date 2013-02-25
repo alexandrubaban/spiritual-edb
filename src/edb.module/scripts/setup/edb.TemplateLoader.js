@@ -1,10 +1,9 @@
 /**
- * The script loader will fetch a template string from external an 
+ * The template loader will fetch a template string from an external 
  * document or scan the local document for templates in SCRIPT tags.
- * @todo Rename to edb.TemplateLoader perhaps?
  * @extends {gui.FileLoader}
  */
-edb.ScriptLoader = gui.FileLoader.extend ({
+edb.TemplateLoader = gui.FileLoader.extend ({
 
 	/**
 	 * Mapping script element attributes to be used as compiler directives. 

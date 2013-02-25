@@ -28,6 +28,12 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	directives : null,
 
 	/**
+	 * Compile sequence.
+	 * @type {Array<string>}
+	 */
+	steps : null,
+
+	/**
 	 * Construction.
 	 * @param {String} source
 	 * @param {Map<String,String} directives
@@ -35,6 +41,14 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	onconstruct : function ( source, directives ) {
 		this.directives = directives || Object.create ( null );
 		this.source = source;
+		this.steps = [ 
+			"_validate", 
+			"_extract", 
+			"_direct", 
+			"_declare", 
+			"_define", 
+			"_compile",
+		];
 	},
 		
 	/**
@@ -52,14 +66,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			declarations : Object.create ( null ), // Map<String,boolean>
 			definitions : [] // Array<String>
 		};
-		[ 
-			"_validate", 
-			"_extract", 
-			"_direct", 
-			"_declare", 
-			"_define", 
-			"_compile",
-		].forEach ( function ( step ) {
+		this.steps.forEach ( function ( step ) {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
@@ -118,10 +125,10 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	_direct : function ( script ) {
 		if ( this.directives.tag ) {
 			var content = /<content(.*)>(.*)<\/content>|<content(.*)(\/?)>/;
-			this.params.push ( "__content__" );
-			this.params.push ( "__attribs__" );
-			script = "att = __attribs__;\n" + script;
-			script = script.replace ( content, "__content__  ( out );" );
+			this.params.push ( "content" );
+			this.params.push ( "config" );
+			//script = "att = attribs;\n" + script;
+			script = script.replace ( content, "content ( out );" );
 		}
 		return script;
 	},
@@ -165,11 +172,11 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		var funcs = [];
 		gui.Object.each ( this.functions, function ( name, func ) {
 			head.declarations [ name ] = true;
-			funcs.push ( name + " = __functions__ [ '" + name + "' ];\n" );
+			funcs.push ( name + " = functions [ '" + name + "' ];\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
 			head.definitions.push ( 
-				"( function lookup ( __functions__ ) {\n" +
+				"( function lookup ( functions ) {\n" +
 				funcs.join ( "" ) +
 				"})( this.script.functions ());" 
 			);
@@ -209,7 +216,9 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			poke = false,
 			cont = false,
 			adds = false,
+			tagt = false,
 			func = null,
+			conf = [],
 			skip = 0,
 			last = 0,
 			spot = 0,
@@ -276,7 +285,14 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				}
 				cont = false;
 				Array.forEach ( line, function ( c, i ) {
-					if ( html ) {
+					if ( tagt ) {
+						switch ( c ) {
+							case ">" :
+								tagt = false;
+								skip = 1;
+								break;
+						}
+					} else if ( html ) {
 						switch ( c ) {
 							case "{" :
 								if ( peek || poke ) {}
@@ -332,9 +348,25 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 						switch ( c ) {
 							case "<" :
 								if ( i === 0 ) {
-									html = true;
-									spot = body.length - 1;
-									body += "out.html += '";
+									if ( this._ahead ( line, i, "ole" )) {
+
+
+										tagt = true;
+										body += "out.html += edb.Tag.get ( window, 'ole' )( function ( out ) {";
+										var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
+										conf.push ( JSON.stringify ( gui.AttPlugin.getmap ( elem )));
+
+									} else if ( this._ahead ( line, i, "/ole>" )) {
+
+										body += "}, " + conf.pop () + " );"; // config!
+										tagt = true;
+										conf = null;
+
+									} else {
+										html = true;
+										spot = body.length - 1;
+										body += "out.html += '";
+									}
 								}
 								break;
 							case "@" :
@@ -346,7 +378,9 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 						if ( poke ) {
 							func += c;
 						} else {
-							body += c;
+							if ( !tagt ) {
+								body += c;
+							}
 						}
 					}
 				}, this );

@@ -16,7 +16,6 @@ edb.RemoveUpdate = edb.SoftUpdate.extend ( "edb.RemoveUpdate", {
 	 * @returns {edb.RemoveUpdate}
 	 */
 	setup : function ( id ) {
-		
 		this.id = id;
 		return this;
 	},
@@ -25,10 +24,8 @@ edb.RemoveUpdate = edb.SoftUpdate.extend ( "edb.RemoveUpdate", {
 	 * Execute update.
 	 */
 	update : function () {
-		
 		var element = this.element ();
 		var parent = element.parentNode;
-		
 		if ( this._beforeUpdate ( element )) {
 			parent.removeChild ( element );
 			this._afterUpdate ( parent );
@@ -41,7 +38,6 @@ edb.RemoveUpdate = edb.SoftUpdate.extend ( "edb.RemoveUpdate", {
 	 * TODO: Push to update manager.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.RemoveUpdate #" + this.id );
 	}
 });

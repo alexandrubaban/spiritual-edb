@@ -1,11 +1,14 @@
 /**
- * Data.
+ * EDB model base class. 
+ * @see {edb.ObjectModel}
+ * @see {edb.ArrayModel}
+ * @see {edb.MapModel}
  */
 edb.Model = function Model () {};
 edb.Model.prototype = {
 	
 	/**
-	 * Storage key; serverside or localstorage.
+	 * Primary storage key (whatever serverside or localstorage).
 	 * @type {String}
 	 */
 	$primaryKey : "id",
@@ -34,7 +37,6 @@ edb.Model.prototype = {
 	 * Sub.
 	 */
 	$sub : function () {
-		
 		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_SUB, this._instanceKey );
 	},
 	
@@ -42,7 +44,6 @@ edb.Model.prototype = {
 	 * Pub.
 	 */
 	$pub : function () {
-		
 		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_PUB, this._instanceKey );
 	},
 	
@@ -65,7 +66,6 @@ edb.Model.prototype = {
 					break;
 			}
 		});
-		
 		return JSON.stringify ( 
 			clone, null, pretty ? "\t" : "" 
 		);
@@ -76,7 +76,6 @@ edb.Model.prototype = {
 	 * @returns {String}
 	 */
 	toString : function () {
-		
-		return "edb.Model#toString :)"; //[object " + identity + ( box && box.__name__ ? "<" + box.__name__ + ">" : "" ) + "]";
+		return "edb.Model#toString :)";
 	}
 };

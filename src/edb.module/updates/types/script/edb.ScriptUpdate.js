@@ -15,7 +15,6 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * @param {Document} doc
 	 */
 	onconstruct : function ( doc ) {
-		
 		this._super.onconstruct ( doc );
 		this._summary = [];
 	},
@@ -30,7 +29,6 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * @returns {edb.ScriptUpdate}
 	 */
 	setup : function ( spirit, selector, name, value, key ) {
-		
 		this._super.setup ();
 		this._spirit = spirit;
 		this._selector = selector;
@@ -44,9 +42,7 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * Update :)
 	 */
 	update : function () {
-		
 		this._super.update ();
-		
 		var element = null;
 		try {
 			element = this._spirit.dom.q ( this._selector );
@@ -104,7 +100,6 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * @param {Element} element
 	 */
 	_update : function ( element ) {
-
 		var current = element.getAttribute ( this._name );
 		if ( current.contains ( this._key )) {
 			if ( element.spirit ) {
@@ -121,7 +116,6 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * Debug changes.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.ScriptUpdate " + this._selector );
 	}
 

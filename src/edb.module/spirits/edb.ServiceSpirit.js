@@ -1,5 +1,6 @@
 /**
- * Spirit of the service provider.
+ * Spirit of the service.
+ * @todo rename @type to @model
  * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
  */
 edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
@@ -8,48 +9,45 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 	 * Default to accept JSON and fetch data immediately.
 	 */
 	onconstruct : function () {
-		
 		this._super.onconstruct ();
-		if ( !this.att.get ( "disabled" )) {
-			this._resolve ();
+		var type = this.att.get ( "type" );
+		if ( type ) {
+			var Type = gui.Object.lookup ( type, this.window );
+			if ( this.att.get ( "href" )) {
+				new gui.Request ( this.element.href ).acceptJSON ().get ( function ( status, data ) {
+					this.output.dispatch ( new Type ( data ));
+				}, this );
+			} else {
+				this.output.dispatch ( new Type ());
+			}
+		} else {
+			throw new Error ( "TODO: formalize missing type somehow" );
 		}
 	},
-	
+
 	/**
-	 * TODO: comments go here...
+	 * TODO: enable this pipeline stuff
 	 * @param {edb.Input} input
-	 */
+	 *
 	oninput : function ( input ) {
-		
 		this._super.oninput ( input );
 		if ( this.att.get ( "type" ) && this.input.done ) {
 			this._pipeline ();
 		}
 	},
+	*/
 	
 	
 	// PRIVATES ...............................................................................................
 	
 	/**
-	 * Resolve data from service.
-	 */
-	_resolve : function () {
-
-		new edb.Service ( this.window ).get ( 
-			this.att.get ( "type" ), 
-			this.element.href
-		);
-	},
-	
-	/**
 	 * If both input type and output type is specified, the service will automatically output new data when all 
 	 * input is recieved. Input data will be supplied as constructor argument to output function; if A and B is 
 	 * input types while C is output type, then input instance a and b will be output as new C ( a, b ) 
+	 * @todo Implement support for this some day :)
 	 */
-	_pipeline : function () {
-		
+	_pipeline : function () {		
 		console.error ( "TODO: might this be outdated???" );
-
 		/*
 		 * TODO: use method apply with array-like arguments substitute pending universal browser support.
 		 * https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/apply#Description
@@ -66,7 +64,6 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 			this._arg ( 8 ),
 			this._arg ( 9 )
 		);
-		
 		this.output.dispatch ( data );
 	},
 	
@@ -77,7 +74,6 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 	 * @returns {object}
 	 */
 	_arg : function ( index ) {
-		
 		var type = this.input._types [ index ]; // function type
 		return this.input.get ( type ); // instance of function
 	}

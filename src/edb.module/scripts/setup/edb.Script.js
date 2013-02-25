@@ -1,11 +1,11 @@
 /**
  * EDB script.
- * @extends {edb.GenericScript}
+ * @extends {edb.ScriptBase}
  * @param {object} pointer
  * @param {Global} context
  * @param {function} handler
  */
-edb.Script = edb.GenericScript.extend ( "edb.Script", {
+edb.Script = edb.ScriptBase.extend ( "edb.Script", {
 	
 	/**
 	 * The window context; where to lookup data types.
@@ -47,60 +47,45 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param {function} handler
 	 */
 	onconstruct : function ( pointer, context, handler ) {
-		
 		this._keys = new Set (); // tracking data model changes
 		this._super.onconstruct ( pointer, context, handler );
-		
 		/*
 		 * Redefine these terms into concepts that makes more 
 		 * sense when runinng script inside a worker context. 
 		 * (related to a future "sandbox" project of some kind)
 		 */
-		this.pointer = this.spirit; this.spirit = null;
-		this.context = this.window; this.window = null;
-		
-		/*
-		 * Plugin an inputtracker; inject our scope.
-		 */
-		this.input = new edb.InputTracker ();
+		this.pointer = this.spirit; 
+		this.spirit = null;
+		// plugin an inputtracker; inject our scope.
+		this.input = new edb.InputPlugin ();
 		this.input.context = this.context;
-		
-		/**
-		 * Hey mister.
-		 */
+		// hey
 		this.functions = Object.create ( null );
-
-		/*
-		 * TODO: This *must* be added before it can be removed ?????
-		 */
+		// @todo this *must* be added before it can be removed ?????
 		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
 	},
 	
 	/**
 	 * Compile source to invokable function.
+	 * @overwrites {edb.ScriptBase#compile}
 	 * @param {String} source
-	 * @param {boolean} debug
+	 * @param {HashMap<String,String>} atts Mapping script tag attributes.
 	 * @returns {edb.Script}
 	 */
-	compile : function ( source, debug ) {
-
+	compile : function ( source, atts ) {
 		if ( this._function !== null ) {
 			throw new Error ( "not supported: compile script twice" ); // support this?
 		}
-		
 		// create invokable function (signed for sandbox usage)
-		var compiler = new edb.ScriptCompiler ( source, debug );
-
+		var compiler = new edb.ScriptCompiler ( source, atts );
 		if ( this._signature ) {
 			compiler.sign ( this._signature );
 		}
-		
 		// compile source to invokable function
 		this._function = compiler.compile ( this.context );
-
+		this._source = compiler.source;
 		// copy expected params
 		this.params = compiler.params;
-
 		// waiting for functions to load?
 		gui.Object.each ( compiler.functions, function ( name, src ) {
 			src = new gui.URL ( this.context.document, src ).href;
@@ -108,27 +93,31 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			if ( func ) {
 				this.functions [ name ] = func;
 			} else {
-				gui.Broadcast.addGlobal ( edb.BROADCAST_FUNCTION_LOADED, this );
+				gui.Broadcast.add ( edb.BROADCAST_FUNCTION_LOADED, this, this.context.gui.signature );
 				this.functions [ name ] = src;
 			}
 		}, this );
-
 		// waiting for datatypes to load?
 		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
-		
-		try { // in development mode, load invokable function as a blob file; otherwise just init
-			if ( gui.debug && gui.Client.hasBlob && !gui.Client.isExplorer && !gui.Client.isOpera ) {
-				this._blob ( compiler );
+		try { // in development mode, load invokable function as a blob file; otherwise skip to init
+			if ( this._useblob ()) {
+				this._loadblob ( compiler );
 			} else {
 				this._maybeready ();
 			}
 		} catch ( workerexception ) {
 			this._maybeready ();
 		}
-		
 		return this;
+	},
+
+	/**
+	 * Log script source to console.
+	 */
+	debug : function () {
+		console.debug ( this._source );
 	},
 
 	/**
@@ -137,7 +126,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @returns {edb.Script}
 	 */
 	sign : function ( signature ) {
-		
 		this._signature = signature;
 		return this;
 	},
@@ -147,27 +135,25 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @returns {String} 
 	 */
 	run : function () { // arguments via apply()
-
 		this._keys = new Set ();
 		var error = null;
 		var result = null;
-		 
 		if ( !this._function ) {
 			error = "Script not compiled";
 		} else if ( !this.input.done ) {
 			error = "Script awaits input";
-		} else {
-			error = this._validate ( arguments );
 		}
-		
 		if ( error !== null ) {
 			throw new Error ( error );
 		} else {
 			this._subscribe ( true );
-			result = this._function.apply ( this.pointer, arguments );
+			try {
+				result = this._function.apply ( this.pointer, arguments );
+			} catch ( exception ) {
+				console.error ( exception.message + ":\n\n" + this._source );
+			}
 			this._subscribe ( false );
 		}
-
 		return result;
 	},
 	
@@ -175,38 +161,28 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * Handle broadcast.
 	 * @param {gui.Broadcast} broadcast
 	 */
-	onbroadcast : function ( broadcast ) {
-		
-		switch ( broadcast.type ) {
-			
+	onbroadcast : function ( b ) {
+		switch ( b.type ) {
 			case gui.BROADCAST_DATA_SUB :
-				var key = broadcast.data;
+				var key = b.data;
 				this._keys.add ( key );
 				break;
-				
 			/*
 			 * Timeout allows multiple data model 
 			 * updates before we rerun the script.
 			 */
 			case gui.BROADCAST_DATA_PUB :
-				if ( this._keys.has ( broadcast.data )) {
-					if ( this.readyState !== edb.GenericScript.WAITING ) {
-						var tick = gui.TICK_SCRIPT_UPDATE;
+				if ( this._keys.has ( b.data )) {
+					if ( this.readyState !== edb.ScriptBase.WAITING ) {
+						var tick = edb.TICK_SCRIPT_UPDATE;
 						var sig = this.context.gui.signature;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );	
-						this._gostate ( edb.GenericScript.WAITING );
+						this._gostate ( edb.ScriptBase.WAITING );
 					}
 				}
 				break;
-
 			case edb.BROADCAST_FUNCTION_LOADED :
-				var src = broadcast.data;
-				gui.Object.each ( this.functions, function ( name, value ) {
-					if ( value === src ) {
-						this.functions [ name ] = edb.Function.get ( src, this.context );
-					}
-				}, this );
-				this._maybeready ();
+				this._functionloaded ( b.data );
 				break;
 		}
 	},
@@ -216,10 +192,9 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param {gui.Tick} tick
 	 */
 	ontick : function ( tick ) {
-
 		switch ( tick.type ) {
-			case gui.TICK_SCRIPT_UPDATE :
-				this._gostate ( edb.GenericScript.READY );
+			case edb.TICK_SCRIPT_UPDATE :
+				this._gostate ( edb.ScriptBase.READY );
 				break;
 		}
 	},
@@ -230,7 +205,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param {edb.Input} input
 	 */
 	oninput : function ( input ) {
-		
 		this._maybeready ();
 	},
 	
@@ -257,33 +231,57 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	_signature : null,
 
 	/**
-	 * All functions imported?
+	 * Use blob files?
+	 * @returns {boolean} Always false if not development mode
 	 */
-	_functionsdone : function () {
-
-		return Object.keys ( this.functions ).every ( function ( name ) {
-			return gui.Type.isFunction ( this.functions [ name ]);
-		}, this );
+	_useblob : function () {
+		return edb.Script.useblob && 
+			this.context.gui.debug && 
+			gui.Client.hasBlob && 
+			!gui.Client.isExplorer && 
+			!gui.Client.isOpera;
 	},
 	
 	/**
 	 * In development mode, load compiled script source as a file. 
-	 * This allows browser developer tools to assist in debugging.
+	 * This allows browser developer tools to assist in debugging. 
+	 * Note that this introduces an async step of some kind...
 	 * @param {edb.ScriptCompiler} compiler
 	 */
-	_blob : function ( compiler ) {
-
-		var key = gui.KeyMaster.generateKey (),
+	_loadblob : function ( compiler ) {
+		var key = gui.KeyMaster.generateKey ( "script" ),
 			msg = "// blob script generated in development mode\n",
 			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}",
 			win = this.context,
 			doc = win.document;
-
-		this._gostate ( edb.GenericScript.LOADING );
+		this._gostate ( edb.ScriptBase.LOADING );
 		gui.BlobLoader.loadScript ( doc, src, function onload () {
-			this._gostate ( edb.GenericScript.WORKING );
+			this._gostate ( edb.ScriptBase.WORKING );
 			this._function = win [ key ];
 			this._maybeready ();
+		}, this );
+	},
+
+	/**
+	 * Resolve loaded funtion.
+	 * @param {String} src
+	 */
+	_functionloaded : function ( src ) {
+		gui.Object.each ( this.functions, function ( name, value ) {
+			if ( value === src ) {
+				this.functions [ name ] = edb.Function.get ( src, this.context );
+			}
+		}, this );
+		this._maybeready ();
+	},
+
+	/**
+	 * All functions imported?
+	 * @returns {boolean}
+	 */
+	_functionsdone : function () {
+		return Object.keys ( this.functions ).every ( function ( name ) {
+			return gui.Type.isFunction ( this.functions [ name ]);
 		}, this );
 	},
 
@@ -292,34 +290,14 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * for data types to initialize...
 	 */
 	_maybeready : function () {
-
-		if ( this.readyState !== edb.GenericScript.LOADING ) {
-			this._gostate ( edb.GenericScript.WORKING );
+		if ( this.readyState !== edb.ScriptBase.LOADING ) {
+			this._gostate ( edb.ScriptBase.WORKING );
 			if ( this.input.done && this._functionsdone ()) {
-				this._gostate ( edb.GenericScript.READY );
+				this._gostate ( edb.ScriptBase.READY );
 			} else {
-				this._gostate ( edb.GenericScript.WAITING );
+				this._gostate ( edb.ScriptBase.WAITING );
 			}
 		}
-	},
-	
-	/**
-	 * Confirm correct number of args. No arg 
-	 * must be left undefined, use null instead.
-	 * @param {Arguments} params
-	 * @returns {String} 
-	 */
-	_validate : function ( params ) {
-		
-		var error = null, expected = this.params.length;
-		var i = 0; while ( i < expected ) {
-			if ( !gui.Type.isDefined ( params [ i ])) {
-				error = "Script param undefined: " + this.params [ i ];
-				break;
-			}
-			i++;
-		}
-		return error;
 	},
 	
 	/**
@@ -327,7 +305,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param {boolean} isBuilding
 	 */
 	_subscribe : function ( isBuilding ) {
-		
 		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( gui.BROADCAST_DATA_SUB, this );
 		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( gui.BROADCAST_DATA_PUB, this );
 	}
@@ -335,10 +312,17 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 
 }, {}, { // STATICS .....................................................................................
 	
+
+	/**
+	 * Mount compiled scripts as blob files in development mode for easier debugging?
+	 * @todo map to gui.Client.hasBlob somehow...
+	 * @type {boolean}
+	 */
+	useblob : true,
 	
 	/**
 	 * @static
-	 * Mapping functions to keys.
+	 * Mapping compiled functions to keys.
 	 * @type {Map<String,function>}
 	 */
 	_invokables : new Map (),
@@ -357,7 +341,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @returns {String}
 	 */
 	assign : function ( func, thisp ) {
-		
 		var key = gui.KeyMaster.generateKey ();
 		edb.Script._invokables.set ( key, function ( value, checked ) {
 			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
@@ -373,10 +356,8 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	 * @param @optional {Map<String,object>} log
 	 */
 	invoke : function ( key, sig, log ) {
-		
 		var func = null;
 		log = log || this._log;
-
 		/*
 		  * Relay invokation to edb.Script in sandboxed context?
 		 */
@@ -387,7 +368,6 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 				log : log
 			});
 		} else {
-
 			/*
 			 * Timeout is a cosmetic stunt to unfreeze a pressed 
 			 * button case the function takes a while to complete. 
@@ -405,18 +385,41 @@ edb.Script = edb.GenericScript.extend ( "edb.Script", {
 			}
 		}
 	},
-
 	/**
-	 * Log event details.
+	 * Keep a log on the latest DOM event.
 	 * @param {Event} e
 	 */
-	log : function ( e ) {
-
+	register : function ( e ) {
 		this._log = {
 			type : e.type,
 			value : e.target.value,
 			checked : e.target.checked
 		};
 		return this;
-	}
+	},
+
+	/**
+	 * Experimental.
+	 * @param {String} key
+	 * @returns {edb.Script}
+	 */
+	get : function ( key ) {
+		return this._scripts [ key ];
+	},
+
+	/**
+	 * Experimental.
+	 * @param {String} key
+	 * @param {edb.Script} script
+	 */
+	set : function ( key, script ) {
+		this._scripts [ key ] = script;
+	},
+
+	/**
+	 * Mapping scripts to keys.
+	 * @type {Map<String,edb.Script>}
+	 */
+	_scripts : Object.create ( null )
+
 });

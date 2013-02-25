@@ -22,7 +22,6 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * @returns {edb.HardUpdate}
 	 */
 	setup : function ( id, xelement ) {
-		
 		this._super.setup ();
 		this.id = id;
 		this.xelement = xelement;
@@ -33,11 +32,10 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * Replace target subtree. 
 	 */
 	update : function () {
-
 		this._super.update ();
 		var element = this.element ();
 		if ( this._beforeUpdate ( element )) {
-			gui.SpiritDOM.html ( element, this._serialize ());
+			gui.DOMPlugin.html ( element, this._serialize ());
 			this._afterUpdate ( element );
 			this._report ();
 		}
@@ -47,7 +45,6 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * Clean up.
 	 */
 	dispose : function () {
-		
 		this._super.dispose ();
 		delete this.xelement;
 	},
@@ -61,7 +58,6 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * @returns {String}
 	 */
 	_serialize : function () {
-		
 		var xhtml = new XMLSerializer ().serializeToString ( this.xelement );
 		if ( xhtml.contains ( "</" )) {
 			xhtml = xhtml.slice ( xhtml.indexOf ( ">" ) + 1, xhtml.lastIndexOf ( "<" ));
@@ -73,7 +69,6 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * Hello.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.HardUpdate #" + this.id );
 	}
 });

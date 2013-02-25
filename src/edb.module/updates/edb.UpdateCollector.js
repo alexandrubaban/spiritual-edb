@@ -28,7 +28,6 @@ edb.UpdateCollector.prototype = {
 	 * @returns {String}
 	 */
 	toString : function () {
-
 		return "[object edb.UpdateCollector]";
 	},
 
@@ -39,7 +38,6 @@ edb.UpdateCollector.prototype = {
 	 * @returns {[type]}
 	 */
 	collect : function ( update, ids ) {
-
 		this._updates.push ( update );
 		if ( update.type === edb.Update.TYPE_HARD ) {
 			this._hardupdates.add ( update.id );
@@ -54,7 +52,6 @@ edb.UpdateCollector.prototype = {
 	 * @returns {boolean}
 	 */
 	hardupdates : function ( id ) {
-
 		return this._hardupdates.has ( id );
 	},
 
@@ -66,7 +63,6 @@ edb.UpdateCollector.prototype = {
 	 * @param {function} action
 	 */
 	eachRelevant : function ( action ) {
-
 		this._updates.filter ( function ( update ) {
 			return ( 
 				update.type === edb.Update.TYPE_HARD || 
@@ -83,7 +79,6 @@ edb.UpdateCollector.prototype = {
 	 * TODO: At some point, figure out what exactly to do here.
 	 */
 	dispose : function () {
-
 		delete this._hardupdates;
 		delete this._updates;
 	}

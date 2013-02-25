@@ -20,8 +20,7 @@ edb.Out.prototype = {
 	 * Get HTML result. Do your output modification here.
 	 * @returns {String}
 	 */
-	toString : function () {
-
+	write : function () {
 		return this.html;
 	}
 };

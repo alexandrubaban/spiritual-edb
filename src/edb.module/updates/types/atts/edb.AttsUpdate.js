@@ -33,7 +33,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @param {Document} doc
 	 */
 	onconstruct : function ( doc ) {
-		
 		this._super.onconstruct ( doc );
 		this._summary = [];
 	},
@@ -46,7 +45,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @returns {edb.AttsUpdate}
 	 */
 	setup : function ( id, xnew, xold ) {
-		
 		this._super.setup ();
 		this.id = id;
 		this._xnew = xnew;
@@ -58,7 +56,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * Update attributes.
 	 */
 	update : function () {
-		
 		this._super.update ();
 		var element = this.element ();
 		if ( this._beforeUpdate ( element )) {
@@ -73,7 +70,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @overloads {edb.Update#dispose}
 	 */
 	dispose : function () {
-		
 		this._super.dispose ();
 		delete this._xold;
 		delete this._xnew;
@@ -84,22 +80,11 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	
 	/**
 	 * Actually update attributes.
+	 * 1. Create and update attributes.
+	 * 2. Remove attributes
 	 * @param {HTMLElement} element
 	 */
 	_update : function ( element ) {
-
-		/*
-		var hits = gui.KeyMaster.extractKey ( att1.value );
-		if ( hits ) {
-			update = new edb.ScriptUpdate ( this._doc ).setup ( css, att1.name, att2.value, hits [ 0 ]);
-			this._updates.collect ( update, ids );
-			same = true;
-		}
-		*/
-		
-		/*
-		 * Create and update attributes.
-		 */
 		Array.forEach ( this._xnew.attributes, function ( newatt ) {
 			var oldatt = this._xold.getAttribute ( newatt.name );
 			if ( oldatt === null || oldatt !== newatt.value ) {
@@ -107,10 +92,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 				this._summary.push ( "@" + newatt.name );
 			}
 		}, this );
-		
-		/* 
-		 * Remove attributes
-		 */
 		Array.forEach ( this._xold.attributes, function ( oldatt ) {
 			if ( !this._xnew.hasAttribute ( oldatt.name )) {
 				this._del ( element, oldatt.name, null );
@@ -127,10 +108,9 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @return
 	 */
 	_set : function ( element, name, value ) {
-		
 		var spirit = element.spirit;
 		if ( spirit ) {
-			spirit.att.set ( name, value ); // TODO!!!!!!!!!!!!!!
+			spirit.att.set ( name, value );
 		} else {
 			element.setAttribute ( name, value );
 			switch ( name ) {
@@ -156,7 +136,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @return
 	 */
 	_del : function ( element, name ) {
-		
 		var spirit = element.spirit;
 		if ( spirit ) {
 			spirit.att.del ( name ); // TODO!!!!!!!!!!!!!!
@@ -176,9 +155,7 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * Debug changes.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.AttsUpdate \"#" + this.id + "\" " + this._summary.join ( ", " ));
 	}
-
 	
 });

@@ -6,27 +6,37 @@
 
 
 
-/**
- * Namespace object.
- */
-var edb = {
-	BROADCAST_FUNCTION_LOADED : "broadcast-edb-function-loaded"
-};
-
 /*
- * Portal edb members.
+ * Namepace object.
  */
-gui.namespace ( "edb" );
+var edb = gui.namespace ( "edb", {
+
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		return "[namespace edb]";
+	},
+
+	BROADCAST_FUNCTION_LOADED : "broadcast-function-loaded",
+	LIFE_SCRIPT_WILL_RUN : "life-script-will-run",
+	LIFE_SCRIPT_DID_RUN	: "life-script-did-run",
+
+});
 
 
 /**
- * Data.
+ * EDB model base class. 
+ * @see {edb.ObjectModel}
+ * @see {edb.ArrayModel}
+ * @see {edb.MapModel}
  */
 edb.Model = function Model () {};
 edb.Model.prototype = {
 	
 	/**
-	 * Storage key; serverside or localstorage.
+	 * Primary storage key (whatever serverside or localstorage).
 	 * @type {String}
 	 */
 	$primaryKey : "id",
@@ -55,7 +65,6 @@ edb.Model.prototype = {
 	 * Sub.
 	 */
 	$sub : function () {
-		
 		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_SUB, this._instanceKey );
 	},
 	
@@ -63,7 +72,6 @@ edb.Model.prototype = {
 	 * Pub.
 	 */
 	$pub : function () {
-		
 		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_PUB, this._instanceKey );
 	},
 	
@@ -86,7 +94,6 @@ edb.Model.prototype = {
 					break;
 			}
 		});
-		
 		return JSON.stringify ( 
 			clone, null, pretty ? "\t" : "" 
 		);
@@ -97,8 +104,7 @@ edb.Model.prototype = {
 	 * @returns {String}
 	 */
 	toString : function () {
-		
-		return "edb.Model#toString :)"; //[object " + identity + ( box && box.__name__ ? "<" + box.__name__ + ">" : "" ) + "]";
+		return "edb.Model#toString :)";
 	}
 };
 
@@ -112,9 +118,7 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 	 * Hello.
 	 */
 	__construct__ : function ( data ) {
-		
 		this._instanceKey = gui.KeyMaster.generateKey ();
-
 		var type = gui.Type.of ( data );
 		switch ( type ) {
 			case "object" :
@@ -145,17 +149,13 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 	 * @param {object} proxy The object whose properties are being intercepted (the JSON data)
 	 */
 	approximate : function ( handler, proxy ) {
-		
 		var def = null;
 		proxy = proxy || {};
 		var model = {}; // mapping properties that redefine from "function" to "object"
-		
 		this._definitions ( handler ).forEach ( function ( key ) {
-			
 			def = handler [ key ];
-			
 			switch ( gui.Type.of ( def )) {
-				
+
 				/*
 				 * Method type functions are skipped, constructors get instantiated. 
 				 * Similar (named) property in proxy becomes the constructor argument.
@@ -235,7 +235,6 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 	 * @returns {Array<String>}
 	 */
 	_definitions : function ( handler ) {
-			
 		var keys = [];
 		function fix ( key ) {
 			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
@@ -263,30 +262,26 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	 * Autoboxed data model.
 	 * @type {function} model constructor (or filter function)
 	 */
-	$content : null,
+	$contentmodel : null,
 
 	/**
 	 * Secret constructor.
 	 */
-	__construct__ : function () {
-		
+	__construct__ : function () {		
 		this._instanceKey = gui.KeyMaster.generateKey ();
-		
 		/*
 		 * Autoboxing?
 		 * TODO: WHAT EXACTLY IS THIS STEP DOING?
 		 */
 		var C = this.constructor;
 		if ( C.__content__ ) {
-			this.$content = C.__content__;
+			this.$contentmodel = C.__content__;
 			C.__content__ = null;
 		}
-		
 		/*
 		 * TODO: sample for type Object or Array and autocast autoboxing!
 		 */
 		if ( gui.Type.isDefined ( arguments [ 0 ])) {
-
 			// accept one argument (an array) or use Arguments object as an array
 			var input = [];
 			if ( gui.Type.isArray ( arguments [ 0 ])) {
@@ -296,9 +291,8 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 					input.push ( arg );
 				});
 			}
-
 			// TODO: this less cryptic
-			var boxer = this.$content;
+			var boxer = this.$contentmodel || this.$cm;
 			if ( gui.Type.isFunction ( boxer )) {
 				input.forEach ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
@@ -314,7 +308,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 				}, this );
 			}
 		}
-
 		// proxy methods and invoke non-secret constructor
 		edb.ArrayModel.approximate ( this, {});
 		this.onconstruct ();
@@ -326,35 +319,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	__name__ : "DataList",
 	__data__ : true,
 	__content__ : null
-	
-	/**
-	 * @deprecated
-	 * Was something like children:data.PersonList.box(data.Child)
-	 * @param {function} type
-	 *
-	box : function ( type ) {
-
-		if ( !type || !type.__data__ ) {
-			throw "Not a data type: " + type; // for now...
-		}
-		
-		var DataList = this;
-		function BoxedList () {
-			DataList.__content__ = type;
-			var input = [];
-			if ( gui.Type.isArray ( arguments [ 0 ])) {
-				input = arguments [ 0 ];
-			} else {
-				Array.forEach ( arguments, function ( arg ) {
-					input.push ( arg );
-				});
-			}
-			return new DataList ( input );
-		}
-		BoxedList.__data__ = true;
-		return BoxedList;
-	}
-	 */
 
 
 }, { // static fields ............................................
@@ -367,22 +331,16 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	approximate : function ( handler, proxy ) {
 		
 		var def = null;
-		proxy = proxy || {};
-		
+		proxy = proxy || {};	
 		this._definitions ( handler ).forEach ( function ( key ) {
-			
 			def = handler [ key ];
-			
 			switch ( gui.Type.of ( def )) {
-				
 				case "function" :
 					break;
-					
 				case "object" :
 				case "array" :
 					console.warn ( "TODO: complex stuff on edb.ArrayModel :)" );
 					break;
-					
 				/*
 				 * Simple properties copied from handler to 
 				 * proxy. Strings, numbers, booleans etc.
@@ -420,7 +378,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	 * @returns {Array<String>}
 	 */
 	_definitions : function ( handler ) {
-		
 		var keys = [];
 		function fix ( key ) {
 			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
@@ -495,11 +452,10 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	}, this );
 	
 	/*
-	 * TODO: This is wrong somehow.
+	 * TODO: This is wrong on so many...
 	 * @param {edb.ArrayModel} other
 	 */
 	this.concat = function ( other ) {
-		
 		var clone = new this.constructor (); // must not construct() the instance!
 		this.forEach ( function ( o ) {
 			clone.push ( o );
@@ -518,67 +474,16 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 
 
 /**
- * Load JSON data and dispatch EDB types.
- * TODO: support localstorage as alternative to server
- * @param {Window} context Might be a worker context
- */
-edb.Service = function Service ( context ) {
-
-	this._context = context;
-};
-
-edb.Service.prototype = {
-
-	/**
-	 * Window or worker context.
-	 * @type {Window}
-	 */
-	_context : null,
-
-	/**
-	 * @static
-	 * Fetch JSON from server and output EDB types in context document.
-	 * @param {object} type edb.Model constructor or string of type "my.data.Thing"
-	 * @param @optional {String} href
-	 */
-	get : function ( type, href ) {
-		
-		// lookup type in context.
-		var output = new edb.Output ();
-		output.context = this._context;
-		output.type ( type );
-
-		// TODO: ref to edb.ServiceSpirit as "target" of dispatch in edb.Output!
-
-		if ( href ) {
-			new gui.Request ( href ).acceptJSON ().get ( function ( status, data, text ) {
-				output.dispatch ( data );
-			}, this ); 
-		} else {
-			output.dispatch ();
-		}
-	}
-};
-
-
-/**
  * The SpiritView acts to update the HTML subtree of a spirit.
- * @extends {gui.SpiritPlugin}
+ * @extends {gui.Plugin}
  */
-edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
+edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 	/**
-	 * The edb.Script is bookkeeping data type input. 
-	 * It triggers a readystate event when ready to run.  
-	 * @type {edb.Script}
-	 */
-	script : null,
-	
-	/**
-	 * Flipped after first render.
+	 * Flipped after first run.
 	 * @type {boolean}
 	 */
-	rendered : false,
+	ran : false,
 
 	/**
 	 * Use minimal updates? If false, we write 
@@ -591,7 +496,6 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 	 * Construction time again.
 	 */
 	onconstruct : function () {
-		
 		this._super.onconstruct ();
 		if ( this.updating ) { // using incremental updates?
 			this._updater = new edb.UpdateManager ( this.spirit );
@@ -599,45 +503,55 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 	},
 	
 	/**
+	 * Mapping imported functions to declared variable names.
+	 * @returns {Map<String,function>}
+	 */
+	functions : function () {
+		return this._script.functions;
+	},
+
+	/**
+	 * Hm.
+	 * returns {edb.Input}
+	 */
+	input : function () {
+		return this._script.input;
+	},
+
+	/**
 	 * Compile script and run it when ready.
 	 * @param {String} source Script source code
 	 * @param {String} type Script mimetype (eg "text/edbml")
 	 * @param {boolean} debug Log something to console
+	 * @param {HashMap<String,String>} atts Script tag attributes
 	 */
-	compile : function ( source, type, debug ) {
-		
+	compile : function ( source, type, debug, atts ) {
 		var Script = edb.GenericScript.get ( type );
-		
-		if ( !this.script ) {
+		if ( !this._script ) {
 			var that = this;
-			this.script = new Script ( 
+			this._script = new Script ( 
 				this.spirit, this.spirit.window, 
 				function onreadystatechange () {
 					if ( this.readyState === edb.GenericScript.READY ) {
-						if ( this.params.length === 0 ) { // auto-running script with zero params
-							that.render ();
-						}
+						that.run ();
 					}
 				}
 			);
-			this.script.compile ( source, debug );
-			
+			this._script.compile ( source, debug, atts );
 		} else {
-			throw new Error ( "not supported: recompile edb.SpiritView" ); // support this?
+			throw new Error ( "not supported: recompile edb.ScriptPlugin" ); // support this?
 		}
 	},
 	
 	/**
-	 * Run script and write result. Arguments will be fed to the script as params. 
-	 * Nothing will happen if you serve the EDB script less params than expected!
+	 * Run script (with implicit arguments) and write result to DOM.
 	 * @see {gui.SandBoxView#render}
 	 */
-	render : function () {
-
-		if ( this.script ) {
+	run : function () {		
+		if ( this._script ) {
 			this.write ( 
-				this.script.run.apply ( 
-					this.script, 
+				this._script.run.apply ( 
+					this._script, 
 					arguments 
 				)
 			);
@@ -653,20 +567,24 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 	 * @param {String} html
 	 */
 	write : function ( html ) {
-
 		if ( this.updating ) {
 			this._updater.update ( html );
 		} else {
 			this.spirit.dom.html ( html ); // TODO: forms markup make valid!
 		}
-
-		this.rendered = true;
-		this.spirit.life.dispatch ( "spirit-view-rendered" );
-		this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes
+		this.ran = true;
+		this.spirit.life.dispatch ( edb.LIFE_SCRIPT_DID_RUN );
+		this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes (?)
 	},
 	
 
 	// PRIVATES ...........................................................................
+
+	/**
+	 * Hello.
+	 * @type {edb.Script}
+	 */
+	_script : null,
 
 	/**
 	 * Update manager. 
@@ -678,79 +596,21 @@ edb.SpiritView = gui.SpiritPlugin.extend ( "edb.SpiritView", {
 
 
 /**
- * Spirit input.
- * @param {object} data
- * @param {function} type
+ * Note: This plugin is used standalone, so don't reference associated spirit.
+ * @todo formalize how this is supposed to be clear
  */
-edb.Input = function SpiritInput ( type, data ) {
-	
-	this.type = type || null;
-	this.data = data || null;
-};
-
-edb.Input.prototype = {
-	
-	/**
-	 * Input type (is a function constructor)
-	 * @type {function}
-	 */
-	type : null,
-	
-	/**
-	 * Input data (is an instance of this.type)
-	 * @type {object} data
-	 */
-	data : null,
-	
-	/**
-	 * Identification.
-	 * @returns {String}
-	 */
-	toString : function () {
-		
-		return "[object edb.Input]";
-	}
-};
-
-/**
- * @static
- * TODO: out of global
- * Subscribe handler to input.
- * @param {object} handler Implements InputListener
- */
-edb.Input.add = function ( handler ) {
-	
-	gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, handler );
-};
-
-/**
- * @static
- * TODO: out of global
- * Unsubscribe handler from input.
- * @param {object} handler Implements InputListener
- */
-edb.Input.remove = function ( handler ) {
-	
-	gui.Broadcast.removeGlobal ( gui.BROADCAST_OUTPUT, handler );
-};
-
-
-/**
- * TODO: comments go here
- */
-edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
+edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
-	 * Format data for publication and publish.
+	 * Dispatch data as type (eg. instantiate model with JSON and publish the instance on page).
 	 * @param {object} data
-	 * @param @optional {function} type
+	 * @param @optional {function|String} type edb.Model constructor or "my.ns.MyModel"
 	 */
 	dispatch : function ( data, type ) {
-		
 		var input = this._format ( data, type );
 		if ( input instanceof edb.Input ) {
 			if ( input.type ) {
-				input.type.output = input; // TODO: RENAME!!!
+				input.type.output = input; // TODO: RENAME this abomination
 				gui.Broadcast.dispatchGlobal ( 
 					this.sandboxed ? null : this.spirit, 
 					gui.BROADCAST_OUTPUT, 
@@ -765,12 +625,55 @@ edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 	},
 
 	/**
-	 * Set output type once and for all.
-	 * @param {String} string
-	 * @returns {edb.Output}
+	 * @deprecated
 	 */
-	type : function ( arg ) {
-		
+	type : function () {
+		throw new Error ( "deprecated" );
+	},
+
+	
+	// PRIVATES .........................................................................
+	
+	/**
+	 * Wrap data in edb.Input before we output.
+	 * TODO: DON'T AUTOMATE MODELS, let's just output JSON objects...
+	 * @param {object} data
+	 * @param @optional {function|String} type
+	 * @returns {edb.Input}
+	 */
+	_format : function ( data, Type ) {
+		var result = data;
+		if ( data instanceof edb.Input === false ) {
+			if ( Type ) {
+				Type = this._lookup ( Type );
+				if ( data instanceof Type === false ) {
+					result = new Type ( data );
+				}
+			} else if ( !data._instanceKey ) { // TODO: THE WEAKNESS
+				switch ( gui.Type.of ( data )) {
+					case "object" :
+						Type = Object.model ();
+						break;
+					case "array" :
+						Type = Array.model ();
+						break;
+				}
+				result = this._format ( data, Type );
+			} else {
+				Type = data.constructor;
+			}
+			result = new edb.Input ( Type, data ); // data.constructor?
+		}
+		return result;
+	},
+
+	/**
+	 * Lookup edb.Model constructor for argument (if not it is already).
+	 * @todo Check that it is actually an edb.Model thing...
+	 * @param {object} arg
+	 * @returns {function}
+	 */
+	_lookup : function ( arg ) {	
 		var type = null;
 		switch ( gui.Type.of ( arg )) {
 			case "function" :
@@ -780,63 +683,23 @@ edb.Output = gui.SpiritPlugin.extend ( "edb.Output", {
 				type = gui.Object.lookup ( arg, this.context );
 				break;
 			case "object" :
-				console.error ( this + ": expected function (not object)" );
+				console.error ( this + ": expected edb.Model constructor (not an object)" );
 				break;
 		}
-		if ( type ) {
-			this._type = type;
-		} else {
+		if ( !type ) {
 			throw new TypeError ( "The type \"" + arg + "\" does not exist" );
 		}
-		return this;
-	},
-	
-	
-	// PRIVATES .........................................................................
-	
-	/**
-	 * Output model constructor.
-	 * @type {function}
-	 */
-	_type : null,
-	 
-	/**
-	 * Wrap data in edb.Input before we output.
-	 * @param {object} data
-	 * @param @optional {function} type
-	 * @returns {edb.Input}
-	 */
-	_format : function ( data, type ) {
-		
-		var result = data, Type = type || this._type;
-		if ( data instanceof edb.Input === false ) {
-			if ( type ) {
-				if ( data instanceof type === false ) {
-					data = new Type ( data );
-				}
-			} else {
-				switch ( gui.Type.of ( data )) {
-					case "object" :
-						type = Object.model ();
-						break;
-					case "array" :
-						type = Array.model ();
-						break;
-				}
-				result = this._format ( data, type );
-			}
-			result = new edb.Input ( type, data ); // data.constructor?
-		}
-		return result;
+		return type;
 	}
+
 });
 
 
 /**
  * Tracking EDB input.
- * @extends {gui.SpiritTracker} Note: Doesn't use a lot of super...
+ * @extends {gui.Tracker} Note: Doesn't use a lot of super...
  */
-edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
+edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
    
 	/**
 	 * True when one of each expected input type has been collected.
@@ -871,38 +734,30 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * @returns {gui.Spirit}
 	 */
 	add : function ( arg, handler ) {
-
 		this.done = false; // TODO: check has() already around here?
 		this.latest = this.latest || [];
 		this._types = this._types || [];
 		this._weakmap = this._weakmap || new WeakMap ();
-		
 		handler = handler ? handler : this.spirit;
-		
 		var maybe = [];
 		var types = this._breakdown ( arg );
-		
 		types.forEach ( function ( type, index ) {
-
 			if ( !this._weakmap.get ( type )) {
 				this._weakmap.set ( type, []);
 			}
 			this._weakmap.get ( type ).push ( handler );
-			
 			if ( this._types.indexOf ( type ) === -1 ) {
-				
 				this._types.push ( type );
 				if ( this._types.length === 1 ) {
-					edb.Input.add ( this ); // await future output of type
+					edb.Input.add ( this ); // await future output of this type
 				}
-				
 				if ( type.output instanceof edb.Input ) { // type has been output?
 					if ( !this.spirit || this.spirit.life.ready ) {
 						var tick = gui.TICK_COLLECT_INPUT;
 						var sig = this.context.gui.signature;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );
 					} else {
-						this.spirit.life.add ( gui.SpiritLife.READY, this );
+						this.spirit.life.add ( gui.LIFE_READY, this );
 					}
 				}
 			}
@@ -913,15 +768,12 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 
 	/**
 	 * Remove one or output handlers.
+	 * @todo various updates after this operation
 	 * @param {object} arg
 	 * @param @optional {object} handler implements InputListener (defaults to this)
 	 * @returns {gui.Spirit}
 	 */
 	remove : function ( arg, handler ) {
-		
-		/*
-		 * TODO: various updates after this operation
-		 */
 		handler = handler ? handler : this;
 		this._breakdown ( arg ).forEach ( function ( type ) {
 			var index = this._types.indexOf ( type );
@@ -941,7 +793,6 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * @returns {object}
 	 */
 	get : function ( type ) {
-		
 		var data;
 		if ( this.latest ) {
 			this.latest.every ( function ( input ) {
@@ -959,7 +810,6 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * @param {gui.Broadcast} b
 	 */
 	onbroadcast : function ( b ) {
-		
 		if ( b.type === gui.BROADCAST_OUTPUT ) {
 			this._maybeinput ( b.data );
 		}
@@ -973,8 +823,7 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * @param {gui.SpiritLife} life
 	 */
 	onlife : function ( life ) {
-		
-		if ( life.type === gui.SpiritLife.READY ) {
+		if ( life.type === gui.LIFE_READY ) {
 			this._todoname ();
 		}
 	},
@@ -984,7 +833,6 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * @param {gui.Tick} tick
 	 */
 	ontick : function ( tick ) {
-
 		if ( tick.type === gui.TICK_COLLECT_INPUT ) {
 			this._todoname ();
 		}
@@ -992,10 +840,9 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 
 	/**
 	 * TODO: think about this...
-	 * @overwrites {gui.SpiritPlugin#destruct}
+	 * @overwrites {gui.Plugin#destruct}
 	 */
 	destruct : function () {
-		
 		this._super.destruct ();
 		gui.Tick.remove ( gui.TICK_COLLECT_INPUT, this, this.context.gui.signature );
 		if ( this._types ) {
@@ -1017,7 +864,6 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * TODO: Update the above to reflect modern API
 	 */
 	_todoname : function () {
-
 		this._types.forEach ( function ( type ) {
 			if ( type.output instanceof edb.Input ) {
 				this._maybeinput ( type.output );
@@ -1030,10 +876,8 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * @param {edb.Input} input
 	 */
 	_maybeinput : function ( input ) {
-
 		var type = input.type;
 		if ( this._types.indexOf ( type ) >-1 ) {
-
 			// remove old entry (no longer latest)
 			this.latest.every ( function ( collected, i ) {
 				var match = ( collected.type === type );
@@ -1042,10 +886,8 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 				}
 				return !match;
 			}, this );
-
 			// add latest entry and flag all accounted for
 			this.done = ( this.latest.push ( input ) === this._types.length );
-
 			// handlers updated even when not all accounted for
 			this._weakmap.get ( type ).forEach ( function ( handler ) {
 				handler.oninput ( input );
@@ -1059,7 +901,6 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * @returns {Array<function>}
 	 */
 	_breakdown : function ( arg ) {
-		
 		var result = null;
 		if ( gui.Type.isArray ( arg )) {
 			result = this._breakarray ( arg );
@@ -1074,7 +915,6 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * @returns {Array<function>}
 	 */
 	_breakarray : function ( array ) {
-		
 		return array.map ( function ( o ) {
 			var res = null;
 			switch ( gui.Type.of ( o )) {
@@ -1097,7 +937,6 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 	 * @returns {Array<function>}
 	 */
 	_breakother : function ( arg ) {
-		
 		var result = null;
 		switch ( gui.Type.of ( arg )) {
 			case "function" :
@@ -1116,13 +955,67 @@ edb.InputTracker = gui.SpiritTracker.extend ( "edb.InputTracker", {
 
 
 /**
+ * Spirit input.
+ * @param {object} data
+ * @param {function} type
+ */
+edb.Input = function SpiritInput ( type, data ) {
+	this.type = type || null;
+	this.data = data || null;
+};
+
+edb.Input.prototype = {
+	
+	/**
+	 * Input type (is a function constructor)
+	 * @type {function}
+	 */
+	type : null,
+	
+	/**
+	 * Input data (is an instance of this.type)
+	 * @type {object} data
+	 */
+	data : null,
+	
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		return "[object edb.Input]";
+	}
+};
+
+/**
+ * @static
+ * TODO: out of global
+ * Subscribe handler to input.
+ * @param {object} handler Implements InputListener
+ */
+edb.Input.add = function ( handler ) {
+	gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, handler );
+};
+
+/**
+ * @static
+ * TODO: out of global
+ * Unsubscribe handler from input.
+ * @param {object} handler Implements InputListener
+ */
+edb.Input.remove = function ( handler ) {
+	gui.Broadcast.removeGlobal ( gui.BROADCAST_OUTPUT, handler );
+};
+
+
+/**
  * TODO: Description goes here.
  */
 edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	
 	/**
 	 * Debug compiled function to console? You can set this in HTML:
-	 * <script type="text/edbml" gui.debug="true"/>
+	 * &lt;script type="text/edbml" debug="true"/&gt;
 	 * @type {boolean}
 	 */
 	debug : false,
@@ -1149,11 +1042,10 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	},
 	
 	/**
-	 * Relay source code to the edb.GenericScriptPlugin of 
-	 * parent spirit. Might need to load it first.
+	 * Relay source code to the {edb.GenericScriptPlugin} 
+	 * of parent spirit. Might need to load it first...
 	 */
 	onenter : function () {
-		
 		this._super.onenter ();
 		this.type = this.att.get ( "type" ) || this.type;
 		if ( !this._plainscript ()) {
@@ -1161,7 +1053,9 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 			if ( src ) {
 				this._load ( src );
 			} else {
-				this._init ( this.dom.text ());
+				gui.Tick.next ( function () {
+					this._init ( this.dom.text ());
+				}, this );
 			}
 		}
 	},
@@ -1175,22 +1069,20 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 * @param {String} source
 	 */
 	_init : function ( source ) {
-
-		var view = null;
+		var plugin = null;
 		var parent = this.dom.parent ();
 		if ( parent.localName === "head" ) {
-			console.warn ( "TODO: deprecate or fix EDBML in HEAD???" );
-			view = this.view;
+			plugin = this.script;
 		} else {
 			if ( parent.spirit ) {
-				view = parent.spirit.view;
+				plugin = parent.spirit.script;
 			} else if ( gui.debug ) {
 				console.warn ( "templates in document.body should be direct child of a spirit" );
 			}
 		}
-		
-		if ( view ) {
-			view.compile ( source, this.type, this.debug );
+		if ( plugin ) {
+			var atts = this.att.getup (); // extra compile info
+			plugin.compile ( source, this.type, this.debug, atts );
 		}
 	},
 
@@ -1199,7 +1091,6 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 * @param {String} src
 	 */
 	_load : function ( src ) {
-		
 		var Loader = edb.GenericLoader.get ( this.type );
 		new Loader ( this.document ).load ( src, function ( source ) {
 			this._init ( source );
@@ -1212,7 +1103,6 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 * @returns {boolean}
 	 */
 	_plainscript : function () {
-		
 		var is = false;
 		switch ( this.att.get ( "type" )) {
 			case null :
@@ -1230,7 +1120,8 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 
 
 /**
- * Spirit of the service provider.
+ * Spirit of the service.
+ * @todo rename @type to @model
  * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
  */
 edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
@@ -1239,48 +1130,45 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 	 * Default to accept JSON and fetch data immediately.
 	 */
 	onconstruct : function () {
-		
 		this._super.onconstruct ();
-		if ( !this.att.get ( "disabled" )) {
-			this._resolve ();
+		var type = this.att.get ( "type" );
+		if ( type ) {
+			var Type = gui.Object.lookup ( type, this.window );
+			if ( this.att.get ( "href" )) {
+				new gui.Request ( this.element.href ).acceptJSON ().get ( function ( status, data ) {
+					this.output.dispatch ( new Type ( data ));
+				}, this );
+			} else {
+				this.output.dispatch ( new Type ());
+			}
+		} else {
+			throw new Error ( "TODO: formalize missing type somehow" );
 		}
 	},
-	
+
 	/**
-	 * TODO: comments go here...
+	 * TODO: enable this pipeline stuff
 	 * @param {edb.Input} input
-	 */
+	 *
 	oninput : function ( input ) {
-		
 		this._super.oninput ( input );
 		if ( this.att.get ( "type" ) && this.input.done ) {
 			this._pipeline ();
 		}
 	},
+	*/
 	
 	
 	// PRIVATES ...............................................................................................
 	
 	/**
-	 * Resolve data from service.
-	 */
-	_resolve : function () {
-
-		new edb.Service ( this.window ).get ( 
-			this.att.get ( "type" ), 
-			this.element.href
-		);
-	},
-	
-	/**
 	 * If both input type and output type is specified, the service will automatically output new data when all 
 	 * input is recieved. Input data will be supplied as constructor argument to output function; if A and B is 
 	 * input types while C is output type, then input instance a and b will be output as new C ( a, b ) 
+	 * @todo Implement support for this some day :)
 	 */
-	_pipeline : function () {
-		
+	_pipeline : function () {		
 		console.error ( "TODO: might this be outdated???" );
-
 		/*
 		 * TODO: use method apply with array-like arguments substitute pending universal browser support.
 		 * https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/apply#Description
@@ -1297,7 +1185,6 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 			this._arg ( 8 ),
 			this._arg ( 9 )
 		);
-		
 		this.output.dispatch ( data );
 	},
 	
@@ -1308,7 +1195,6 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 	 * @returns {object}
 	 */
 	_arg : function ( index ) {
-		
 		var type = this.input._types [ index ]; // function type
 		return this.input.get ( type ); // instance of function
 	}
@@ -1316,7 +1202,7 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 
 
 /**
- * Utilities for the UpdateManager.
+ * Utilities for the {edb.UpdateManager}.
  */
 edb.UpdateAssistant = {
 
@@ -1327,7 +1213,6 @@ edb.UpdateAssistant = {
 	 * @returns {String}
 	 */
 	id : function ( element ) {
-
 		return gui.Type.isDefined ( element.id ) ? 
 			element.id || null : 
 			element.getAttribute ( "id" ) || null;
@@ -1346,14 +1231,10 @@ edb.UpdateAssistant = {
 	 * @returns {Element}
 	 */
 	parse : function ( doc, markup, id, element ) { // gonna need to know the parent element type here...
-
 		element = doc.createElement ( element.localName );
 		element.innerHTML = markup;
 		element.id = id;
-
-		/*
-		 * TODO: Plugin this!
-		 */
+		// TODO: Plugin this!
 		Array.forEach ( element.querySelectorAll ( "option" ), function ( option ) {
 			switch ( option.getAttribute ( "selected" )) {
 				case "true" :
@@ -1364,10 +1245,7 @@ edb.UpdateAssistant = {
 					break;
 			}
 		});
-
-		/*
-		 * TODO: Plugin this!
-		 */
+		// TODO: Plugin this!
 		Array.forEach ( element.querySelectorAll ( "input[type=checkbox],input[type=radio]" ), function ( option ) {
 			switch ( option.getAttribute ( "checked" )) {
 				case "true" :
@@ -1378,7 +1256,6 @@ edb.UpdateAssistant = {
 					break;
 			}
 		});
-
 		return element;
 	},
 
@@ -1388,7 +1265,6 @@ edb.UpdateAssistant = {
 	 * @returns {Map<String,number>}
 	 */
 	order : function ( nodes ) {
-		
 		var order = new Map ();
 		Array.forEach ( nodes, function ( node, index ) {
 			if ( node.nodeType === Node.ELEMENT_NODE ) {
@@ -1405,7 +1281,6 @@ edb.UpdateAssistant = {
 	 * @return {Map<String,Element>}
 	 */
 	index : function ( nodes ) {
-		
 		var result = Object.create ( null );
 		Array.forEach ( nodes, function ( node, index ) {
 			if ( node.nodeType === Node.ELEMENT_NODE ) {
@@ -1421,7 +1296,6 @@ edb.UpdateAssistant = {
  * @param {gui.Spirit} spirit
  */
 edb.UpdateManager = function UpdateManager ( spirit ) {
-	
 	this._keyid = spirit.dom.id () || spirit.spiritkey;
 	this._spirit = spirit;
 	this._doc = spirit.document;
@@ -1434,20 +1308,16 @@ edb.UpdateManager.prototype = {
 	 * @param {String} html
 	 */
 	update : function ( html ) {
-
 		this._updates = new edb.UpdateCollector ();
-
 		if ( this._olddom === null ) {
 			this._first ( html );
 		} else {
 			this._next ( html );
 		}
-
 		this._updates.eachRelevant ( function ( update ) {
 			update.update ();
 			update.dispose ();
 		});
-
 		this._updates.dispose ();
 		delete this._updates;
 	},
@@ -1504,7 +1374,6 @@ edb.UpdateManager.prototype = {
 	 * @param {String} html
 	 */
 	_first : function ( html ) {
-
 		this._olddom = this._parse ( html );
 		this._updates.collect ( 
 			new edb.HardUpdate ( this._doc ).setup ( this._keyid, this._olddom )
@@ -1516,7 +1385,6 @@ edb.UpdateManager.prototype = {
 	 * @param {String} html
 	 */
 	_next : function ( html ) {
-
 		this._newdom = this._parse ( html );
 		this._crawl ( this._newdom, this._olddom, this._newdom, this._keyid, {}, null );
 		this._olddom = this._newdom;
@@ -1528,7 +1396,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {Element}
 	 */
 	_parse : function ( html ) {
-
 		return this._assistant.parse ( 
 			this._doc, 
 			html, 
@@ -1547,7 +1414,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_crawl : function ( newchild, oldchild, lastnode, id, ids, css ) {
-
 		var result = true, n = 1;
 		while ( newchild && oldchild && !this._updates.hardupdates ( id )) {
 			switch ( newchild.nodeType ) {
@@ -1575,7 +1441,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_scan : function ( newnode, oldnode, lastnode, id, ids, css, n ) {
-
 		var result = true, oldid = this._assistant.id ( oldnode );
 		css = css ? oldid ? "#" + oldid : css + ">" + oldnode.localName + ":nth-child(" + n + ")" : "this";
 		if (( result = this._check ( newnode, oldnode, lastnode, id, ids, css, n )))  {	
@@ -1600,11 +1465,9 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_check : function ( newnode, oldnode, lastnode, id, ids, css, n ) {
-		
 		var result = true;
 		var isSoftUpdate = false;
 		var isPluginUpdate = false; // TODO: plugins...
-
 		if (( newnode && !oldnode ) || ( !newnode && oldnode )) {  
 			result = false;
 		} else if (( result = newnode.nodeType === oldnode.nodeType )) {
@@ -1648,7 +1511,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_familiar : function ( newnode, oldnode ) {
-		
 		return [ "namespaceURI", "localName" ].every ( function ( prop ) {
 			return newnode [ prop ] === oldnode [ prop ];
 		});
@@ -1663,10 +1525,8 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean} When false, replace "hard" and stop crawling.
 	 */
 	_checkatts : function ( newnode, oldnode, ids, css ) {
-		
 		var result = true;
 		var update = null;
-		
 		if ( this._attschanged ( newnode.attributes, oldnode.attributes, ids, css )) {
 			var newid = this._assistant.id ( newnode );
 			var oldid = this._assistant.id ( oldnode );
@@ -1691,7 +1551,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_attschanged : function ( newatts, oldatts, ids, css ) {
-
 		return newatts.length !== oldatts.length || !Array.every ( newatts, function ( newatt ) {
 			var oldatt = oldatts.getNamedItem ( newatt.name );
 			/*
@@ -1712,7 +1571,6 @@ edb.UpdateManager.prototype = {
 	 * @return {boolean}
 	 */
 	_maybesoft : function ( newnode, oldnode ) {
-		
 		if ( newnode && oldnode ) {
 			return this._maybesoft ( newnode ) && this._maybesoft ( oldnode );
 		} else {	
@@ -1742,7 +1600,6 @@ edb.UpdateManager.prototype = {
 	 * @returns {boolean}
 	 */
 	_confirmsoft : function ( newnode, oldnode ) {
-		
 		var res = true, prev = null;
 		var oldorder = this._assistant.order ( oldnode.childNodes );
 		return Array.every ( newnode.childNodes, function ( node, index ) {
@@ -1765,11 +1622,9 @@ edb.UpdateManager.prototype = {
 	 * @return {boolean}
 	 */
 	_updatesoft : function ( newnode, oldnode, ids, css, n ) {
-		
 		var updates = [];
 		var news = this._assistant.index ( newnode.childNodes );
 		var olds = this._assistant.index ( oldnode.childNodes );
-		
 		/*
 		 * Add elements?
 		 */
@@ -1777,7 +1632,6 @@ edb.UpdateManager.prototype = {
 			topid = this._assistant.id ( oldnode ),
 			oldid = null,
 			newid = null;
-		
 		while ( child ) {
 			newid = this._assistant.id ( child );
 			if ( !olds [ newid ]) {
@@ -1851,7 +1705,6 @@ edb.UpdateCollector.prototype = {
 	 * @returns {String}
 	 */
 	toString : function () {
-
 		return "[object edb.UpdateCollector]";
 	},
 
@@ -1862,7 +1715,6 @@ edb.UpdateCollector.prototype = {
 	 * @returns {[type]}
 	 */
 	collect : function ( update, ids ) {
-
 		this._updates.push ( update );
 		if ( update.type === edb.Update.TYPE_HARD ) {
 			this._hardupdates.add ( update.id );
@@ -1877,7 +1729,6 @@ edb.UpdateCollector.prototype = {
 	 * @returns {boolean}
 	 */
 	hardupdates : function ( id ) {
-
 		return this._hardupdates.has ( id );
 	},
 
@@ -1889,7 +1740,6 @@ edb.UpdateCollector.prototype = {
 	 * @param {function} action
 	 */
 	eachRelevant : function ( action ) {
-
 		this._updates.filter ( function ( update ) {
 			return ( 
 				update.type === edb.Update.TYPE_HARD || 
@@ -1906,7 +1756,6 @@ edb.UpdateCollector.prototype = {
 	 * TODO: At some point, figure out what exactly to do here.
 	 */
 	dispose : function () {
-
 		delete this._hardupdates;
 		delete this._updates;
 	}
@@ -1950,7 +1799,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @param {Document} doc
 	 */
 	__construct__ : function ( doc ) {
-		
 		this.onconstruct ( doc );
 	},
 	
@@ -1959,7 +1807,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @param {Document} doc
 	 */
 	onconstruct : function ( doc ) {
-
 		this.document = doc;
 		this.window = doc.defaultView;
 	},
@@ -1969,7 +1816,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @returns {edb.Update}
 	 */
 	setup : function () {
-		
 		return this;
 	},
 	
@@ -1985,7 +1831,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @returns {Element}
 	 */
 	element : function () {
-		
 		/*
 		 * The root element (the one whose spirit is assigned the script) 
 		 * may be indexed by "spiritkey" if no ID attribute is specified.
@@ -2006,7 +1851,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * Clean stuff up for what it's worth.
 	 */
 	dispose: function () {
-		
 		delete this.window;
 		delete this.document;
 	},
@@ -2020,7 +1864,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @return {boolean}
 	 */
 	_beforeUpdate : function ( element ) {
-		
 		var event = "x-beforeupdate-" + this.type;
 		return this._dispatch ( element, event );
 	},
@@ -2031,7 +1874,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @return {boolean}
 	 */
 	_afterUpdate : function ( element ) {
-		
 		var event = "x-aftrerupdate-" + this.type;
 		return this._dispatch ( element, event );
 	},
@@ -2043,7 +1885,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @return {boolean} False if event was canceled
 	 */
 	_dispatch : function ( element, name ) {
-
 		var event = this.document.createEvent ( "UIEvents" );
 		event.initEvent ( name, true, true );
 		return element.dispatchEvent ( event );
@@ -2054,7 +1895,6 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	 * @param {String} report
 	 */
 	_report : function ( report ) {
-		
 		if ( this.window.gui.debug ) {
 			if ( gui.KeyMaster.isKey ( this.id )) {
 				report = report.replace ( this.id, "(anonymous)" );
@@ -2145,7 +1985,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @param {Document} doc
 	 */
 	onconstruct : function ( doc ) {
-		
 		this._super.onconstruct ( doc );
 		this._summary = [];
 	},
@@ -2158,7 +1997,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @returns {edb.AttsUpdate}
 	 */
 	setup : function ( id, xnew, xold ) {
-		
 		this._super.setup ();
 		this.id = id;
 		this._xnew = xnew;
@@ -2170,7 +2008,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * Update attributes.
 	 */
 	update : function () {
-		
 		this._super.update ();
 		var element = this.element ();
 		if ( this._beforeUpdate ( element )) {
@@ -2185,7 +2022,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @overloads {edb.Update#dispose}
 	 */
 	dispose : function () {
-		
 		this._super.dispose ();
 		delete this._xold;
 		delete this._xnew;
@@ -2196,22 +2032,11 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	
 	/**
 	 * Actually update attributes.
+	 * 1. Create and update attributes.
+	 * 2. Remove attributes
 	 * @param {HTMLElement} element
 	 */
 	_update : function ( element ) {
-
-		/*
-		var hits = gui.KeyMaster.extractKey ( att1.value );
-		if ( hits ) {
-			update = new edb.ScriptUpdate ( this._doc ).setup ( css, att1.name, att2.value, hits [ 0 ]);
-			this._updates.collect ( update, ids );
-			same = true;
-		}
-		*/
-		
-		/*
-		 * Create and update attributes.
-		 */
 		Array.forEach ( this._xnew.attributes, function ( newatt ) {
 			var oldatt = this._xold.getAttribute ( newatt.name );
 			if ( oldatt === null || oldatt !== newatt.value ) {
@@ -2219,10 +2044,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 				this._summary.push ( "@" + newatt.name );
 			}
 		}, this );
-		
-		/* 
-		 * Remove attributes
-		 */
 		Array.forEach ( this._xold.attributes, function ( oldatt ) {
 			if ( !this._xnew.hasAttribute ( oldatt.name )) {
 				this._del ( element, oldatt.name, null );
@@ -2239,10 +2060,9 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @return
 	 */
 	_set : function ( element, name, value ) {
-		
 		var spirit = element.spirit;
 		if ( spirit ) {
-			spirit.att.set ( name, value ); // TODO!!!!!!!!!!!!!!
+			spirit.att.set ( name, value );
 		} else {
 			element.setAttribute ( name, value );
 			switch ( name ) {
@@ -2268,7 +2088,6 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * @return
 	 */
 	_del : function ( element, name ) {
-		
 		var spirit = element.spirit;
 		if ( spirit ) {
 			spirit.att.del ( name ); // TODO!!!!!!!!!!!!!!
@@ -2288,10 +2107,8 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	 * Debug changes.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.AttsUpdate \"#" + this.id + "\" " + this._summary.join ( ", " ));
 	}
-
 	
 });
 
@@ -2320,7 +2137,6 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * @returns {edb.HardUpdate}
 	 */
 	setup : function ( id, xelement ) {
-		
 		this._super.setup ();
 		this.id = id;
 		this.xelement = xelement;
@@ -2331,11 +2147,10 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * Replace target subtree. 
 	 */
 	update : function () {
-
 		this._super.update ();
 		var element = this.element ();
 		if ( this._beforeUpdate ( element )) {
-			gui.SpiritDOM.html ( element, this._serialize ());
+			gui.DOMPlugin.html ( element, this._serialize ());
 			this._afterUpdate ( element );
 			this._report ();
 		}
@@ -2345,7 +2160,6 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * Clean up.
 	 */
 	dispose : function () {
-		
 		this._super.dispose ();
 		delete this.xelement;
 	},
@@ -2359,7 +2173,6 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * @returns {String}
 	 */
 	_serialize : function () {
-		
 		var xhtml = new XMLSerializer ().serializeToString ( this.xelement );
 		if ( xhtml.contains ( "</" )) {
 			xhtml = xhtml.slice ( xhtml.indexOf ( ">" ) + 1, xhtml.lastIndexOf ( "<" ));
@@ -2371,7 +2184,6 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	 * Hello.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.HardUpdate #" + this.id );
 	}
 });
@@ -2400,7 +2212,6 @@ edb.SoftUpdate = edb.Update.extend ( "edb.SoftUpdate", {
 	 * Clean stuff up for what it's worth.
 	 */
 	dispose : function () {
-		
 		this._super.dispose ();
 		delete this.xelement;
 	},
@@ -2413,7 +2224,6 @@ edb.SoftUpdate = edb.Update.extend ( "edb.SoftUpdate", {
 	 * @param {HTMLElement} element
 	 */
 	_import : function ( parent ) {
-		
 		var temp = this.document.createElement ( parent.nodeName );
 		temp.innerHTML = new XMLSerializer ().serializeToString ( this.xelement );
 		return temp.firstChild;
@@ -2446,7 +2256,6 @@ edb.InsertUpdate = edb.SoftUpdate.extend ( "edb.InsertUpdate", {
 	 * @returns {edb.InsertUpdate}
 	 */
 	setup : function ( id, xelement ) {
-		
 		this.id = id;
 		this.xelement = xelement;
 		return this;
@@ -2456,7 +2265,6 @@ edb.InsertUpdate = edb.SoftUpdate.extend ( "edb.InsertUpdate", {
 	 * Execute update.
 	 */
 	update : function () {
-		
 		var sibling = this.element ();
 		var parent = sibling.parentNode;
 		var child = this._import ( parent );
@@ -2472,7 +2280,6 @@ edb.InsertUpdate = edb.SoftUpdate.extend ( "edb.InsertUpdate", {
 	 * TODO: Push to update manager.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.InsertUpdate #" + this.xelement.getAttribute ( "id" ));
 	}
 });
@@ -2497,7 +2304,6 @@ edb.AppendUpdate = edb.SoftUpdate.extend ( "edb.AppendUpdate", {
 	 * @returns {edb.AppendUpdate}
 	 */
 	setup : function ( id, xelement ) {
-		
 		this.id = id;
 		this.xelement = xelement;
 		return this;
@@ -2507,7 +2313,6 @@ edb.AppendUpdate = edb.SoftUpdate.extend ( "edb.AppendUpdate", {
 	 * Execute update.
 	 */
 	update : function () {
-		
 		var parent = this.element ();
 		var child = this._import ( parent );
 		if ( this._beforeUpdate ( parent )) {
@@ -2522,7 +2327,6 @@ edb.AppendUpdate = edb.SoftUpdate.extend ( "edb.AppendUpdate", {
 	 * TODO: Push to update manager.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.AppendUpdate #" + this.xelement.getAttribute ( "id" ));
 	}
 });
@@ -2546,7 +2350,6 @@ edb.RemoveUpdate = edb.SoftUpdate.extend ( "edb.RemoveUpdate", {
 	 * @returns {edb.RemoveUpdate}
 	 */
 	setup : function ( id ) {
-		
 		this.id = id;
 		return this;
 	},
@@ -2555,10 +2358,8 @@ edb.RemoveUpdate = edb.SoftUpdate.extend ( "edb.RemoveUpdate", {
 	 * Execute update.
 	 */
 	update : function () {
-		
 		var element = this.element ();
 		var parent = element.parentNode;
-		
 		if ( this._beforeUpdate ( element )) {
 			parent.removeChild ( element );
 			this._afterUpdate ( parent );
@@ -2571,7 +2372,6 @@ edb.RemoveUpdate = edb.SoftUpdate.extend ( "edb.RemoveUpdate", {
 	 * TODO: Push to update manager.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.RemoveUpdate #" + this.id );
 	}
 });
@@ -2594,7 +2394,6 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * @param {Document} doc
 	 */
 	onconstruct : function ( doc ) {
-		
 		this._super.onconstruct ( doc );
 		this._summary = [];
 	},
@@ -2609,7 +2408,6 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * @returns {edb.ScriptUpdate}
 	 */
 	setup : function ( spirit, selector, name, value, key ) {
-		
 		this._super.setup ();
 		this._spirit = spirit;
 		this._selector = selector;
@@ -2623,9 +2421,7 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * Update :)
 	 */
 	update : function () {
-		
 		this._super.update ();
-		
 		var element = null;
 		try {
 			element = this._spirit.dom.q ( this._selector );
@@ -2683,7 +2479,6 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * @param {Element} element
 	 */
 	_update : function ( element ) {
-
 		var current = element.getAttribute ( this._name );
 		if ( current.contains ( this._key )) {
 			if ( element.spirit ) {
@@ -2700,7 +2495,6 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * Debug changes.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.ScriptUpdate " + this._selector );
 	}
 
@@ -2789,7 +2583,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @returns {String}
 	 */
 	toString : function () {
-		
 		return "[object edb.GenericScript]";
 	},
 	
@@ -2801,7 +2594,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @param {function} handler
 	 */
 	onconstruct : function ( spirit, window, handler ) {
-		
 		this.spirit = spirit || null;
 		this.window = window || null;
 		this.onreadystatechange = handler || null;
@@ -2831,7 +2623,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @param {String} state
 	 */
 	_gostate : function ( state ) {
-		
 		if ( state !== this.readyState ) {
 			this.readyState = state;
 			if ( gui.Type.isFunction ( this.onreadystatechange )) {
@@ -2840,6 +2631,7 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 		}
 	},
 	
+
 	// Secrets .....................................................................
 	
 	/**
@@ -2849,7 +2641,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @param {function} handler
 	 */
 	__construct__ : function ( spirit, window, handler ) {
-		
 		this.onconstruct ( spirit, window, handler );
 	}	
 	
@@ -2894,7 +2685,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * TODO: rename
 	 */
 	set : function () { // implementation, ...mimetypes
-		
 		var args = gui.Type.list ( arguments );
 		var impl = args.shift ();
 		args.forEach ( function ( type ) {
@@ -2908,7 +2698,6 @@ edb.GenericScript = gui.Exemplar.create ( "edb.GenericScript", Object.prototype,
 	 * @returns {edb.GenericScript}
 	 */
 	get : function ( type ) {
-		
 		var impl = this._scripts.get ( type );
 		if ( !impl ) {
 			throw new Error ( "No script engine registered for type: " + type );
@@ -2933,7 +2722,6 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	 * @param @optional {object} thisp
 	 */
 	load : function ( src, callback, thisp ) {
-		
 		var url = new gui.URL ( this._document, src );
 		if ( this._cache.has ( url.location )) {
 			this._cached ( url, callback, thisp );
@@ -2955,7 +2743,6 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	 * @param @optional {object} thisp
 	 */
 	_lookup : function ( url, callback, thisp ) {
-		
 		var script = this._document.querySelector ( url.hash );
 		this.onload ( script.textContent, url, callback, thisp );
 	}
@@ -2976,7 +2763,6 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	 * TODO: rename!
 	 */
 	set : function () { // implementation, ...mimetypes
-		
 		var args = gui.Type.list ( arguments );
 		var impl = args.shift ();
 		args.forEach ( function ( type ) {
@@ -2993,7 +2779,6 @@ edb.GenericLoader = gui.FileLoader.extend ({
 	 * @returns {edb.GenericLoader}
 	 */
 	get : function ( type ) {
-		
 		var impl = edb.GenericLoader;
 		if ( type ) {
 			impl = this._loaders.get ( type );
@@ -3013,7 +2798,7 @@ edb.GenericLoader = gui.FileLoader.extend ({
  * @param {Global} context
  * @param {function} handler
  */
-edb.Script = edb.GenericScript.extend ({
+edb.Script = edb.GenericScript.extend ( "edb.Script", {
 	
 	/**
 	 * The window context; where to lookup data types.
@@ -3055,31 +2840,21 @@ edb.Script = edb.GenericScript.extend ({
 	 * @param {function} handler
 	 */
 	onconstruct : function ( pointer, context, handler ) {
-		
 		this._keys = new Set (); // tracking data model changes
 		this._super.onconstruct ( pointer, context, handler );
-		
 		/*
 		 * Redefine these terms into concepts that makes more 
-		 * sense when runinng script inside a worker context.
+		 * sense when runinng script inside a worker context. 
+		 * (related to a future "sandbox" project of some kind)
 		 */
 		this.pointer = this.spirit; this.spirit = null;
 		this.context = this.window; this.window = null;
-		
-		/*
-		 * Plugin an inputtracker; inject our scope.
-		 */
-		this.input = new edb.InputTracker ();
+		// plugin an inputtracker; inject our scope.
+		this.input = new edb.InputPlugin ();
 		this.input.context = this.context;
-		
-		/**
-		 * Hey mister.
-		 */
-		this.functions = {};
-
-		/*
-		 * TODO: This *must* be added before it can be removed ?????
-		 */
+		// hey
+		this.functions = Object.create ( null );
+		// @todo this *must* be added before it can be removed ?????
 		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
 	},
 	
@@ -3087,27 +2862,22 @@ edb.Script = edb.GenericScript.extend ({
 	 * Compile source to invokable function.
 	 * @param {String} source
 	 * @param {boolean} debug
+	 * @param {HashMap<String,String>} atts Mapping script tag attributes.
 	 * @returns {edb.Script}
 	 */
-	compile : function ( source, debug ) {
-		
+	compile : function ( source, debug, atts ) {
 		if ( this._function !== null ) {
 			throw new Error ( "not supported: compile script twice" ); // support this?
 		}
-		
 		// create invokable function (signed for sandbox usage)
-		var compiler = new edb.ScriptCompiler ( source, debug );
-
+		var compiler = new edb.ScriptCompiler ( source, debug, atts );
 		if ( this._signature ) {
 			compiler.sign ( this._signature );
 		}
-		
 		// compile source to invokable function
 		this._function = compiler.compile ( this.context );
-
 		// copy expected params
 		this.params = compiler.params;
-
 		// waiting for functions to load?
 		gui.Object.each ( compiler.functions, function ( name, src ) {
 			src = new gui.URL ( this.context.document, src ).href;
@@ -3119,13 +2889,11 @@ edb.Script = edb.GenericScript.extend ({
 				this.functions [ name ] = src;
 			}
 		}, this );
-
 		// waiting for datatypes to load?
 		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
-		
-		try { // in development mode, mount invokable function as a file; otherwise init
+		try { // in development mode, load invokable function as a blob file; otherwise just init
 			if ( gui.debug && gui.Client.hasBlob && !gui.Client.isExplorer && !gui.Client.isOpera ) {
 				this._blob ( compiler );
 			} else {
@@ -3134,7 +2902,6 @@ edb.Script = edb.GenericScript.extend ({
 		} catch ( workerexception ) {
 			this._maybeready ();
 		}
-		
 		return this;
 	},
 
@@ -3144,7 +2911,6 @@ edb.Script = edb.GenericScript.extend ({
 	 * @returns {edb.Script}
 	 */
 	sign : function ( signature ) {
-		
 		this._signature = signature;
 		return this;
 	},
@@ -3154,19 +2920,14 @@ edb.Script = edb.GenericScript.extend ({
 	 * @returns {String} 
 	 */
 	run : function () { // arguments via apply()
-
 		this._keys = new Set ();
 		var error = null;
 		var result = null;
-		 
 		if ( !this._function ) {
 			error = "Script not compiled";
 		} else if ( !this.input.done ) {
 			error = "Script awaits input";
-		} else {
-			error = this._validate ( arguments );
 		}
-		
 		if ( error !== null ) {
 			throw new Error ( error );
 		} else {
@@ -3174,7 +2935,6 @@ edb.Script = edb.GenericScript.extend ({
 			result = this._function.apply ( this.pointer, arguments );
 			this._subscribe ( false );
 		}
-
 		return result;
 	},
 	
@@ -3183,14 +2943,11 @@ edb.Script = edb.GenericScript.extend ({
 	 * @param {gui.Broadcast} broadcast
 	 */
 	onbroadcast : function ( broadcast ) {
-		
 		switch ( broadcast.type ) {
-			
 			case gui.BROADCAST_DATA_SUB :
 				var key = broadcast.data;
 				this._keys.add ( key );
 				break;
-				
 			/*
 			 * Timeout allows multiple data model 
 			 * updates before we rerun the script.
@@ -3205,7 +2962,6 @@ edb.Script = edb.GenericScript.extend ({
 					}
 				}
 				break;
-
 			case edb.BROADCAST_FUNCTION_LOADED :
 				var src = broadcast.data;
 				gui.Object.each ( this.functions, function ( name, value ) {
@@ -3223,7 +2979,6 @@ edb.Script = edb.GenericScript.extend ({
 	 * @param {gui.Tick} tick
 	 */
 	ontick : function ( tick ) {
-
 		switch ( tick.type ) {
 			case gui.TICK_SCRIPT_UPDATE :
 				this._gostate ( edb.GenericScript.READY );
@@ -3237,7 +2992,6 @@ edb.Script = edb.GenericScript.extend ({
 	 * @param {edb.Input} input
 	 */
 	oninput : function ( input ) {
-		
 		this._maybeready ();
 	},
 	
@@ -3267,7 +3021,6 @@ edb.Script = edb.GenericScript.extend ({
 	 * All functions imported?
 	 */
 	_functionsdone : function () {
-
 		return Object.keys ( this.functions ).every ( function ( name ) {
 			return gui.Type.isFunction ( this.functions [ name ]);
 		}, this );
@@ -3279,13 +3032,11 @@ edb.Script = edb.GenericScript.extend ({
 	 * @param {edb.ScriptCompiler} compiler
 	 */
 	_blob : function ( compiler ) {
-
 		var key = gui.KeyMaster.generateKey (),
 			msg = "// blob script generated in development mode\n",
 			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}",
 			win = this.context,
 			doc = win.document;
-
 		this._gostate ( edb.GenericScript.LOADING );
 		gui.BlobLoader.loadScript ( doc, src, function onload () {
 			this._gostate ( edb.GenericScript.WORKING );
@@ -3299,7 +3050,6 @@ edb.Script = edb.GenericScript.extend ({
 	 * for data types to initialize...
 	 */
 	_maybeready : function () {
-
 		if ( this.readyState !== edb.GenericScript.LOADING ) {
 			this._gostate ( edb.GenericScript.WORKING );
 			if ( this.input.done && this._functionsdone ()) {
@@ -3311,30 +3061,10 @@ edb.Script = edb.GenericScript.extend ({
 	},
 	
 	/**
-	 * Confirm correct number of args. No arg 
-	 * must be left undefined, use null instead.
-	 * @param {Arguments} params
-	 * @returns {String} 
-	 */
-	_validate : function ( params ) {
-		
-		var error = null, expected = this.params.length;
-		var i = 0; while ( i < expected ) {
-			if ( !gui.Type.isDefined ( params [ i ])) {
-				error = "Script param undefined: " + this.params [ i ];
-				break;
-			}
-			i++;
-		}
-		return error;
-	},
-	
-	/**
 	 * Add-remove broadcast handlers.
 	 * @param {boolean} isBuilding
 	 */
 	_subscribe : function ( isBuilding ) {
-		
 		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( gui.BROADCAST_DATA_SUB, this );
 		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( gui.BROADCAST_DATA_PUB, this );
 	}
@@ -3364,7 +3094,6 @@ edb.Script = edb.GenericScript.extend ({
 	 * @returns {String}
 	 */
 	assign : function ( func, thisp ) {
-		
 		var key = gui.KeyMaster.generateKey ();
 		edb.Script._invokables.set ( key, function ( value, checked ) {
 			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
@@ -3380,10 +3109,8 @@ edb.Script = edb.GenericScript.extend ({
 	 * @param @optional {Map<String,object>} log
 	 */
 	invoke : function ( key, sig, log ) {
-		
 		var func = null;
 		log = log || this._log;
-
 		/*
 		  * Relay invokation to edb.Script in sandboxed context?
 		 */
@@ -3394,7 +3121,6 @@ edb.Script = edb.GenericScript.extend ({
 				log : log
 			});
 		} else {
-
 			/*
 			 * Timeout is a cosmetic stunt to unfreeze a pressed 
 			 * button case the function takes a while to complete. 
@@ -3412,13 +3138,11 @@ edb.Script = edb.GenericScript.extend ({
 			}
 		}
 	},
-
 	/**
-	 * Log event details.
+	 * Keep a log on the latest DOM event.
 	 * @param {Event} e
 	 */
-	log : function ( e ) {
-
+	register : function ( e ) {
 		this._log = {
 			type : e.type,
 			value : e.target.value,
@@ -3443,7 +3167,6 @@ edb.Loader = edb.GenericLoader.extend ( "edb.Loader", {
 	 * @param @optional {object} thisp
 	 */
 	onload : function ( text, url, callback, thisp ) {
-		
 		if ( url.external ) {
 			text = this._extract ( text, url );
 		}
@@ -3459,12 +3182,10 @@ edb.Loader = edb.GenericLoader.extend ( "edb.Loader", {
 	 * @returns {String} Template source code
 	 */
 	_extract : function ( text, url ) {
-		
 		// TODO: cache this element for repeated lookups
 		var temp = this._document.createElement ( "div" );
 		temp.innerHTML = text;
 		var script = temp.querySelector ( url.hash || "script" );
-		
 		var source = null;
 		if ( script ) {
 			switch ( script.type ) {
@@ -3481,6 +3202,94 @@ edb.Loader = edb.GenericLoader.extend ( "edb.Loader", {
 		return source;
 	}
 });
+
+
+/**
+ * Converts JS props to HTML attributes during EDBML rendering phase. 
+ * Any methods added to this prototype will become available in EDBML 
+ * scripts as: att.mymethod() TODO: How can Att instances be passed?
+ * @type {HashMap<String,Object>}
+ */
+edb.Att = function Att () {};
+
+edb.Att.prototype = gui.Object.create ( null, {
+
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		return "[object edb.Att]";
+	},
+
+	/**
+	 * Resolve key-value to HTML attribute declaration.
+	 * @param {String} att
+	 * @returns {String} 
+	 */
+	_out : function ( att ) {
+		var val, html = "";
+		if ( gui.Type.isDefined ( this [ att ])) {
+			val = edb.Att.encode ( this [ att ]);
+			html += att + "=\"" + val + "\" ";
+		}
+		return html;
+	},
+
+	/**
+	 * Resolve key-value, then delete it to prevent reuse.
+	 * @param {String} att
+	 */
+	_pop : function ( att ) {
+		var html = this._out ( att );
+		delete this [ att ];
+		return html;
+	},
+
+	/**
+	 * Resolve all key-values to HTML attribute declarations.
+	 * @returns {String} 
+	 */
+	_all : function () {
+		var html = "";
+		gui.Object.nonmethods ( this ).forEach ( function ( att ) {
+			html += this._out ( att );
+		}, this );
+		return html;
+	}
+
+});
+
+/**
+ * @static
+ * Stringify stuff to be used as HTML attribute values.
+ * @param {object} data
+ * @returns {String}
+ */
+edb.Att.encode = function ( data ) {
+	var type = gui.Type.of ( data );
+	switch ( type ) {
+		case "string" :
+			break;
+		case "number" :
+		case "boolean" :
+			data = String ( data );
+			break;
+		case "object" :
+		case "array" :
+			try {
+				data = encodeURIComponent ( JSON.stringify ( data ));
+			} catch ( jsonex ) {
+				throw new Error ( "Could not create HTML attribute: " + jsonex );
+			}
+			break;
+		case "date" :
+			throw new Error ( "TODO: edb.Att.encode standard date format?" );
+		default :
+			throw new Error ( "Could not create HTML attribute for " + type );
+	}
+	return data;
+};
 
 
 /**
@@ -3505,8 +3314,7 @@ edb.Out.prototype = {
 	 * Get HTML result. Do your output modification here.
 	 * @returns {String}
 	 */
-	toString : function () {
-
+	write : function () {
 		return this.html;
 	}
 };
@@ -3523,8 +3331,7 @@ edb.Function = {
 	 * @param {Window} win
 	 * @returns {function}
 	 */
-	get : function ( src, win ) { // TODO: pass document not window
-
+	get : function ( src, win ) { // TODO: pass document not window	
 		src = new gui.URL ( win.document, src ).href;
 		var result = this._map.get ( src ) || null;
 		if ( !result ) {
@@ -3548,7 +3355,6 @@ edb.Function = {
 	 * @param {Window} win
 	 */
 	_load : function ( src, win ) {
-
 		new edb.Loader ( win.document ).load ( src, function ( source ) {
 			new edb.Script ( null, win, function onreadystatechange () {
 				if ( this.readyState === edb.GenericScript.READY ) {
@@ -3567,7 +3373,6 @@ edb.Function = {
  * @param {String} pi
  */
 edb.Instruction = function ( pi ) {
-
 	this.atts = Object.create ( null );
 	this.type = pi.split ( "<?" )[ 1 ].split ( " " )[ 0 ]; // TODO: regexp this
 	var hit, atexp = edb.Instruction._ATEXP;
@@ -3582,7 +3387,6 @@ edb.Instruction = function ( pi ) {
  * @returns {String}
  */
 edb.Instruction.prototype = {
-
 	type : null, // instruction type
 	atts : null, // instruction attributes
 	toString : function () {
@@ -3594,13 +3398,11 @@ edb.Instruction.prototype = {
 // STATICS .............................................................................
 
 /**
- * @static
  * Extract processing instructions from source.
  * @param {String} source
  * @returns {Array<edb.Instruction>}
  */
 edb.Instruction.from = function ( source ) {
-
 	var pis = [], pi = null, hit = null; 
 	while (( hit = this._PIEXP.exec ( source ))) {
 			pis.push ( new edb.Instruction ( hit [ 0 ]));
@@ -3609,25 +3411,21 @@ edb.Instruction.from = function ( source ) {
 };
 
 /**
- * @static
  * Remove processing instructions from source.
  * @param {String} source
  * @returns {String}
  */
 edb.Instruction.clean = function ( source ) {
-
 	return source.replace ( this._PIEXP, "" );
 };
 
 /**
- * @static
  * Math processing instruction.
  * @type {RegExp}
  */
 edb.Instruction._PIEXP = /<\?.[^>?]+\?>/g;
 
 /**
- * @static
  * Match attribute name and value.
  * @type {RegExp}
  */
@@ -3635,7 +3433,7 @@ edb.Instruction._ATEXP = /(\S+)=["']?((?:.(?!["']?\s+(?:\S+)=|[>"']))+.)["']?/g;
 
 
 /**
- * Compile params-only ("functional") EDB script.
+ * Compile EDB function.
  */
 edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
@@ -3664,13 +3462,20 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	functions : null,
 
 	/**
+	 * Mapping script tag attributes.
+	 * @type {HashMap<String,String>}
+	 */
+	extras : null,
+
+	/**
 	 * Construction.
 	 * @param {String} script
 	 * @param {boolean} debug
+	 * 
 	 */
-	onconstruct : function ( script, debug ) {
-
+	onconstruct : function ( script, debug, atts ) {
 		this.script = script;
+		this.extras = atts;
 		this.debug = debug ? true : false;
 	},
 		
@@ -3681,32 +3486,27 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {function}
 	 */
 	compile : function ( scope, fallback ) {
-		
 		var result = null;
 		this.params = [];
 		this.functions = Object.create ( null );
 		this._vars = [];
-		
 		var head = {
 			declarations : Object.create ( null ), // Map<String,boolean>
 			definitions : [] // Array<String>
 		};
-
-		[ "_extract", "_declare", "_cornholio", "_compile" ].forEach ( function ( step ) {
+		[ "_validate", "_tag", "_extract", "_declare", "_cornholio", "_compile" ].forEach ( function ( step ) {
 			this.script = this [ step ] ( this.script, head );
 		}, this );
-		
 		try {
-			result = this._convert ( scope, this.script, this.params );
 			if ( this.debug ) {
-				console.log ( this.source ());
+				console.log ( this.source ( "\t", this.params ));
 			}
+			result = this._convert ( scope, this.script, this.params );
 		} catch ( exception ) {
 			if ( !fallback ) {
 				result = this._fail ( scope, exception );
 			}
 		}
-		
 		return result;
 	},
 
@@ -3714,11 +3514,14 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * Get formatted source.
 	 * @returns {String}
 	 */
-	source : function ( tabs ) {
-
+	source : function ( tabs, params ) {
 		var source = this._format ( this.script );
 		if ( tabs ) {
 			source = tabs + source.replace ( /\n/g, "\n" + tabs );
+		}
+		if ( params ) {
+			var args = params.length ? "( " + params.join ( ", " ) + " )" : "()";
+			source = "function " + args + " {\n" + source + "\n}";
 		}
 		return source;
 	},
@@ -3730,7 +3533,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {edb.ScriptCompiler}
 	 */
 	sign : function ( signature ) {
-		
 		this._signature = signature;
 		return this;
 	},
@@ -3749,15 +3551,48 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @type {Array<edb.Instruction>}
 	 */
 	_instructions : null,
+
+	/**
+	 * Confirm no nested EDBML scripts because it's not parsable in the browser.
+	 * @see http://stackoverflow.com/a/6322601
+	 * @param {String} script
+	 * @param {What?} head
+	 * @returns {String}
+	 */
+	_validate : function ( script ) {
+		if ( this.debug ) { // testing in debug mode only!
+			if ( edb.FunctionCompiler._NESTEXP.test ( script )) {
+				throw "Nested EDBML dysfunction";
+			}
+		}
+		return script;
+	},
+
+	/**
+	 * Insert default EDBML for tag declarations before we parse.
+	 * @param  {[type]} script [description]
+	 * @return {[type]}        [description]
+	 */
+	_tag : function ( script ) {
+		if ( this.extras ) { // TODO: how can it be "undefined"?
+			var tag = this.extras [ "tag" ];
+			if ( tag ) {
+				script = "\n" + 
+					'<?param name="__content__"?>\n' +
+					'<?param name="__attribs__"?>\n' +
+					'att = __attribs__;\n' + script;
+			}
+		}
+		return script;
+	},
 	
 	/**
-	 * Extract and evaluate script instructions.
+	 * Extract and evaluate processing instructions.
 	 * @param {String} script
 	 * @param {What?} head
 	 * @returns {String}
 	 */
 	_extract : function ( script, head ) {
-		
 		edb.Instruction.from ( script ).forEach ( function ( pi ) {
 			this._instruct ( pi );
 		}, this );
@@ -3765,11 +3600,10 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 
 	/**
-	 * Evaluate script instruction.
+	 * Evaluate processing instruction.
 	 * @param {edb.Instruction} pi
 	 */
 	_instruct : function ( pi ) {
-
 		var atts = pi.atts;
 		switch ( pi.type ) {
 			case "param" :
@@ -3788,19 +3622,16 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_declare : function ( script, head ) {
-
 		var funcs = [];
-
 		gui.Object.each ( this.functions, function ( name, func ) {
 			head.declarations [ name ] = true;
 			funcs.push ( name + " = __functions__ [ '" + name + "' ];\n" );
 		}, this );
-
 		if ( funcs [ 0 ]) {
 			head.definitions.push ( 
 				"( function lookup ( __functions__ ) {\n" +
 				funcs.join ( "" ) +
-				"})( this.view.script.functions );" 
+				"})( this.script.functions ());" 
 			);
 		}
 		return script;
@@ -3813,18 +3644,17 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_cornholio : function ( script, head ) {
-
 		var vars = "";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
 			vars += ", " + name + " = null";
 		});
-		var html = "var out = new edb.Out () " + vars +";\n";
+		var html = "var out = new edb.Out (), att = new edb.Att ()" + vars +";\n";
 		head.definitions.forEach ( function ( def ) {
 			html += def +"\n";
 		});
 		return html + script;
 	},
-	
+
 	/**
 	 * Compile that script.
 	 * @param {String} script
@@ -3832,7 +3662,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_compile : function ( script, head ) {
-		
+		var attr = edb.FunctionCompiler._ATTREXP;
 		var body = '"use strict";\n',
 			html = false,
 			peek = false,
@@ -3844,16 +3674,56 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			last = 0,
 			spot = 0,
 			indx = 0;
-
+		/*
+		 * Parse @ notation in markup. 
+		 * @param {String} line
+		 * @param {number} i
+		 */
+		function atthtml ( line, i ) {
+			var rest, name, dels, what;
+			if ( this._behind ( line, i, "@" )) {}
+			else if ( this._ahead ( line, i, "@" )) {
+				body += "' + att._all () + '";
+				skip = 2;
+			} else {
+				rest = line.substring ( i + 1 );
+				name = attr.exec ( rest )[ 0 ];
+				dels = this._behind ( line, i, "-" );
+				what = dels ? "att._pop" : "att._out";
+				body = dels ? body.substring ( 0, body.length - 1 ) : body;
+				body += "' + " + what + " ( '" + name + "' ) + '";
+				skip = name.length + 1;
+			}
+		}
+		/*
+		 * Parse @ notation in script.
+		 * TODO: preserve email address and allow same-line @
+		 * @param {String} line
+		 * @param {number} i
+		 */
+		function attscript ( line, i ) {
+			var rest, name;
+			if ( this._behind ( line, i, "@" )) {} 
+			else if ( this._ahead ( line, i, "@" )) {
+				body += "var att = new edb.Att ();";
+				skip = 2;
+			} else {
+				rest = line.substring ( i + 1 );
+				name = attr.exec ( rest )[ 0 ];
+				if ( name ) {
+					body += rest.replace ( name, "att['" + name + "']" );
+					skip = rest.length;
+				} else {
+					throw "Bad @name: " + rest;
+				}
+			}
+		}
 		script.split ( "\n" ).forEach ( function ( line, index ) {
-			
 			line = line.trim ();
 			last = line.length - 1;
 			adds = line.charAt ( 0 ) === "+";
 			cont = cont || ( html && adds );
-			
 			if ( line.length > 0 ) {
-			
 				if ( index > 0 ) {
 					if ( html ) {	
 						if ( !cont ) {
@@ -3864,9 +3734,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 						body += "\n";
 					}
 				}
-				
 				cont = false;
-				
 				Array.forEach ( line, function ( c, i ) {
 					if ( html ) {
 						switch ( c ) {
@@ -3916,14 +3784,22 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 									body += "\\";
 								}
 								break;
+							case "@" :
+								atthtml.call ( this, line, i );
+								break;
 						}
 					} else {
-						if ( c === "<" ) {
-							if ( i === 0 ) {
-								html = true;
-								spot = body.length - 1;
-								body += "out.html += '";
-							}
+						switch ( c ) {
+							case "<" :
+								if ( i === 0 ) {
+									html = true;
+									spot = body.length - 1;
+									body += "out.html += '";
+								}
+								break;
+							case "@" :
+								attscript.call ( this, line, i );
+								break;
 						}
 					}
 					if ( skip-- <= 0 ) {
@@ -3936,11 +3812,10 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				}, this );
 			}
 		}, this );
-		
-		body += ( html ? "';" : "" ) + "\nreturn out.toString ();";
+		body += ( html ? "';" : "" ) + "\nreturn out.write ();";
 		return this.debug ? this._format ( body ) : body;
 	},
-		
+	
 	/**
 	 * Generate and inject poke function into main function body.
 	 * @param {String} body
@@ -3949,16 +3824,14 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_inject : function ( body, spot, func, index ) {
-		
 		var sig = this._signature ?  ( ", &quot;" + this._signature + "&quot;" ) : "";
-
 		return (
 			body.substring ( 0, spot ) + "\n" + 
 			"var __edb__" + index + " = edb.Script.assign ( function ( value, checked ) { \n" +
 			func + ";\n" +
 			"}, this );" +
 			body.substring ( spot ) +
-			"edb.Script.log ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
+			"edb.Script.register ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
 		);
 	},
 	
@@ -3970,7 +3843,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {function}
 	 */
 	_convert : function ( scope, script, params ) {
-		
 		var args = "";
 		if ( gui.Type.isArray ( params )) {
 			args = params.join ( "," );
@@ -3986,9 +3858,20 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {boolean}
 	 */
 	_ahead : function ( line, index, string ) {
-		
 		var i = index + 1, l = string.length;
 		return line.length > index + l && line.substring ( i, i + l ) === string;
+	},
+
+	/**
+	 * Line text before index equals string?
+	 * @param {String} line
+	 * @param {number} index
+	 * @param {String} string
+	 * @returns {boolean}
+	 */
+	_behind : function ( line, index, string ) {
+		var length = string.length, start = index - length;
+		return start >= 0 && line.substr ( start, length ) === string;
 	},
 
 	/**
@@ -3998,7 +3881,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {function}
 	 */
 	_fail : function ( scope, exception ) {
-		
 		this._debug ( this._format ( this.script ));
 		this.script = "<p class=\"error\">" + exception.message + "</p>";
 		return this.compile ( scope, true );
@@ -4012,7 +3894,6 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @param {String} source
 	 */
 	_debug : function ( source ) {
-
 		if ( window.btoa ) {
 			source = window.btoa ( "function debug () {\n" + source + "\n}" );
 			var script = document.createElement ( "script" );
@@ -4033,14 +3914,12 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_format : function ( body ) {
-		
 		var debug = "",
 			tabs = "",
 			first = null,
 			last = null,
 			fixt = null,
 			flast = null;
-		
 		body.split ( "\n" ).forEach ( function ( line ) {
 			line = line.trim ();
 			first = line.charAt ( 0 );
@@ -4057,8 +3936,27 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		});
 		return debug;
 	}
-
+	
 });
+
+/**
+ * @static
+ * Test for nested scripts (because those are not parsable in the browser). 
+ * http://stackoverflow.com/questions/1441463/how-to-get-regex-to-match-multiple-script-tags
+ * http://stackoverflow.com/questions/1750567/regex-to-get-attributes-and-body-of-script-tags
+ * TODO: stress test for no SRC attribute!
+ * @type {RegExp}
+ */
+edb.FunctionCompiler._NESTEXP = /<script.*type=["']?text\/edbml["']?.*>([\s\S]+?)/g;
+
+/**
+ * @static
+ * Matches a qualified attribute name (class,id,src,href) allowing 
+ * underscores, dashes and dots while not starting with a number.
+ * TODO: https://github.com/jshint/jshint/issues/383
+ * @type {RegExp}
+ */
+edb.FunctionCompiler._ATTREXP = /^[^\d][a-zA-Z0-9-_\.]+/;
 
 
 /**
@@ -4077,7 +3975,6 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 	 * Handle instruction.
 	 */
 	_instruct : function ( pi ) {
-
 		this._super._instruct ( pi );
 		var atts = pi.atts;
 		switch ( pi.type ) {
@@ -4094,7 +3991,6 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 	 * @returns {function}
 	 */
 	compile : function ( scope, fallback ) {
-		
 		this.inputs = Object.create ( null );
 		return this._super.compile ( scope, fallback );
 	},
@@ -4105,24 +4001,19 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 	 * @returns {String}
 	 */
 	_declare : function ( script, head ) {
-
 		this._super._declare ( script, head );
-
 		var defs = [];
-
 		gui.Object.each ( this.inputs, function ( name, type ) {
 			head.declarations [ name ] = true;
 			defs.push ( name + " = __input__.get ( " + type + " );\n" );
 		}, this );
-
 		if ( defs [ 0 ]) {
 			head.definitions.push ( 
 				"( function lookup ( __input__ ) {\n" +
 				defs.join ( "" ) +
-				"})( this.view.script.input );" 
+				"})( this.script.input ());" 
 			);
 		}
-
 		return script;
 	}
 
@@ -4135,32 +4026,30 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 gui.module ( "edb", {
 	
 	/*
-	 * Helo
+	 * Extending all spirits.
 	 */
-	addins : {
+	addins : { // TODO: rename "extensions" or something
 		
 		/**
 		 * Handle input.
 		 * @param {edb.Input} input
 		 */
-		oninput : function ( input ) {}
+		oninput : function ( input ) {} // TODO: rename "onedbinput"
 	},
 	
 	/*
-	 * Helo
+	 * Register default plugins for all spirits.
 	 */
 	plugins : {
-		
-		view : edb.SpiritView,
-		input : edb.InputTracker,
-		output : edb.Output
+		script : edb.ScriptPlugin,
+		input : edb.InputPlugin,
+		output : edb.OutputPlugin
 	},
 	
 	/*
-	 * Helo
+	 * Channeling spirits to CSS selectors.
 	 */
 	channels : [
-		
 		[ "script[type='text/edbml']", "edb.ScriptSpirit" ],
 		[ "link[rel='service']", "edb.ServiceSpirit" ]
 	],
@@ -4171,16 +4060,13 @@ gui.module ( "edb", {
 	 */
 	init : function ( context ) {
 
-		/*
-		 * TODO: detect sandbox...
-		 */
-		if ( context === gui.context ) {
-			if ( edb.GenericScript && edb.GenericLoader ) { // sandbox!
+		// TODO: detect sandbox...
+		if ( context === gui.context ) { // TODO: better detect top context
+			if ( edb.GenericScript && edb.GenericLoader ) { // TODO: this check is for sandbox (future project)
 				edb.GenericScript.set ( edb.Script, "text/edbml" );
 				edb.GenericLoader.set ( edb.Loader, "text/edbml" );
 			}
 		}
-
 		context.Object.model = function ( a1, a2 ) {
 			return edb.ObjectModel.extend ( a1, a2 );
 		};

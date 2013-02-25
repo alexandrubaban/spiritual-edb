@@ -23,7 +23,6 @@ edb.InsertUpdate = edb.SoftUpdate.extend ( "edb.InsertUpdate", {
 	 * @returns {edb.InsertUpdate}
 	 */
 	setup : function ( id, xelement ) {
-		
 		this.id = id;
 		this.xelement = xelement;
 		return this;
@@ -33,7 +32,6 @@ edb.InsertUpdate = edb.SoftUpdate.extend ( "edb.InsertUpdate", {
 	 * Execute update.
 	 */
 	update : function () {
-		
 		var sibling = this.element ();
 		var parent = sibling.parentNode;
 		var child = this._import ( parent );
@@ -49,7 +47,6 @@ edb.InsertUpdate = edb.SoftUpdate.extend ( "edb.InsertUpdate", {
 	 * TODO: Push to update manager.
 	 */
 	_report : function () {
-		
 		this._super._report ( "edb.InsertUpdate #" + this.xelement.getAttribute ( "id" ));
 	}
 });

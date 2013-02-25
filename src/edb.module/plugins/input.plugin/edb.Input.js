@@ -4,7 +4,6 @@
  * @param {function} type
  */
 edb.Input = function SpiritInput ( type, data ) {
-	
 	this.type = type || null;
 	this.data = data || null;
 };
@@ -28,7 +27,6 @@ edb.Input.prototype = {
 	 * @returns {String}
 	 */
 	toString : function () {
-		
 		return "[object edb.Input]";
 	}
 };
@@ -40,7 +38,6 @@ edb.Input.prototype = {
  * @param {object} handler Implements InputListener
  */
 edb.Input.add = function ( handler ) {
-	
 	gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, handler );
 };
 
@@ -51,6 +48,5 @@ edb.Input.add = function ( handler ) {
  * @param {object} handler Implements InputListener
  */
 edb.Input.remove = function ( handler ) {
-	
 	gui.Broadcast.removeGlobal ( gui.BROADCAST_OUTPUT, handler );
 };

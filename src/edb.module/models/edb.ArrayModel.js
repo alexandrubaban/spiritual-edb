@@ -7,30 +7,26 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	 * Autoboxed data model.
 	 * @type {function} model constructor (or filter function)
 	 */
-	$content : null,
+	$contentmodel : null,
 
 	/**
 	 * Secret constructor.
 	 */
-	__construct__ : function () {
-		
+	__construct__ : function () {		
 		this._instanceKey = gui.KeyMaster.generateKey ();
-		
 		/*
 		 * Autoboxing?
 		 * TODO: WHAT EXACTLY IS THIS STEP DOING?
 		 */
 		var C = this.constructor;
 		if ( C.__content__ ) {
-			this.$content = C.__content__;
+			this.$contentmodel = C.__content__;
 			C.__content__ = null;
 		}
-		
 		/*
 		 * TODO: sample for type Object or Array and autocast autoboxing!
 		 */
 		if ( gui.Type.isDefined ( arguments [ 0 ])) {
-
 			// accept one argument (an array) or use Arguments object as an array
 			var input = [];
 			if ( gui.Type.isArray ( arguments [ 0 ])) {
@@ -40,9 +36,8 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 					input.push ( arg );
 				});
 			}
-
 			// TODO: this less cryptic
-			var boxer = this.$content;
+			var boxer = this.$contentmodel || this.$cm;
 			if ( gui.Type.isFunction ( boxer )) {
 				input.forEach ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
@@ -58,7 +53,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 				}, this );
 			}
 		}
-
 		// proxy methods and invoke non-secret constructor
 		edb.ArrayModel.approximate ( this, {});
 		this.onconstruct ();
@@ -70,35 +64,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	__name__ : "DataList",
 	__data__ : true,
 	__content__ : null
-	
-	/**
-	 * @deprecated
-	 * Was something like children:data.PersonList.box(data.Child)
-	 * @param {function} type
-	 *
-	box : function ( type ) {
-
-		if ( !type || !type.__data__ ) {
-			throw "Not a data type: " + type; // for now...
-		}
-		
-		var DataList = this;
-		function BoxedList () {
-			DataList.__content__ = type;
-			var input = [];
-			if ( gui.Type.isArray ( arguments [ 0 ])) {
-				input = arguments [ 0 ];
-			} else {
-				Array.forEach ( arguments, function ( arg ) {
-					input.push ( arg );
-				});
-			}
-			return new DataList ( input );
-		}
-		BoxedList.__data__ = true;
-		return BoxedList;
-	}
-	 */
 
 
 }, { // static fields ............................................
@@ -111,22 +76,16 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	approximate : function ( handler, proxy ) {
 		
 		var def = null;
-		proxy = proxy || {};
-		
+		proxy = proxy || {};	
 		this._definitions ( handler ).forEach ( function ( key ) {
-			
 			def = handler [ key ];
-			
 			switch ( gui.Type.of ( def )) {
-				
 				case "function" :
 					break;
-					
 				case "object" :
 				case "array" :
 					console.warn ( "TODO: complex stuff on edb.ArrayModel :)" );
 					break;
-					
 				/*
 				 * Simple properties copied from handler to 
 				 * proxy. Strings, numbers, booleans etc.
@@ -164,7 +123,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	 * @returns {Array<String>}
 	 */
 	_definitions : function ( handler ) {
-		
 		var keys = [];
 		function fix ( key ) {
 			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
@@ -239,11 +197,10 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	}, this );
 	
 	/*
-	 * TODO: This is wrong somehow.
+	 * TODO: This is wrong on so many...
 	 * @param {edb.ArrayModel} other
 	 */
 	this.concat = function ( other ) {
-		
 		var clone = new this.constructor (); // must not construct() the instance!
 		this.forEach ( function ( o ) {
 			clone.push ( o );

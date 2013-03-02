@@ -3,7 +3,7 @@
  * The onreadystatechange method fires when ready, 
  * the method "run" may by then invoke the script.
  */
-edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
+edb.Template = gui.Exemplar.create ( "edb.Template", Object.prototype, {
 	
 	/**
 	 * Script may be run when this switches to "ready".
@@ -34,7 +34,7 @@ edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
 	 * @returns {String}
 	 */
 	toString : function () {
-		return "[object edb.ScriptBase]";
+		return "[object edb.Template]";
 	},
 	
 	/**
@@ -54,7 +54,7 @@ edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
 	 * Compile source to invokable function (open for implementation).
 	 * @param {String} source
 	 * @param {Map<String,object>} directives
-	 * @returns {edb.ScriptBase}
+	 * @returns {edb.Template}
 	 */
 	compile : function ( source, directives ) {},
 	
@@ -78,7 +78,7 @@ edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
 				this.onreadystatechange ();
 			}
 		}
-	},
+	}
 	
 	
 }, {}, { // STATICS ................................................................
@@ -126,7 +126,7 @@ edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
 	/**
 	 * Get implementation for mimetype.
 	 * TODO: rename
-	 * @returns {edb.ScriptBase}
+	 * @returns {edb.Template}
 	 */
 	getImplementation : function ( type ) {
 		var impl = this._implementations.get ( type );
@@ -145,7 +145,7 @@ edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
 	 * @param {object} thisp
 	 */
 	load : function ( context, src, type, callback, thisp ) {
-		new edb.ScriptLoader ( context.document ).load ( src, function ( source ) {
+		new edb.TemplateLoader ( context.document ).load ( src, function ( source ) {
 			var url = new gui.URL ( context.document, src );
 			var script = edb.Script.get ( url.href ); // todo - localize!
 			if ( !script ) {
@@ -171,7 +171,7 @@ edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
 	compile : function ( context, source, type, directives, callback, thisp ) {
 		var Script = this.getImplementation ( type );
 		var script = new Script ( null, context, function onreadystatechange () {
-			if ( this.readyState === edb.ScriptBase.READY ) {
+			if ( this.readyState === edb.Template.READY ) {
 				callback.call ( thisp, this );
 			}
 		});
@@ -183,7 +183,7 @@ edb.ScriptBase = gui.Exemplar.create ( "edb.ScriptBase", Object.prototype, {
 
 	/**
 	 * Mapping implementations to mimetypes.
-	 * @type {Map<String,edb.ScriptBase>}
+	 * @type {Map<String,edb.Template>}
 	 */
 	_implementations : new Map ()
 

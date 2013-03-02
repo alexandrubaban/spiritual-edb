@@ -1,5 +1,6 @@
 /**
  * Tracking compiler state.
+ * @todo Comments all over.
  */
 edb.State = function () {
 	this.conf = [];
@@ -18,7 +19,7 @@ edb.State.prototype = {
 	last : 0,
 	spot : 0,
 	indx : 0
-}
+};
 
 
 // Static ..........................

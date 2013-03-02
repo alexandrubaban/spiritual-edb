@@ -12,7 +12,7 @@ edb.TagCompiler = edb.FunctionCompiler.extend ( "edb.TagCompiler", {
 	 */
 	_direct : function ( script ) {
 		if ( this.directives.tag ) {
-			var content = edb.FunctionCompiler._CONTENT;
+			var content = edb.TagCompiler._CONTENT;
 			this.params.push ( "content" );
 			this.params.push ( "attribs" );
 			script = "att = attribs;\n" + script;
@@ -21,5 +21,14 @@ edb.TagCompiler = edb.FunctionCompiler.extend ( "edb.TagCompiler", {
 		}
 		return this._super._direct ( script );
 	}
+
+
+}, {}, { // Static .................................................
+
+	/**
+	 * Match <content/> tag in whatever awkward form.
+	 * @type {RegExp}
+	 */
+	_CONTENT : /<content(.*)>(.*)<\/content>|<content(.*)(\/?)>/
 
 });

@@ -172,7 +172,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				if ( name ) {
 					this.tags [ name ] = atts.src;
 				} else {
-					throw new Error ( "Tag identifier expected: " + src );
+					throw new Error ( "Missing #identifier: " + src );
 				}
 				break;
 		}
@@ -366,9 +366,8 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 								if ( i === 0 ) {
 									var tag;
 									if (( tag = this._tagstart ( line ))) {
-
 										tagt = true;
-										body += "out.html += edb.Tag.get ( '#ole', window )( function ( out ) {";
+										body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
 										var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
 										conf.push ( JSON.stringify ( gui.AttPlugin.getmap ( elem )));
 

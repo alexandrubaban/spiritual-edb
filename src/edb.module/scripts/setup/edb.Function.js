@@ -58,34 +58,37 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	},
 	
 	/**
-	 * Compile source to invokable function.
+	 * Compile source to function.
+	 *
+	 * 1. Create the compiler (signed for sandbox usage)
+	 * 2. Compile source to invokable function 
+	 * 3. Preserve source for debugging
+	 * 4. Copy expected params
+	 * 5. Load required functions and tags.
+	 * 6. Report done whan all is loaded.
 	 * @overwrites {edb.Template#compile}
 	 * @param {String} source
 	 * @param {HashMap<String,String>} directives
 	 * @returns {edb.Function}
 	 */
 	compile : function ( source, directives ) {
-		if ( this._function !== null ) {
-			throw new Error ( "not supported: compile script twice" ); // support this?
+		if ( this._function === null ) {
+			var compiler = this._compiler = new ( this._Compiler ) ( source, directives );
+			if ( this._signature ) { 
+				compiler.sign ( this._signature );
+			}
+			this._function = compiler.compile ( this.context );
+			this._source = compiler.source;
+			this.params = compiler.params;
+			gui.Object.each ( compiler.tags, function ( name, src ) {
+				this._tagload ( name, src );
+			}, this );
+			gui.Object.each ( compiler.functions, function ( name, src ) {
+				this._functionload ( name, src );
+			}, this );
+		} else {
+			throw new Error ( "TODO: recompile the script :)" );
 		}
-		// create invokable function (signed for sandbox usage)
-		var compiler = this._compiler = new ( this._Compiler ) ( source, directives );
-		if ( this._signature ) { compiler.sign ( this._signature );}
-		// compile source to invokable function
-		this._function = compiler.compile ( this.context );
-		// preserve source for debugging
-		this._source = compiler.source;
-		// copy expected params
-		this.params = compiler.params;
-		// watch for incoming tags
-		gui.Object.each ( compiler.tags, function ( name, src ) {
-			this._tagload ( name, src );
-		}, this );
-		// watch for incoming functions
-		gui.Object.each ( compiler.functions, function ( name, src ) {
-			this._functionload ( name, src );
-		}, this );
-
 		return this._oncompiled ();
 	},
 
@@ -134,6 +137,9 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		switch ( b.type ) {
 			case edb.BROADCAST_FUNCTION_LOADED :
 				this._functionloaded ( b.data );
+				break;
+			case edb.BROADCAST_TAG_LOADED :
+				this._tagloaded ( b.data );
 				break;
 		}
 	},
@@ -259,7 +265,20 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	},
 
 	/**
-	 * Watch for incoming functions.
+	 * Funtion loaded from src.
+	 * @param {String} src
+	 */
+	_tagloaded : function ( src ) {
+		gui.Object.each ( this.tags, function ( name, value ) {
+			if ( value === src ) {
+				this.tags [ name ] = edb.Tag.get ( src, this.context );
+			}
+		}, this );
+		this._maybeready ();
+	},
+
+	/**
+	 * Watch for incoming functions and tags.
 	 * @param {boolean} add
 	 */
 	_await : function ( msg, add ) {
@@ -267,6 +286,12 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		var sig = this.context.gui.signature;
 		gui.Broadcast [ act ] ( msg, this, sig );
 	},
+
+	/*
+	_arrive : function () {
+		TODO!
+	},
+	*/
 
 	/**
 	 * Report ready? Otherwise waiting 
@@ -290,8 +315,10 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {boolean}
 	 */
 	_done : function () {
-		return Object.keys ( this.functions ).every ( function ( name ) {
-			return gui.Type.isFunction ( this.functions [ name ]);
+		return [ "functions", "tags" ].every ( function ( map ) {
+			return Object.keys ( this [ map ] ).every ( function ( name ) {
+				return gui.Type.isFunction ( this [ map ][ name ]);
+			}, this );
 		}, this );
 	},
 	
@@ -303,6 +330,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( gui.BROADCAST_DATA_SUB, this );
 		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( gui.BROADCAST_DATA_PUB, this );
 	}
+
 
 }, { // Recurring static ................................................
 
@@ -347,20 +375,20 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	_load : function ( src, win ) {
 		var func = null, 
-			impl = this, 
+			Implementation = this, 
 			cast = this._broadcast, 
 			sig = win.gui.signature;
 		new edb.TemplateLoader ( win.document ).load ( src, onload );
 		function onload ( source, directives ) {
-			new ( impl ) ( null, win, function onreadystatechange () {
+			new Implementation ( null, win, function onreadystatechange () {
 				if ( this.readyState === edb.Template.READY ) {
-					func = impl._map [ src ] = this._function;
+					func = Implementation._map [ src ] = this._function;
 					if ( directives.debug ) {
 						this.debug ();
 					}
 					gui.Broadcast.dispatch ( null, cast, src, sig );
 				}
-			} ).compile ( source, directives );
+			}).compile ( source, directives );
 		}
 		return func;
 	}

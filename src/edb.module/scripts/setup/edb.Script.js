@@ -3,13 +3,6 @@
  * @extends {edb.Function}
  */
 edb.Script = edb.Function.extend ( "edb.Script", {
-	
-	/**
-	 * Compiler implementation.
-	 * @overwrites {edb.Function#Compiler}
-	 * @type {function}
-	 */
-	Compiler : edb.ScriptCompiler,
 
 	/**
 	 * Hijacking the edb.InputPlugin which has been 
@@ -75,23 +68,6 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	},
 
 	/**
-	 * Compile source to invokable function.
-	 * @overwrites {edb.Function#compile}
-	 * @param {String} source
-	 * @param {HashMap<String,String>} directives
-	 * @returns {edb.Script}
-	 */
-	compile : function ( source, directives ) {
-		this._super.compile ( source, directives );
-		gui.Object.each ( this._compiler.inputs, function ( name, type ) {
-			this.input.add ( type, this );
-		}, this );
-		this._resolved = true;
-		this._maybeready ();
-		return this;
-	},
-
-	/**
 	 * Handle input.
 	 * TODO: System for this!
 	 * @param {edb.Input} input
@@ -118,16 +94,17 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	// Private ............................................................
 
 	/**
+	 * Compiler implementation.
+	 * @overwrites {edb.Function#_Compiler}
+	 * @type {function}
+	 */
+	_Compiler : edb.ScriptCompiler,
+
+	/**
 	 * Tracking keys in edb.Model and edb.ArrayModel
 	 * @type {Set<String>}
 	 */
 	_keys : null,
-
-	/**
-	 * Compiler instance.
-	 * @type {edb.ScriptCompiler}
-	 */
-	_compiler : null,
 
 	/**
 	 * Flipped when expected inputs have been determined.
@@ -135,6 +112,15 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 */
 	_resolved : false,
 
+	/**
+	 * Hello.
+	 */
+	_oncompiled : function () {
+		gui.Object.each ( this._compiler.inputs, function ( name, type ) {
+			this.input.add ( type, this );
+		}, this );
+		return this._super._oncompiled ();
+	},
 
 	/**
 	 * Ready to run?
@@ -142,13 +128,11 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @returns {boolean}
 	 */
 	_done : function () {
-		return this._resolved && 
-			this.input.done && 
-			this._super._done ();
+		return this.input.done && this._super._done ();
 	}
 
 
-}, {}, { // STATICS .....................................................................................
+}, { // STATICS .....................................................................................
 	
 	/**
 	 * @static

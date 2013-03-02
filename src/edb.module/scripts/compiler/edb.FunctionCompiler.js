@@ -16,10 +16,16 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	params : null,
 
 	/**
-	 * Required functions.
+	 * Required functions. Mapping src to variable name.
 	 * @type {Map<String,String>}
 	 */
 	functions : null,
+
+	/**
+	 * Required tags. Mapping src to variable name.
+	 * @type {Map<String,String>}
+	 */
+	tags : null,
 
 	/**
 	 * Mapping script tag attributes.
@@ -31,7 +37,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * Compile sequence.
 	 * @type {Array<string>}
 	 */
-	steps : null,
+	sequence : null,
 
 	/**
 	 * Construction.
@@ -41,7 +47,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	onconstruct : function ( source, directives ) {
 		this.directives = directives || Object.create ( null );
 		this.source = source;
-		this.steps = [ 
+		this.sequence = [ 
 			"_validate", 
 			"_extract", 
 			"_direct", 
@@ -60,13 +66,14 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	compile : function ( scope ) {
 		var result = null;
 		this.params = [];
+		this.tags = Object.create ( null );
 		this.functions = Object.create ( null );
 		this._vars = [];
 		var head = {
 			declarations : Object.create ( null ), // Map<String,boolean>
 			definitions : [] // Array<String>
 		};
-		this.steps.forEach ( function ( step ) {
+		this.sequence.forEach ( function ( step ) {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
@@ -125,17 +132,12 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 
 	/**
-	 * Resolve directives (tag declarations for now).
+	 * Handle directives. Nothing by default.
+	 * @see {edb.TagCompiler._direct}
 	 * @param  {String} script
+	 * @returns {String}
 	 */
 	_direct : function ( script ) {
-		if ( this.directives.tag ) {
-			var content = /<content(.*)>(.*)<\/content>|<content(.*)(\/?)>/;
-			this.params.push ( "content" );
-			this.params.push ( "attribs" );
-			script = "att = attribs;\n" + script;
-			script = script.replace ( content, "content ( out );" );
-		}
 		return script;
 	},
 	
@@ -164,6 +166,14 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				break;
 			case "function" :
 				this.functions [ atts.name ] = atts.src;
+				break;
+			case "tag" :
+				var name = atts.src.split ( "#" )[ 1 ];
+				if ( name ) {
+					this.tags [ name ] = atts.src;
+				} else {
+					throw new Error ( "Tag identifier expected: " + src );
+				}
 				break;
 		}
 	},
@@ -201,7 +211,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
 			vars += ", " + name + " = null";
 		});
-		var html = "var out = new edb.Out (), att = new edb.Att ()" + vars +";\n";
+		var html = "var Out = edb.Out, Att = edb.Att, Tag = edb.Tag, out = new Out (), att = new Att ()" + vars +";\n";
 		head.definitions.forEach ( function ( def ) {
 			html += def +"\n";
 		});
@@ -354,17 +364,17 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 						switch ( c ) {
 							case "<" :
 								if ( i === 0 ) {
-									if ( this._ahead ( line, i, "ole" )) {
-
+									var tag;
+									if (( tag = this._tagstart ( line ))) {
 
 										tagt = true;
-										body += "out.html += edb.Tag.get ( window, 'ole' )( function ( out ) {";
+										body += "out.html += edb.Tag.get ( '#ole', window )( function ( out ) {";
 										var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
 										conf.push ( JSON.stringify ( gui.AttPlugin.getmap ( elem )));
 
-									} else if ( this._ahead ( line, i, "/ole>" )) {
+									} else if (( tag = this._tagstop ( line ))) {
 
-										body += "}, " + conf.pop () + " );"; // config!
+										body += "}, " + conf.pop () + " );";
 										tagt = true;
 										conf = null;
 
@@ -394,6 +404,14 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		}, this );
 		body += ( html ? "';" : "" ) + "\nreturn out.write ();";
 		return this._format ( body );
+	},
+
+	_tagstart : function ( line ) {
+		return this._ahead ( line, 0, "ole" );
+	},
+
+	_tagstop : function ( line ) {
+		return this._ahead ( line, 0, "/ole>" );
 	},
 
 	/**
@@ -463,7 +481,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	_fail : function ( scope, exception ) {
 		if ( !this._failed ) {
 			this._failed = true;
-			this._debug ( this._format ( this.source ));
+			this._debug ( scope, this._format ( this.source ));
 			this.source = "<p class=\"error\">" + exception.message + "</p>";
 			return this.compile ( scope, true );
 		} else {
@@ -476,14 +494,15 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * Hopefully this will allow the developer console to aid in debugging.
 	 * TODO: Fallback for IE9 (see http://stackoverflow.com/questions/7405345/data-uri-scheme-and-internet-explorer-9-errors)
 	 * TODO: Migrate this stuff to the gui.BlobLoader
+	 * @param {Window} scope
 	 * @param {String} source
 	 */
-	_debug : function ( source ) {
+	_debug : function ( scope, source ) {
 		if ( window.btoa ) {
-			source = window.btoa ( "function debug () {\n" + source + "\n}" );
-			var script = document.createElement ( "script" );
+			source = scope.btoa ( "function debug () {\n" + source + "\n}" );
+			var script = scope.document.createElement ( "script" );
 			script.src = "data:text/javascript;base64," + source;
-			document.querySelector ( "head" ).appendChild ( script );
+			scope.document.querySelector ( "head" ).appendChild ( script );
 			script.onload = function () {
 				this.parentNode.removeChild ( this );
 			};
@@ -534,23 +553,32 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		return result;
 	}
 	
+
+}, {}, { // Static ............................................................................
+
+	/**
+	 * @static
+	 * Test for nested scripts (because those are not parsable in the browser). 
+	 * http://stackoverflow.com/questions/1441463/how-to-get-regex-to-match-multiple-script-tags
+	 * http://stackoverflow.com/questions/1750567/regex-to-get-attributes-and-body-of-script-tags
+	 * TODO: stress test for no SRC attribute!
+	 * @type {RegExp}
+	 */
+	_NESTEXP : /<script.*type=["']?text\/edbml["']?.*>([\s\S]+?)/g,
+
+	/**
+	 * @static
+	 * Matches a qualified attribute name (class,id,src,href) allowing 
+	 * underscores, dashes and dots while not starting with a number.
+	 * TODO: https://github.com/jshint/jshint/issues/383
+	 * @type {RegExp}
+	 */
+	_ATTREXP : /^[^\d][a-zA-Z0-9-_\.]+/,
+
+	/**
+	 * Match <content/> tag in whatever awkward form.
+	 * @type {RegExp}
+	 */
+	_CONTENT : /<content(.*)>(.*)<\/content>|<content(.*)(\/?)>/
+
 });
-
-/**
- * @static
- * Test for nested scripts (because those are not parsable in the browser). 
- * http://stackoverflow.com/questions/1441463/how-to-get-regex-to-match-multiple-script-tags
- * http://stackoverflow.com/questions/1750567/regex-to-get-attributes-and-body-of-script-tags
- * TODO: stress test for no SRC attribute!
- * @type {RegExp}
- */
-edb.FunctionCompiler._NESTEXP = /<script.*type=["']?text\/edbml["']?.*>([\s\S]+?)/g;
-
-/**
- * @static
- * Matches a qualified attribute name (class,id,src,href) allowing 
- * underscores, dashes and dots while not starting with a number.
- * TODO: https://github.com/jshint/jshint/issues/383
- * @type {RegExp}
- */
-edb.FunctionCompiler._ATTREXP = /^[^\d][a-zA-Z0-9-_\.]+/;

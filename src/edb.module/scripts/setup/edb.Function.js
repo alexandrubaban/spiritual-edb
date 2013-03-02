@@ -5,12 +5,6 @@
 edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
-	 * Compiler implementation (subclass will overwrite it).
-	 * @type {function}
-	 */
-	Compiler : edb.FunctionCompiler,
-
-	/**
 	 * The window context; where to lookup data types.
 	 * @type {Global}
 	 */
@@ -32,9 +26,15 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	/**
 	 * Note to self: While loading the function we 
 	 * are mapping variable name to function src...
-	 * @type {Map<String,function>}
+	 * @type {Map<String,String|function>}
 	 */
 	functions : null,
+
+	/**
+	 * Experiomental...
+	 * @type {Map<String,String|function>} ???????
+	 */
+	tags : null,
 	
 	/**
 	 * Construct.
@@ -53,7 +53,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		this.context = context;
 		this.spirit = null;
 
-		// hey
+		this.tags = Object.create ( null );
 		this.functions = Object.create ( null );
 	},
 	
@@ -69,43 +69,24 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 			throw new Error ( "not supported: compile script twice" ); // support this?
 		}
 		// create invokable function (signed for sandbox usage)
-		var compiler = this._compiler = new ( this.Compiler ) ( source, directives );
-		if ( this._signature ) {
-			compiler.sign ( this._signature );
-		}
+		var compiler = this._compiler = new ( this._Compiler ) ( source, directives );
+		if ( this._signature ) { compiler.sign ( this._signature );}
 		// compile source to invokable function
-
 		this._function = compiler.compile ( this.context );
+		// preserve source for debugging
 		this._source = compiler.source;
 		// copy expected params
 		this.params = compiler.params;
-		// waiting for functions to load?
+		// watch for incoming tags
+		gui.Object.each ( compiler.tags, function ( name, src ) {
+			this._tagload ( name, src );
+		}, this );
+		// watch for incoming functions
 		gui.Object.each ( compiler.functions, function ( name, src ) {
-			src = new gui.URL ( this.context.document, src ).href;
-			var func = edb.Function.get ( src, this.context );
-			if ( func ) {
-				this.functions [ name ] = func;
-			} else {
-				gui.Broadcast.add ( edb.BROADCAST_FUNCTION_LOADED, this, this.context.gui.signature );
-				this.functions [ name ] = src;
-			}
+			this._functionload ( name, src );
 		}, this );
-		/*
-		// waiting for datatypes to load?
-		gui.Object.each ( compiler.inputs, function ( name, type ) {
-			this.input.add ( type, this );
-		}, this );
-		*/
-		try { // in development mode, load invokable function as a blob file; otherwise skip to init
-			if ( this._useblob ()) {
-				this._loadblob ( compiler );
-			} else {
-				this._maybeready ();
-			}
-		} catch ( workerexception ) {
-			this._maybeready ();
-		}
-		return this;
+
+		return this._oncompiled ();
 	},
 
 	/**
@@ -174,10 +155,32 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_signature : null,
 
 	/**
+	 * Compiler implementation (subclass may overwrite it).
+	 * @type {function}
+	 */
+	_Compiler : edb.FunctionCompiler,
+
+	/**
 	 * Compiler instance.
 	 * @type {edb.FunctionCompiler}
 	 */
 	_compiler : null,
+
+	/**
+	 * Called when compile is done, as expected.
+	 */
+	_oncompiled : function () {
+		try { // in development mode, load invokable function as a blob file; otherwise skip to init
+			if ( this._useblob ()) {
+				this._loadblob ();
+			} else {
+				this._maybeready ();
+			}
+		} catch ( workerexception ) { // sandbox scenario
+			this._maybeready ();
+		}
+		return this;
+	},
 
 	/**
 	 * Use blob files?
@@ -197,12 +200,11 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * Note that this introduces an async step of some kind...
 	 * @param {edb.FunctionCompiler} compiler
 	 */
-	_loadblob : function ( compiler ) {
-		var key = gui.KeyMaster.generateKey ( "script" ),
-			msg = "// blob script generated in development mode\n",
-			src = "function " + key + " (" + this.params + ") { " + msg + compiler.source ( "\t" ) + "\n}",
-			win = this.context,
-			doc = win.document;
+	_loadblob : function () {
+		var win = this.context;
+		var doc = win.document;
+		var key = gui.KeyMaster.generateKey ( "function" );
+		var src = this._compiler.source.replace ( "function", "function " + key );
 		this._gostate ( edb.Template.LOADING );
 		gui.BlobLoader.loadScript ( doc, src, function onload () {
 			this._gostate ( edb.Template.WORKING );
@@ -212,7 +214,39 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	},
 
 	/**
-	 * Resolve loaded funtion.
+	 * Load function from src.
+	 * @param {String} name
+	 * @param {String} src
+	 */
+	_tagload : function ( name, src ) {
+		src = gui.URL.absolute ( this.context.document, src );
+		var tag = edb.Tag.get ( src, this.context );
+		if ( tag ) {
+			this.tags [ name ] = tag;
+		} else {
+			this._await ( edb.BROADCAST_TAG_LOADED, true );
+			this.tags [ name ] = src;
+		}
+	},
+
+	/**
+	 * Load function from src.
+	 * @param {String} name
+	 * @param {String} src
+	 */
+	_functionload : function ( name, src ){
+		src = gui.URL.absolute ( this.context.document, src );
+		var func = edb.Function.get ( src, this.context );
+		if ( func ) {
+			this.functions [ name ] = func;
+		} else {
+			this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
+			this.functions [ name ] = src;
+		}
+	},
+
+	/**
+	 * Funtion loaded from src.
 	 * @param {String} src
 	 */
 	_functionloaded : function ( src ) {
@@ -225,6 +259,16 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	},
 
 	/**
+	 * Watch for incoming functions.
+	 * @param {boolean} add
+	 */
+	_await : function ( msg, add ) {
+		var act = add ? "add" : "remove";
+		var sig = this.context.gui.signature;
+		gui.Broadcast [ act ] ( msg, this, sig );
+	},
+
+	/**
 	 * Report ready? Otherwise waiting 
 	 * for data types to initialize...
 	 */
@@ -232,7 +276,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		if ( this.readyState !== edb.Template.LOADING ) {
 			this._gostate ( edb.Template.WORKING );
 			if ( this._done ()) {
-
+				this._await ( edb.BROADCAST_TAG_LOADED, false );
+				this._await ( edb.BROADCAST_FUNCTION_LOADED, false );
 				this._gostate ( edb.Template.READY );
 			} else {
 				this._gostate ( edb.Template.WAITING );
@@ -259,22 +304,17 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( gui.BROADCAST_DATA_PUB, this );
 	}
 
-}, {}, { // Static ................................................
-
-	/**
-	 * Mount compiled scripts as blob files in development mode?
-	 * @todo map to gui.Client.hasBlob somehow...
-	 * @type {boolean}
-	 */
-	useblob : true,
+}, { // Recurring static ................................................
 
 	/**
 	 * Get function for SRC.
+	 * @todo pass document not window	
 	 * @param {String} src
 	 * @param {Window} win
 	 * @returns {function}
 	 */
-	get : function ( src, win ) { // TODO: pass document not window	
+	get : function ( src, win ) {
+		if ( !win ) throw new Error ( "NO!" );
 		src = new gui.URL ( win.document, src ).href;
 		var has = gui.Type.isFunction ( this._map [ src ]);
 		if ( !has ) {
@@ -283,22 +323,21 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		return this._map [ src ];
 	},
 
-	// Private static ...............................................
+
+	// Private recurring static ...........................................
 
 	/**
-	 * Mapping src to resolved function.
+	 * Message to dispatch when function is loaded. 
+	 * The function src appears as broadcast data.
+	 * @type {String}
+	 */
+	_broadcast : edb.BROADCAST_FUNCTION_LOADED,
+
+	/**
+	 * Mapping src to (loaded and compiled) function.
 	 * @type {Map<String,function>}
 	 */
 	_map : Object.create ( null ),
-
-	/**
-	 * Set function for SRC.
-	 * @param {String} src
-	 * @param {function} func
-	 */
-	_set : function ( src, func ) {
-		this._map [ src ] = func;
-	},
 
 	/**
 	 * Load function from SRC (async) or lookup in local document (sync).
@@ -307,25 +346,33 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {function} only if sync (otherwise we wait for broadcast)
 	 */
 	_load : function ( src, win ) {
-		var result = null;
-		var sig = win.gui.signature;
-		var msg = edb.BROADCAST_FUNCTION_LOADED;
-		new edb.TemplateLoader ( win.document ).load ( src, function ( source, directives ) {
-			new edb.Function ( null, win, function onreadystatechange () {
+		var func = null, 
+			impl = this, 
+			cast = this._broadcast, 
+			sig = win.gui.signature;
+		new edb.TemplateLoader ( win.document ).load ( src, onload );
+		function onload ( source, directives ) {
+			new ( impl ) ( null, win, function onreadystatechange () {
 				if ( this.readyState === edb.Template.READY ) {
-					edb.Function._set ( src, this._function );
-					if ( directives.tag ) {
-						edb.Tag.set ( win, directives.tag, src );
-					}
+					func = impl._map [ src ] = this._function;
 					if ( directives.debug ) {
 						this.debug ();
 					}
-					gui.Broadcast.dispatch ( null, msg, src, sig );
-					result = this._function;
+					gui.Broadcast.dispatch ( null, cast, src, sig );
 				}
-			}).compile ( source, directives );
-		});
-		return result;
+			} ).compile ( source, directives );
+		}
+		return func;
 	}
+
+
+}, { // Static ...................................................
+
+	/**
+	 * Mount compiled scripts as blob files in development mode?
+	 * @todo map to gui.Client.hasBlob somehow...
+	 * @type {boolean}
+	 */
+	useblob : true
 
 });

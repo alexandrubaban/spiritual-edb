@@ -6,6 +6,7 @@ edb.CompileState = function () {
 };
 
 edb.CompileState.prototype = {
+	mode : edb.CompileState.MODE_JS,
 	body : '"use strict";\n',
 	html : false,
 	peek : false,
@@ -20,3 +21,7 @@ edb.CompileState.prototype = {
 	spot : 0,
 	indx : 0
 }
+
+edb.CompileState.MODE_JS = 0;
+edb.CompileState.MODE_HTML = 1;
+edb.CompileState.MODE_TAG = 2;

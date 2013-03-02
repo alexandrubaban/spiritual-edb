@@ -58,7 +58,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 		
 	/**
-	 * Compile script to invocable function.
+	 * Compile EDBML to invocable function.
 	 * @param {Window} scope Function to be declared in scope of this window (or worker context).
 	 * @param @optional {boolean} fallback
 	 * @returns {function}
@@ -225,144 +225,181 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_compile : function ( script, head ) {
-		var x = new edb.CompileState ();
+		var state = new edb.CompileState ();
 		script.split ( "\n" ).forEach ( function ( line, index ) {
-			this._compileline ( x, line, index );
+			this._compileline ( state, line, index );
 		}, this );
-		x.body += ( x.html ? "';" : "" ) + "\nreturn out.write ();";
-		return this._format ( x.body );
+		state.body += ( state.html ? "';" : "" ) + "\nreturn out.write ();";
+		return this._format ( state.body );
 	},
 
 	/**
 	 * Compile single line.
+	 * @param {edb.CompileState} state
+	 * @param {String} line
+	 * @param {number} index
 	 */
-	_compileline : function ( x, line, index ) {
+	_compileline : function ( state, line, index ) {
 		line = line.trim (); // beware of whitespace sensitive language
-		x.last = line.length - 1;
-		x.adds = line.charAt ( 0 ) === "+";
-		x.cont = x.cont || ( x.html && x.adds );
+		state.last = line.length - 1;
+		state.adds = line.charAt ( 0 ) === "+";
+		state.cont = state.cont || ( state.html && state.adds );
 		if ( line.length > 0 ) {
 			if ( index > 0 ) {
-				if ( x.html ) {	
-					if ( !x.cont ) {
-						x.body += "';\n";
-						x.html = false;
+				if ( state.html ) {	
+					if ( !state.cont ) {
+						state.body += "';\n";
+						state.html = false;
 					}
 				} else {
-					x.body += "\n";
+					state.body += "\n";
 				}
 			}
-			x.cont = false;
+			state.cont = false;
 			Array.forEach ( line, function ( c, i ) {
-				this._compilechar ( x, c, i, line );
+				this._compilechar ( state, c, i, line );
 			}, this );
 		}
 	},
 
 	/**
 	 * Compile single character.
-	 * @param {edb.CompileState} x
+	 * @param {edb.CompileState} state
 	 * @param {String} c
 	 * @param {number} i
 	 * @param {String} line
 	 */
-	_compilechar : function ( x, c, i, line ) {
-		if ( x.tagt ) {
-			switch ( c ) {
-				case ">" :
-					x.tagt = false;
-					x.skip = 1;
-					break;
-			}
-		} else if ( x.html ) {
-			switch ( c ) {
-				case "{" :
-					if ( x.peek || x.poke ) {}
-					break;
-				case "}" :
-					if ( x.peek ) {
-						x.peek = false;
-						x.skip = 1;
-						x.body += ") + '";
-					}
-					if ( x.poke ) {
-						x.body = this._inject ( x.body, x.spot, x.func, x.indx++ );
-						x.poke = false;
-						x.func = null;
-						x.skip = 1;
-					}
-					break;
-				case "$" :
-					if ( !x.peek && !x.poke && this._ahead ( line, i, "{" )) {
-						x.peek = true;
-						x.skip = 2;
-						x.body += "' + (";
-					}
-					break;
-				case "#" :
-					if ( !x.peek && !x.poke && this._ahead ( line, i, "{" )) {
-						x.poke = true;
-						x.func = "";
-						x.skip = 2;
-					}
-					break;
-				case "+" :
-					switch ( i ) {
-						case 0 :
-							x.skip = x.adds ? 1 : 0;
-							break;
-						case x.last :
-							x.cont = true;
-							x.skip = 1;
-							break;
-					}
-					break;
-				case "'" :
-					if ( !x.peek && !x.poke ) {
-						x.body += "\\";
-					}
-					break;
-				case "@" :
-					this._atthtml ( x, line, i );
-					break;
-			}
+	_compilechar : function ( state, c, i, line ) {
+		if ( state.tagt ) {
+			this._compiletag ( state, c, i, line );
+		} else if ( state.html ) {
+			this._compilehtml ( state, c, i, line );
 		} else {
-			switch ( c ) {
-				case "<" :
-					if ( i === 0 ) {
-						var tag;
-						if (( tag = this._tagstart ( line ))) {
-							x.tagt = true;
-							x.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
-							var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
-							x.conf.push ( JSON.stringify ( gui.AttPlugin.getmap ( elem )));
-
-						} else if (( tag = this._tagstop ( line ))) {
-
-							x.body += "}, " + x.conf.pop () + " );";
-							x.tagt = true;
-							x.conf = null;
-
-						} else {
-							x.html = true;
-							x.spot = x.body.length - 1;
-							x.body += "out.html += '";
-						}
-					}
-					break;
-				case "@" :
-					this._attscript ( x, line, i );
-					break;
-			}
+			this._compilescript ( state, c, i, line );
 		}
-		if ( x.skip-- <= 0 ) {
-			if ( x.poke ) {
-				x.func += c;
+		if ( state.skip-- <= 0 ) {
+			if ( state.poke ) {
+				state.func += c;
 			} else {
-				if ( !x.tagt ) {
-					x.body += c;
+				if ( !state.tagt ) {
+					state.body += c;
 				}
 			}
+		}
+	},
+
+	/**
+	 * Compile character as HTML.
+	 * @param {edb.CompileState} state
+	 * @param {String} c
+	 * @param {number} i
+	 * @param {String} line
+	 */
+	_compilehtml : function ( state, c, i, line ) {
+		switch ( c ) {
+			case "{" :
+				if ( state.peek || state.poke ) {}
+				break;
+			case "}" :
+				if ( state.peek ) {
+					state.peek = false;
+					state.skip = 1;
+					state.body += ") + '";
+				}
+				if ( state.poke ) {
+					state.body = this._inject ( state.body, state.spot, state.func, state.indx++ );
+					state.poke = false;
+					state.func = null;
+					state.skip = 1;
+				}
+				break;
+			case "$" :
+				if ( !state.peek && !state.poke && this._ahead ( line, i, "{" )) {
+					state.peek = true;
+					state.skip = 2;
+					state.body += "' + (";
+				}
+				break;
+			case "#" :
+				if ( !state.peek && !state.poke && this._ahead ( line, i, "{" )) {
+					state.poke = true;
+					state.func = "";
+					state.skip = 2;
+				}
+				break;
+			case "+" :
+				switch ( i ) {
+					case 0 :
+						state.skip = state.adds ? 1 : 0;
+						break;
+					case state.last :
+						state.cont = true;
+						state.skip = 1;
+						break;
+				}
+				break;
+			case "'" :
+				if ( !state.peek && !state.poke ) {
+					state.body += "\\";
+				}
+				break;
+			case "@" :
+				this._atthtml ( state, line, i );
+				break;
+		}
+	},
+
+	/**
+	 * Compile character as script.
+	 * @param {edb.CompileState} state
+	 * @param {String} c
+	 * @param {number} i
+	 * @param {String} line
+	 */
+	_compilescript : function ( state, c, i, line ) {
+		switch ( c ) {
+			case "<" :
+				if ( i === 0 ) {
+					var tag;
+					if (( tag = this._tagstart ( line ))) {
+						state.tagt = true;
+						state.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
+						var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
+						var atts = JSON.stringify ( gui.AttPlugin.getmap ( elem ));
+						state.conf.push ( atts );
+
+					} else if (( tag = this._tagstop ( line ))) {
+
+						state.body += "}, " + state.conf.pop () + " );";
+						state.tagt = true;
+						state.conf = null;
+
+					} else {
+						state.html = true;
+						state.spot = state.body.length - 1;
+						state.body += "out.html += '";
+					}
+				}
+				break;
+			case "@" :
+				this._attscript ( state, line, i );
+				break;
+		}
+	},
+
+	/**
+	 * Compile character as tag.
+	 * @param {edb.CompileState} state
+	 * @param {String} c
+	 * @param {number} i
+	 * @param {String} line
+	 */
+	_compiletag : function ( state, c, i, line ) {
+		switch ( c ) {
+			case ">" :
+				state.tagt = false;
+				state.skip = 1;
+				break;
 		}
 	},
 
@@ -371,21 +408,21 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @param {String} line
 	 * @param {number} i
 	 */
-	_atthtml : function ( x, line, i ) {
+	_atthtml : function ( state, line, i ) {
 		var attr = edb.FunctionCompiler._ATTREXP;
 		var rest, name, dels, what;
 		if ( this._behind ( line, i, "@" )) {}
 		else if ( this._ahead ( line, i, "@" )) {
-			x.body += "' + att._all () + '";
-			x.skip = 2;
+			state.body += "' + att._all () + '";
+			state.skip = 2;
 		} else {
 			rest = line.substring ( i + 1 );
 			name = attr.exec ( rest )[ 0 ];
 			dels = this._behind ( line, i, "-" );
 			what = dels ? "att._pop" : "att._out";
-			x.body = dels ? x.body.substring ( 0, x.body.length - 1 ) : x.body;
-			x.body += "' + " + what + " ( '" + name + "' ) + '";
-			x.skip = name.length + 1;
+			state.body = dels ? state.body.substring ( 0, state.body.length - 1 ) : state.body;
+			state.body += "' + " + what + " ( '" + name + "' ) + '";
+			state.skip = name.length + 1;
 		}
 	},
 
@@ -395,19 +432,19 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @param {String} line
 	 * @param {number} i
 	 */
-	_attscript : function ( x, line, i ) {
+	_attscript : function ( state, line, i ) {
 		var attr = edb.FunctionCompiler._ATTREXP;
 		var rest, name;
 		if ( this._behind ( line, i, "@" )) {} 
 		else if ( this._ahead ( line, i, "@" )) {
-			x.body += "var att = new edb.Att ();";
-			x.skip = 2;
+			state.body += "var att = new edb.Att ();";
+			state.skip = 2;
 		} else {
 			rest = line.substring ( i + 1 );
 			name = attr.exec ( rest )[ 0 ];
 			if ( name ) {
-				x.body += rest.replace ( name, "att['" + name + "']" );
-				x.skip = rest.length;
+				state.body += rest.replace ( name, "att['" + name + "']" );
+				state.skip = rest.length;
 			} else {
 				throw "Bad @name: " + rest;
 			}

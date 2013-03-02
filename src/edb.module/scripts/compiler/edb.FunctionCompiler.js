@@ -225,17 +225,17 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_compile : function ( script, head ) {
-		var state = new edb.CompileState ();
+		var state = new edb.State ();
 		script.split ( "\n" ).forEach ( function ( line, index ) {
 			this._compileline ( state, line, index );
 		}, this );
-		state.body += ( state.html ? "';" : "" ) + "\nreturn out.write ();";
+		state.body += ( state.mode === "html" ? "';" : "" ) + "\nreturn out.write ();";
 		return this._format ( state.body );
 	},
 
 	/**
 	 * Compile single line.
-	 * @param {edb.CompileState} state
+	 * @param {edb.State} state
 	 * @param {String} line
 	 * @param {number} index
 	 */
@@ -243,13 +243,13 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 		line = line.trim (); // beware of whitespace sensitive language
 		state.last = line.length - 1;
 		state.adds = line.charAt ( 0 ) === "+";
-		state.cont = state.cont || ( state.html && state.adds );
+		state.cont = state.cont || ( state.mode === "html" && state.adds );
 		if ( line.length > 0 ) {
 			if ( index > 0 ) {
-				if ( state.html ) {	
+				if ( state.mode === "html" ) {	
 					if ( !state.cont ) {
 						state.body += "';\n";
-						state.html = false;
+						state.mode = "js";
 					}
 				} else {
 					state.body += "\n";
@@ -264,24 +264,28 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
 	/**
 	 * Compile single character.
-	 * @param {edb.CompileState} state
+	 * @param {edb.State} state
 	 * @param {String} c
 	 * @param {number} i
 	 * @param {String} line
 	 */
 	_compilechar : function ( state, c, i, line ) {
-		if ( state.tagt ) {
-			this._compiletag ( state, c, i, line );
-		} else if ( state.html ) {
-			this._compilehtml ( state, c, i, line );
-		} else {
-			this._compilescript ( state, c, i, line );
+		switch ( state.mode ) {
+			case "tag" :
+				this._compiletag ( state, c, i, line );
+				break;
+			case "html" :
+				this._compilehtml ( state, c, i, line );
+				break;
+			default : // @todo case "js"
+				this._compilescript ( state, c, i, line );
+				break;
 		}
 		if ( state.skip-- <= 0 ) {
 			if ( state.poke ) {
 				state.func += c;
 			} else {
-				if ( !state.tagt ) {
+				if ( state.mode !== "tag" ) {
 					state.body += c;
 				}
 			}
@@ -290,7 +294,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
 	/**
 	 * Compile character as HTML.
-	 * @param {edb.CompileState} state
+	 * @param {edb.State} state
 	 * @param {String} c
 	 * @param {number} i
 	 * @param {String} line
@@ -351,7 +355,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
 	/**
 	 * Compile character as script.
-	 * @param {edb.CompileState} state
+	 * @param {edb.State} state
 	 * @param {String} c
 	 * @param {number} i
 	 * @param {String} line
@@ -362,20 +366,17 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				if ( i === 0 ) {
 					var tag;
 					if (( tag = this._tagstart ( line ))) {
-						state.tagt = true;
+						state.mode = "tag";
 						state.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
 						var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
 						var atts = JSON.stringify ( gui.AttPlugin.getmap ( elem ));
 						state.conf.push ( atts );
-
 					} else if (( tag = this._tagstop ( line ))) {
-
 						state.body += "}, " + state.conf.pop () + " );";
-						state.tagt = true;
+						state.mode = "tag";
 						state.conf = null;
-
 					} else {
-						state.html = true;
+						state.mode = "html";
 						state.spot = state.body.length - 1;
 						state.body += "out.html += '";
 					}
@@ -389,7 +390,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 
 	/**
 	 * Compile character as tag.
-	 * @param {edb.CompileState} state
+	 * @param {edb.State} state
 	 * @param {String} c
 	 * @param {number} i
 	 * @param {String} line
@@ -397,7 +398,8 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	_compiletag : function ( state, c, i, line ) {
 		switch ( c ) {
 			case ">" :
-				state.tagt = false;
+				//state.tagt = false;
+				state.mode = "js";
 				state.skip = 1;
 				break;
 		}

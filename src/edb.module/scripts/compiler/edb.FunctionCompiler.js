@@ -53,7 +53,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 			"_direct", 
 			"_declare", 
 			"_define", 
-			"_compile",
+			"_compile"
 		];
 	},
 		
@@ -172,7 +172,7 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 				if ( name ) {
 					this.tags [ name ] = atts.src;
 				} else {
-					throw new Error ( "Missing #identifier: " + src );
+					throw new Error ( "Missing #identifier: " + atts.src );
 				}
 				break;
 		}

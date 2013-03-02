@@ -78,7 +78,7 @@ edb.Template = gui.Exemplar.create ( "edb.Template", Object.prototype, {
 				this.onreadystatechange ();
 			}
 		}
-	},
+	}
 	
 	
 }, {}, { // STATICS ................................................................

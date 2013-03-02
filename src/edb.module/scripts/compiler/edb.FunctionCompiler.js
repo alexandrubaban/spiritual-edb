@@ -219,190 +219,199 @@ edb.FunctionCompiler = gui.Exemplar.create ( Object.prototype, {
 	},
 
 	/**
-	 * Compile that script.
+	 * Compile EDBML to function source.
 	 * @param {String} script
 	 * @param {What?} head
 	 * @returns {String}
 	 */
 	_compile : function ( script, head ) {
-		var attr = edb.FunctionCompiler._ATTREXP;
-		var body = '"use strict";\n',
-			html = false,
-			peek = false,
-			poke = false,
-			cont = false,
-			adds = false,
-			tagt = false,
-			func = null,
-			conf = [],
-			skip = 0,
-			last = 0,
-			spot = 0,
-			indx = 0;
-		/*
-		 * Parse @ notation in markup. 
-		 * @param {String} line
-		 * @param {number} i
-		 */
-		function atthtml ( line, i ) {
-			var rest, name, dels, what;
-			if ( this._behind ( line, i, "@" )) {}
-			else if ( this._ahead ( line, i, "@" )) {
-				body += "' + att._all () + '";
-				skip = 2;
-			} else {
-				rest = line.substring ( i + 1 );
-				name = attr.exec ( rest )[ 0 ];
-				dels = this._behind ( line, i, "-" );
-				what = dels ? "att._pop" : "att._out";
-				body = dels ? body.substring ( 0, body.length - 1 ) : body;
-				body += "' + " + what + " ( '" + name + "' ) + '";
-				skip = name.length + 1;
-			}
-		}
-		/*
-		 * Parse @ notation in script.
-		 * TODO: preserve email address and allow same-line @
-		 * @param {String} line
-		 * @param {number} i
-		 */
-		function attscript ( line, i ) {
-			var rest, name;
-			if ( this._behind ( line, i, "@" )) {} 
-			else if ( this._ahead ( line, i, "@" )) {
-				body += "var att = new edb.Att ();";
-				skip = 2;
-			} else {
-				rest = line.substring ( i + 1 );
-				name = attr.exec ( rest )[ 0 ];
-				if ( name ) {
-					body += rest.replace ( name, "att['" + name + "']" );
-					skip = rest.length;
-				} else {
-					throw "Bad @name: " + rest;
-				}
-			}
-		}
+		var x = new edb.CompileState ();
 		script.split ( "\n" ).forEach ( function ( line, index ) {
-			line = line.trim ();
-			last = line.length - 1;
-			adds = line.charAt ( 0 ) === "+";
-			cont = cont || ( html && adds );
-			if ( line.length > 0 ) {
-				if ( index > 0 ) {
-					if ( html ) {	
-						if ( !cont ) {
-							body += "';\n";
-							html = false;
-						}
-					} else {
-						body += "\n";
-					}
-				}
-				cont = false;
-				Array.forEach ( line, function ( c, i ) {
-					if ( tagt ) {
-						switch ( c ) {
-							case ">" :
-								tagt = false;
-								skip = 1;
-								break;
-						}
-					} else if ( html ) {
-						switch ( c ) {
-							case "{" :
-								if ( peek || poke ) {}
-								break;
-							case "}" :
-								if ( peek ) {
-									peek = false;
-									skip = 1;
-									body += ") + '";
-								}
-								if ( poke ) {
-									body = this._inject ( body, spot, func, indx++ );
-									poke = false;
-									func = null;
-									skip = 1;
-								}
-								break;
-							case "$" :
-								if ( !peek && !poke && this._ahead ( line, i, "{" )) {
-									peek = true;
-									skip = 2;
-									body += "' + (";
-								}
-								break;
-							case "#" :
-								if ( !peek && !poke && this._ahead ( line, i, "{" )) {
-									poke = true;
-									func = "";
-									skip = 2;
-								}
-								break;
-							case "+" :
-								switch ( i ) {
-									case 0 :
-										skip = adds ? 1 : 0;
-										break;
-									case last :
-										cont = true;
-										skip = 1;
-										break;
-								}
-								break;
-							case "'" :
-								if ( !peek && !poke ) {
-									body += "\\";
-								}
-								break;
-							case "@" :
-								atthtml.call ( this, line, i );
-								break;
-						}
-					} else {
-						switch ( c ) {
-							case "<" :
-								if ( i === 0 ) {
-									var tag;
-									if (( tag = this._tagstart ( line ))) {
-										tagt = true;
-										body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
-										var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
-										conf.push ( JSON.stringify ( gui.AttPlugin.getmap ( elem )));
-
-									} else if (( tag = this._tagstop ( line ))) {
-
-										body += "}, " + conf.pop () + " );";
-										tagt = true;
-										conf = null;
-
-									} else {
-										html = true;
-										spot = body.length - 1;
-										body += "out.html += '";
-									}
-								}
-								break;
-							case "@" :
-								attscript.call ( this, line, i );
-								break;
-						}
-					}
-					if ( skip-- <= 0 ) {
-						if ( poke ) {
-							func += c;
-						} else {
-							if ( !tagt ) {
-								body += c;
-							}
-						}
-					}
-				}, this );
-			}
+			this._compileline ( x, line, index );
 		}, this );
-		body += ( html ? "';" : "" ) + "\nreturn out.write ();";
-		return this._format ( body );
+		x.body += ( x.html ? "';" : "" ) + "\nreturn out.write ();";
+		return this._format ( x.body );
+	},
+
+	/**
+	 * Compile single line.
+	 */
+	_compileline : function ( x, line, index ) {
+		line = line.trim (); // beware of whitespace sensitive language
+		x.last = line.length - 1;
+		x.adds = line.charAt ( 0 ) === "+";
+		x.cont = x.cont || ( x.html && x.adds );
+		if ( line.length > 0 ) {
+			if ( index > 0 ) {
+				if ( x.html ) {	
+					if ( !x.cont ) {
+						x.body += "';\n";
+						x.html = false;
+					}
+				} else {
+					x.body += "\n";
+				}
+			}
+			x.cont = false;
+			Array.forEach ( line, function ( c, i ) {
+				this._compilechar ( x, c, i, line );
+			}, this );
+		}
+	},
+
+	/**
+	 * Compile single character.
+	 * @param {edb.CompileState} x
+	 * @param {String} c
+	 * @param {number} i
+	 * @param {String} line
+	 */
+	_compilechar : function ( x, c, i, line ) {
+		if ( x.tagt ) {
+			switch ( c ) {
+				case ">" :
+					x.tagt = false;
+					x.skip = 1;
+					break;
+			}
+		} else if ( x.html ) {
+			switch ( c ) {
+				case "{" :
+					if ( x.peek || x.poke ) {}
+					break;
+				case "}" :
+					if ( x.peek ) {
+						x.peek = false;
+						x.skip = 1;
+						x.body += ") + '";
+					}
+					if ( x.poke ) {
+						x.body = this._inject ( x.body, x.spot, x.func, x.indx++ );
+						x.poke = false;
+						x.func = null;
+						x.skip = 1;
+					}
+					break;
+				case "$" :
+					if ( !x.peek && !x.poke && this._ahead ( line, i, "{" )) {
+						x.peek = true;
+						x.skip = 2;
+						x.body += "' + (";
+					}
+					break;
+				case "#" :
+					if ( !x.peek && !x.poke && this._ahead ( line, i, "{" )) {
+						x.poke = true;
+						x.func = "";
+						x.skip = 2;
+					}
+					break;
+				case "+" :
+					switch ( i ) {
+						case 0 :
+							x.skip = x.adds ? 1 : 0;
+							break;
+						case x.last :
+							x.cont = true;
+							x.skip = 1;
+							break;
+					}
+					break;
+				case "'" :
+					if ( !x.peek && !x.poke ) {
+						x.body += "\\";
+					}
+					break;
+				case "@" :
+					this._atthtml ( x, line, i );
+					break;
+			}
+		} else {
+			switch ( c ) {
+				case "<" :
+					if ( i === 0 ) {
+						var tag;
+						if (( tag = this._tagstart ( line ))) {
+							x.tagt = true;
+							x.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
+							var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
+							x.conf.push ( JSON.stringify ( gui.AttPlugin.getmap ( elem )));
+
+						} else if (( tag = this._tagstop ( line ))) {
+
+							x.body += "}, " + x.conf.pop () + " );";
+							x.tagt = true;
+							x.conf = null;
+
+						} else {
+							x.html = true;
+							x.spot = x.body.length - 1;
+							x.body += "out.html += '";
+						}
+					}
+					break;
+				case "@" :
+					this._attscript ( x, line, i );
+					break;
+			}
+		}
+		if ( x.skip-- <= 0 ) {
+			if ( x.poke ) {
+				x.func += c;
+			} else {
+				if ( !x.tagt ) {
+					x.body += c;
+				}
+			}
+		}
+	},
+
+	/*
+	 * Parse @ notation in markup. 
+	 * @param {String} line
+	 * @param {number} i
+	 */
+	_atthtml : function ( x, line, i ) {
+		var attr = edb.FunctionCompiler._ATTREXP;
+		var rest, name, dels, what;
+		if ( this._behind ( line, i, "@" )) {}
+		else if ( this._ahead ( line, i, "@" )) {
+			x.body += "' + att._all () + '";
+			x.skip = 2;
+		} else {
+			rest = line.substring ( i + 1 );
+			name = attr.exec ( rest )[ 0 ];
+			dels = this._behind ( line, i, "-" );
+			what = dels ? "att._pop" : "att._out";
+			x.body = dels ? x.body.substring ( 0, x.body.length - 1 ) : x.body;
+			x.body += "' + " + what + " ( '" + name + "' ) + '";
+			x.skip = name.length + 1;
+		}
+	},
+
+	/*
+	 * Parse @ notation in script.
+	 * TODO: preserve email address and allow same-line @
+	 * @param {String} line
+	 * @param {number} i
+	 */
+	_attscript : function ( x, line, i ) {
+		var attr = edb.FunctionCompiler._ATTREXP;
+		var rest, name;
+		if ( this._behind ( line, i, "@" )) {} 
+		else if ( this._ahead ( line, i, "@" )) {
+			x.body += "var att = new edb.Att ();";
+			x.skip = 2;
+		} else {
+			rest = line.substring ( i + 1 );
+			name = attr.exec ( rest )[ 0 ];
+			if ( name ) {
+				x.body += rest.replace ( name, "att['" + name + "']" );
+				x.skip = rest.length;
+			} else {
+				throw "Bad @name: " + rest;
+			}
+		}
 	},
 
 	_tagstart : function ( line ) {

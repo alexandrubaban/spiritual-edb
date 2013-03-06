@@ -26,14 +26,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 			throw new TypeError ( "Not an instance of edb.Input: " + input );
 		}
 	},
-
-	/**
-	 * @deprecated
-	 */
-	type : function () {
-		throw new Error ( "deprecated" );
-	},
-
+	
 	
 	// PRIVATES .........................................................................
 	

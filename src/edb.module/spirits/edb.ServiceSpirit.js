@@ -25,18 +25,16 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 		}
 	},
 
-	/**
-	 * TODO: enable this pipeline stuff
-	 * @param {edb.Input} input
-	 *
-	oninput : function ( input ) {
-		this._super.oninput ( input );
-		if ( this.att.get ( "type" ) && this.input.done ) {
-			this._pipeline ();
-		}
-	},
-	*/
-	
+	// /**
+	//  * TODO: enable this pipeline stuff
+	//  * @param {edb.Input} input
+	//  */
+	// oninput : function ( input ) {
+	// 	this._super.oninput ( input );
+	// 	if ( this.att.get ( "type" ) && this.input.done ) {
+	// 		this._pipeline ();
+	// 	}
+	// },
 	
 	// PRIVATES ...............................................................................................
 	

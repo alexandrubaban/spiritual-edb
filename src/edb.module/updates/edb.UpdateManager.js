@@ -1,4 +1,5 @@
 /**
+ * It's the update manager.
  * @param {gui.Spirit} spirit
  */
 edb.UpdateManager = function UpdateManager ( spirit ) {

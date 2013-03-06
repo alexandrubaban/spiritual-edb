@@ -1,3 +1,7 @@
+/**
+ * Here it is.
+ * @extends {edb.Function}
+ */
 edb.Tag = edb.Function.extend ( "edb.Tag", {
 
 	/**

@@ -1,7 +1,7 @@
 /**
  * Array-like data model. Aliased as Array.model ();
  */
-edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
+edb.ArrayModel = gui.Exemplar.create ( "edb.ArrayModel", Array.prototype, {
 	
 	/**
 	 * Autoboxed data model.

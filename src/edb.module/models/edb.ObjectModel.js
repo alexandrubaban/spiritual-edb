@@ -1,7 +1,7 @@
 /**
  * DataObject.
  */
-edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
+edb.ObjectModel = gui.Exemplar.create ( "edb.ObjectModel", edb.Model.prototype, {
 	
 	/**
 	 * Hello.
@@ -48,7 +48,6 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 				/*
 				 * Method type functions are skipped, constructors get instantiated. 
 				 * Similar (named) property in proxy becomes the constructor argument.
-				 * TODO: How to universally differentiate constructors from methods?
 				 */
 				case "function" :
 					

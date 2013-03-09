@@ -21,7 +21,9 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	onconstruct : function ( pointer, context, handler ) {
 		this._super.onconstruct ( pointer, context, handler );
 		this.input = new edb.InputPlugin ();
-		this.input.context = this.context;
+		this.input.context = this.context; // as constructor arg?
+		this.input.onconstruct (); // huh?
+		console.warn ( "Bad: onconstruct should autoinvoke" );
 		this._keys = new Set (); // tracking data model changes
 
 		// @todo this *must* be added before it can be removed ?

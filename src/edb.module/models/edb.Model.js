@@ -1,10 +1,8 @@
 /**
- * EDB model base class. 
  * @see {edb.ObjectModel}
  * @see {edb.ArrayModel}
- * @see {edb.MapModel}
  */
-edb.Model = function Model () {};
+edb.Model = function Model () {}; // EDB model base class. 
 edb.Model.prototype = {
 	
 	/**

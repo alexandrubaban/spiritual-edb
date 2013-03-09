@@ -1,6 +1,6 @@
 /**
  * Tracking EDB input.
- * @extends {gui.Tracker} Note: Doesn't use a lot of super...
+ * @extends {gui.Tracker}
  */
 edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
    
@@ -32,7 +32,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._add ( arg, handler );
-		return this;
 	}),
 
 	/**
@@ -47,7 +46,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._remove ( arg, handler );
 		this.done = this._matches.length === this._watches.length;
-		return this;
 	}),
 
 	/**
@@ -57,27 +55,14 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {object}
 	 */
 	get : function ( type ) {
-		//alert ( "get: " + type );
 		var types = this._matches.map ( function ( input ) {
 			return input.data.constructor;
 		});
-		//alert ( "has " + types );
 		var best = edb.InputPlugin._bestmatch ( type, types );
-		//alert ( "best: " + best );
 		var input = best ? this._matches.filter ( function ( input ) {
 			return input.type === best;
 		}).shift () : null;
 		return input ? input.data : null;
-		/*
-		if (( type = edb.InputPlugin._bestmatch ( type, this._watches ))) {
-			var input = this._matches.filter ( function ( input ) {
-				return input.type === type;
-			}).shift ();
-			return input ? input.data : null;
-		} else {
-			return null;
-		}
-		*/
 	},
 	
 	/**
@@ -158,10 +143,8 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {edb.Input} input
 	 */
 	_maybeinput : function ( input ) {
-		// alert ( "input: " + input.type )
 		var best = edb.InputPlugin._bestmatch ( input.type, this._watches );
 		if ( best ) {
-			// alert ( "best: " + best )
 			this._updatematch ( input );
 			this.done = this._matches.length === this._watches.length;
 			console.log ( "this.done: " + this.done );
@@ -175,7 +158,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {function} best
 	 */
 	_updatematch : function ( newinput, newbest ) {
-		//alert ( "input " +  newinput.type )
 		var matches = this._matches;
 		var types = matches.map ( function ( input ) {
 			return input.type;
@@ -239,7 +221,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 				case "string" :
 					return gui.Object.lookup ( o, context );
 				case "object" :
-					console.error ( "Expected function (not object)" );
+					console.error ( "Expected function. Got object." );
 			}
 		}, this );
 	},
@@ -258,7 +240,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 			case "string" :
 				return this._breakarray ( arg.split ( " " ), context );
 			case "object" :
-				console.error ( "Expected function (not object)" );
+				console.error ( "Expected function. Got object." );
 		}
 	},
 
@@ -297,27 +279,34 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {number} -1 for no match
 	 */
 	_rateone : function ( target, type ) {
+		//throw new Error ( "test" );
+		if ( target === type ) {
+			return 0;
+		} else {
+			function x ( members ) {
+				return members.indexOf ( target );
+			}
+			var y = x ( gui.Class.descendantsAndSelf ( type ));
+			if ( y === -1 ) {
+				y = x ( gui.Class.ancestorsAndSelf ( type ));
+			}
+			return y;
+		}
 		/*
-		var hit = type === target;
-		var res = hit ? 0 : ( function ( subs ) {
-			subs.unshift ( type );
-			return subs.indexOf ( target );
-		}( gui.Exemplar.descendants ( type )));
-		alert ( target + " ancestors:\n" + gui.Exemplar.ancestors ( target ));
-		return res;
-		*/
 		var rate = target === type ? 0 : -1;
 		if ( rate ) {
 			function x ( members ) {
 				members.unshift ( type );
 				return members.indexOf ( target );
 			}
-			rate = x ( gui.Exemplar.descendants ( type ));
+			rate = x ( gui.Class.descendants ( type ));
 			if ( x === -1 ) {
-				rate = x ( gui.Exemplar.ancestors ( type ));
+				alert("?")
+				rate = x ( gui.Class.ancestors ( type ));
 			}
 		}
 		return rate;
+		*/
 	}
 
 });

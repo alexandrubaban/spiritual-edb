@@ -1,7 +1,7 @@
 /**
  * Year!
  */
-edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
+edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 		
 	/**
 	 * Matches hard|atts|insert|append|remove

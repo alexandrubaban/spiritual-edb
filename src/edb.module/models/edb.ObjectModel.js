@@ -1,7 +1,7 @@
 /**
  * DataObject.
  */
-edb.ObjectModel = gui.Exemplar.create ( "edb.ObjectModel", edb.Model.prototype, {
+edb.ObjectModel = gui.Class.create ( "edb.ObjectModel", edb.Model.prototype, {
 	
 	/**
 	 * Hello.

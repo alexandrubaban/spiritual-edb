@@ -1,7 +1,7 @@
 /**
  * Core compiler methods.
  */
-edb.Compiler = gui.Exemplar.create ( Object.prototype, {
+edb.Compiler = gui.Class.create ( Object.prototype, {
 
 	/**
 	 * Compile EDBML to function source.

@@ -3,7 +3,7 @@
  * The onreadystatechange method fires when ready, 
  * the method "run" may by then invoke the script.
  */
-edb.Template = gui.Exemplar.create ( "edb.Template", Object.prototype, {
+edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	
 	/**
 	 * Script may be run when this switches to "ready".

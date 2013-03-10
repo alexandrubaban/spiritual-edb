@@ -147,7 +147,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		if ( best ) {
 			this._updatematch ( input );
 			this.done = this._matches.length === this._watches.length;
-			console.log ( "this.done: " + this.done );
 			this._updatehandlers ( input );
 		}
 	},
@@ -179,13 +178,15 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {edb.Input} input
 	 */
 	_updatehandlers : function ( input ) {
-		var list = this._xxx [ input.type.__indexident__ ];
-		if ( list ) {
-			list.forEach ( function ( checks ) {
-				var handler = checks [ 0 ];
-				handler.oninput ( input );
-			});
-		}
+		var keys = gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
+			var list = this._xxx [ Type.__indexident__ ];
+			if ( list ) {
+				list.forEach ( function ( checks ) {
+					var handler = checks [ 0 ];
+					handler.oninput ( input );
+				});
+			}
+		}, this );
 	}
 
 
@@ -279,34 +280,15 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {number} -1 for no match
 	 */
 	_rateone : function ( target, type ) {
-		//throw new Error ( "test" );
 		if ( target === type ) {
 			return 0;
 		} else {
-			function x ( members ) {
-				return members.indexOf ( target );
-			}
-			var y = x ( gui.Class.descendantsAndSelf ( type ));
-			if ( y === -1 ) {
-				y = x ( gui.Class.ancestorsAndSelf ( type ));
-			}
-			return y;
+			var tops = gui.Class.ancestorsAndSelf ( target );
+			var subs = gui.Class.descendantsAndSelf ( target );
+			var itop = tops.indexOf ( type );
+			var isub = subs.indexOf ( type );
+			return itop < 0 ? isub : itop;
 		}
-		/*
-		var rate = target === type ? 0 : -1;
-		if ( rate ) {
-			function x ( members ) {
-				members.unshift ( type );
-				return members.indexOf ( target );
-			}
-			rate = x ( gui.Class.descendants ( type ));
-			if ( x === -1 ) {
-				alert("?")
-				rate = x ( gui.Class.ancestors ( type ));
-			}
-		}
-		return rate;
-		*/
 	}
 
 });

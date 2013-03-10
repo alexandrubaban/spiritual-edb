@@ -31,12 +31,10 @@ window.edb = gui.namespace ( "edb", {
 
 
 /**
- * EDB model base class. 
  * @see {edb.ObjectModel}
  * @see {edb.ArrayModel}
- * @see {edb.MapModel}
  */
-edb.Model = function Model () {};
+edb.Model = function Model () {}; // EDB model base class. 
 edb.Model.prototype = {
 	
 	/**
@@ -116,7 +114,7 @@ edb.Model.prototype = {
 /**
  * DataObject.
  */
-edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
+edb.ObjectModel = gui.Class.create ( "edb.ObjectModel", edb.Model.prototype, {
 	
 	/**
 	 * Hello.
@@ -163,7 +161,6 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 				/*
 				 * Method type functions are skipped, constructors get instantiated. 
 				 * Similar (named) property in proxy becomes the constructor argument.
-				 * TODO: How to universally differentiate constructors from methods?
 				 */
 				case "function" :
 					
@@ -260,7 +257,7 @@ edb.ObjectModel = gui.Exemplar.create ( edb.Model.prototype, {
 /**
  * Array-like data model. Aliased as Array.model ();
  */
-edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
+edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
 	
 	/**
 	 * Autoboxed data model.
@@ -471,10 +468,6 @@ edb.ArrayModel = gui.Exemplar.create ( Array.prototype, {
 	};
 	
 }).call ( edb.ArrayModel.prototype );
-
-
-// TODO
-
 
 
 /**
@@ -704,6 +697,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 /**
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
  * @todo formalize how this is supposed to be clear
+ * @todo static interface for all this stuff
  */
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
@@ -729,14 +723,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 			throw new TypeError ( "Not an instance of edb.Input: " + input );
 		}
 	},
-
-	/**
-	 * @deprecated
-	 */
-	type : function () {
-		throw new Error ( "deprecated" );
-	},
-
+	
 	
 	// PRIVATES .........................................................................
 	
@@ -802,7 +789,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 /**
  * Tracking EDB input.
- * @extends {gui.Tracker} Note: Doesn't use a lot of super...
+ * @extends {gui.Tracker}
  */
 edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
    
@@ -813,105 +800,62 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	done : true,
 	
 	/**
-	 * Listing latest inputs, one of each registered type.
-	 * @type {Array<edb.Input>} 
+	 * Construction time.
+	 * @overloads {gui.Tracker#construct}
 	 */
-	latest : null,
-	
-	/**
-	 * Mapping data types (edb.Model constructors) to input handlers. 
-	 * @type {WeakMap<function,object>}
-	 */
-	_weakmap : null,
-	
-	/**
-	 * Registered input types (because no available iterator for weakmaps).
-	 * TODO: We now have https://bugzilla.mozilla.org/show_bug.cgi?id=725909#c12
-	 * @type
-	 */
-	_types : null,
-		
-	/**
-	 * Add one or more input handlers.
-	 * TODO: add support for "type"
-	 * @param {object} arg
-	 * @param @optional {object} handler implements InputListener (defaults to this)
-	 * @returns {gui.Spirit}
-	 */
-	add : function ( arg, handler ) {
-		this.done = false; // TODO: check has() already around here?
-		this.latest = this.latest || [];
-		this._types = this._types || [];
-		this._weakmap = this._weakmap || new WeakMap ();
-		handler = handler ? handler : this.spirit;
-		var maybe = [];
-		var types = this._breakdown ( arg );
-		types.forEach ( function ( type, index ) {
-			if ( !this._weakmap.get ( type )) {
-				this._weakmap.set ( type, []);
-			}
-			this._weakmap.get ( type ).push ( handler );
-			if ( this._types.indexOf ( type ) === -1 ) {
-				this._types.push ( type );
-				if ( this._types.length === 1 ) {
-					edb.Input.add ( this ); // await future output of this type
-				}
-				if ( type.output instanceof edb.Input ) { // type has been output?
-					if ( !this.spirit || this.spirit.life.ready ) {
-						var tick = edb.TICK_COLLECT_INPUT;
-						var sig = this.context.gui.signature;
-						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );
-					} else {
-						this.spirit.life.add ( gui.LIFE_READY, this );
-					}
-				}
-			}
-		}, this );
-		
-		return this.spirit;
+	onconstruct : function () {
+		this._super.onconstruct ();
+		gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, this );
+		this._watches = [];
+		this._matches = [];
 	},
+	
+	/**
+	 * Add handler for one or more input types.
+	 * @param {edb.Model|String|Array<edb.Model|String>} arg
+	 * @param @optional {object} IInputHandler Defaults to this.spirit
+	 * @returns {gui.InputPlugin}
+	 */
+	add : gui.Combo.chained ( function ( arg, handler ) {
+		this.done = false;
+		handler = handler ? handler : this.spirit;
+		arg = edb.InputPlugin._breakdown ( arg, this.context );
+		this._add ( arg, handler );
+	}),
 
 	/**
-	 * Remove one or output handlers.
-	 * @todo various updates after this operation
+	 * Remove handler for one or more input types.
+	 * @todo Cleanup more stuff?
 	 * @param {object} arg
 	 * @param @optional {object} handler implements InputListener (defaults to this)
-	 * @returns {gui.Spirit}
+	 * @returns {gui.InputPlugin}
 	 */
-	remove : function ( arg, handler ) {
-		handler = handler ? handler : this;
-		this._breakdown ( arg ).forEach ( function ( type ) {
-			var index = this._types.indexOf ( type );
-			if ( index >-1 ) {
-				this._types.remove ( index ); // TODO; rebuild and stuff! plus remove broadcast handler if zero
-				if ( handler !== this ) {
-					throw "not implemented"; // TODO
-				}
-			}
-		}, this );
-		return this.spirit;
-	},
-	
+	remove : gui.Combo.chained ( function ( arg, handler ) {
+		handler = handler ? handler : this.spirit;
+		arg = edb.InputPlugin._breakdown ( arg, this.context );
+		this._remove ( arg, handler );
+		this.done = this._matches.length === this._watches.length;
+	}),
+
 	/**
-	 * Get data for latest input of type.
+	 * Get data for latest input of type (or best match).
+	 * @todo Safeguard somewhat
 	 * @param {function} type
 	 * @returns {object}
 	 */
 	get : function ( type ) {
-		var data;
-		if ( this.latest ) {
-			this.latest.every ( function ( input ) {
-				if ( input.type === type ) {
-					data = input.data;
-				}
-				return data === undefined;
-			});
-		}
-		return data;
+		var types = this._matches.map ( function ( input ) {
+			return input.data.constructor;
+		});
+		var best = edb.InputPlugin._bestmatch ( type, types );
+		var input = best ? this._matches.filter ( function ( input ) {
+			return input.type === best;
+		}).shift () : null;
+		return input ? input.data : null;
 	},
 	
 	/**
-	 * Route broadcasted input to handlers.
+	 * Evaluate new input.
 	 * @param {gui.Broadcast} b
 	 */
 	onbroadcast : function ( b ) {
@@ -920,48 +864,55 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		}
 	},
 	
-	/**
-	 * In this case, input for spirit exists before the spirit was created. 
-	 * We normally trigger the spirits builder on "attach" (because a build  
-	 * will nuke all descendant spirits anyway) but in this case we need 
-	 * to wait for "ready" so that inline builder script can register first. 
-	 * @param {gui.SpiritLife} life
-	 */
-	onlife : function ( life ) {
-		if ( life.type === gui.LIFE_READY ) {
-			this._todoname ();
-		}
-	},
-	
-	/**
-	 * Handle tick.
-	 * @param {gui.Tick} tick
-	 */
-	ontick : function ( tick ) {
-		if ( tick.type === edb.TICK_COLLECT_INPUT ) {
-			this._todoname ();
-		}
-	},
-
-	/**
-	 * TODO: think about this...
-	 * @overwrites {gui.Plugin#destruct}
-	 */
-	destruct : function () {
-		this._super.destruct ();
-		gui.Tick.remove ( edb.TICK_COLLECT_INPUT, this, this.context.gui.signature );
-		if ( this._types ) {
-			this._types.forEach ( function ( type ) {
-				this._weakmap.del ( type );
-			}, this );
-			delete this._types;
-		}
-		delete this._weakmap;
-	},
-
 	
 	// PRIVATES .........................................................................................
 	
+	/**
+	 * Expecting instances of these types (or best match).
+	 * @type {Array<function>}
+	 */
+	_watches : null,
+
+	/**
+	 * Latest (best) matches, one of each expected type.
+	 * @type {Array<edb.Input>} 
+	 */
+	_matches : null,
+
+	/**
+	 * Add input handler for types.
+	 * @todo Are we sure that tick works synch in all browsers 
+	 * (FF)? If not, better to wait for this.spirit.life.ready
+	 * @param {Array<function>} types
+	 * @param {IInputHandler} handler
+	 */
+	_add : function ( types, handler ) {
+		types.forEach ( function ( type ) {
+			this._watches.push ( type );
+			this._addchecks ( type.__indexident__, [ handler ]);
+			if ( type.output ) { // type has been output already?
+				gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
+					this._todoname ();
+				}, this );
+			}
+		}, this );
+	},
+
+	/**
+	 * Remove input handler for types.
+	 * @param {Array<function>} types
+	 * @param {IInputHandler} handler
+	 */
+	_remove : function ( types, handler ) {
+		types.forEach ( function ( type ) {
+			var index = this._watches.indexOf ( type );
+			if ( index >-1 ) {
+				this._watches.remove ( index );
+				this._removechecks ( type.__indexident__, [ handler ]);
+			}
+		}, this );
+	},
+
 	/*
 	 * Collect all types before evaluating this.done; make sure 
 	 * that all required types are served in a single array, 
@@ -969,7 +920,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * TODO: Update the above to reflect modern API
 	 */
 	_todoname : function () {
-		this._types.forEach ( function ( type ) {
+		this._watches.forEach ( function ( type ) {
 			if ( type.output instanceof edb.Input ) {
 				this._maybeinput ( type.output );
 			}
@@ -977,85 +928,158 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	},
 
 	/**
-	 * Delegate input to handlers if type matches expected.
+	 * If input matches registered type, update handlers.
 	 * @param {edb.Input} input
 	 */
 	_maybeinput : function ( input ) {
-		var type = input.type;
-		if ( this._types.indexOf ( type ) >-1 ) {
-			// remove old entry (no longer latest)
-			this.latest.every ( function ( collected, i ) {
-				var match = ( collected.type === type );
-				if ( match ) {
-					this.latest.remove ( i );
-				}
-				return !match;
-			}, this );
-			// add latest entry and flag all accounted for
-			this.done = ( this.latest.push ( input ) === this._types.length );
-			// handlers updated even when not all accounted for
-			this._weakmap.get ( type ).forEach ( function ( handler ) {
-				handler.oninput ( input );
-			});
+		var best = edb.InputPlugin._bestmatch ( input.type, this._watches );
+		if ( best ) {
+			this._updatematch ( input );
+			this.done = this._matches.length === this._watches.length;
+			this._updatehandlers ( input );
 		}
 	},
-	
+
 	/**
-	 * Resolve argument into array of one or more function constructors (data types).
-	 * @param {object} arg
-	 * @returns {Array<function>}
+	 * Register match for type (remove old match if any).
+	 * @param {edb.Input} input
+	 * @param {function} best
 	 */
-	_breakdown : function ( arg ) {
-		var result = null;
-		if ( gui.Type.isArray ( arg )) {
-			result = this._breakarray ( arg );
+	_updatematch : function ( newinput, newbest ) {
+		var matches = this._matches;
+		var types = matches.map ( function ( input ) {
+			return input.type;
+		});
+		var best = edb.InputPlugin._bestmatch ( newinput.type, types );
+		if ( best ) {
+			var oldinput = matches.filter ( function ( input ) {
+				return input.type === best;
+			})[ 0 ];
+			var index = matches.indexOf ( oldinput );
+			matches [ index ] = newinput;
 		} else {
-			result = this._breakother ( arg );
+			matches.push ( newinput );
 		}
-		return result;
+	},
+
+	/**
+	 * Update input handlers.
+	 * @param {edb.Input} input
+	 */
+	_updatehandlers : function ( input ) {
+		var keys = gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
+			var list = this._xxx [ Type.__indexident__ ];
+			if ( list ) {
+				list.forEach ( function ( checks ) {
+					var handler = checks [ 0 ];
+					handler.oninput ( input );
+				});
+			}
+		}, this );
+	}
+
+
+}, {}, { // Static .............................................................
+
+	/**
+	 * Breakdown argument into array of one or more types.
+	 * @param {object} arg
+	 * @param {Window} context
+	 * @returns {Array<function>}
+	 */
+	_breakdown : function ( arg, context ) {
+		switch ( gui.Type.of ( arg )) {
+			case "array" :
+				return this._breakarray ( arg, context );
+			default :
+				return this._breakother ( arg, context );
+		}
 	},
 	
 	/**
-	 * @param {Array<object>}
+	 * Breakdown array.
+	 * @param {Array<function|String|object>}
+	 * @returns {Array<function>}
+	 * @param {Window} context
 	 * @returns {Array<function>}
 	 */
-	_breakarray : function ( array ) {
+	_breakarray : function ( array, context ) {
 		return array.map ( function ( o ) {
-			var res = null;
 			switch ( gui.Type.of ( o )) {
 				case "function" :
-					res = o;
-					break;
+					return o;
 				case "string" :
-					res = gui.Object.lookup ( o, this.context );
-					break;
+					return gui.Object.lookup ( o, context );
 				case "object" :
-					console.error ( this + ": expected function (not object)" );
-					break;
+					console.error ( "Expected function. Got object." );
 			}
-			return res;
 		}, this );
 	},
 	
 	/**
-	 * @param {object} arg
+	 * Breakdown unarray.
+	 * @param {function|String|object} arg
+	 * @returns {Array<function>}
+	 * @param {Window} context
 	 * @returns {Array<function>}
 	 */
-	_breakother : function ( arg ) {
-		var result = null;
+	_breakother : function ( arg, context ) {
 		switch ( gui.Type.of ( arg )) {
 			case "function" :
-				result = [ arg ];
-				break;
+				return [ arg ];
 			case "string" :
-				result = this._breakarray ( arg.split ( " " ));
-				break;
+				return this._breakarray ( arg.split ( " " ), context );
 			case "object" :
-				console.error ( this + ": expected function (not object)" );
-				break;
+				console.error ( "Expected function. Got object." );
 		}
-		return result;
+	},
+
+	/**
+	 * Lookup ancestor or identical constructor.
+	 * @param {function} target Model constructor
+	 * @param {Array<function>} types Model constructors
+	 * @returns {function} Model constructor
+	 */
+	_bestmatch : function ( target, types ) {
+		var best = null, rating = Number.MAX_VALUE;
+		this._rateall ( target, types, function ( type, rate ) {
+			if ( rate >-1 && rate < rating ) {
+				best = type;
+			}
+		});
+		return best;
+	},
+
+	/**
+	 * Match all types.
+	 * @param {function} t
+	 * @param {Array<function>} types
+	 * @param {function} action
+	 */
+	_rateall : function ( target, types, action ) {
+		types.forEach ( function ( type ) {
+			action ( type, this._rateone ( target, type ));
+		}, this );
+	},
+
+	/**
+	 * Match single type.
+	 * @type {function} t
+	 * @type {function} type
+	 * @returns {number} -1 for no match
+	 */
+	_rateone : function ( target, type ) {
+		if ( target === type ) {
+			return 0;
+		} else {
+			var tops = gui.Class.ancestorsAndSelf ( target );
+			var subs = gui.Class.descendantsAndSelf ( target );
+			var itop = tops.indexOf ( type );
+			var isub = subs.indexOf ( type );
+			return itop < 0 ? isub : itop;
+		}
 	}
+
 });
 
 
@@ -1099,6 +1123,7 @@ edb.Input.prototype = {
  * @param {object} handler Implements InputListener
  */
 edb.Input.add = function ( handler ) {
+	console.log ( "deprecated" );
 	gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, handler );
 };
 
@@ -1109,6 +1134,7 @@ edb.Input.add = function ( handler ) {
  * @param {object} handler Implements InputListener
  */
 edb.Input.remove = function ( handler ) {
+	console.log ( "deprecated" );
 	gui.Broadcast.removeGlobal ( gui.BROADCAST_OUTPUT, handler );
 };
 
@@ -1220,18 +1246,16 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 		}
 	},
 
-	/**
-	 * TODO: enable this pipeline stuff
-	 * @param {edb.Input} input
-	 *
-	oninput : function ( input ) {
-		this._super.oninput ( input );
-		if ( this.att.get ( "type" ) && this.input.done ) {
-			this._pipeline ();
-		}
-	},
-	*/
-	
+	// /**
+	//  * TODO: enable this pipeline stuff
+	//  * @param {edb.Input} input
+	//  */
+	// oninput : function ( input ) {
+	// 	this._super.oninput ( input );
+	// 	if ( this.att.get ( "type" ) && this.input.done ) {
+	// 		this._pipeline ();
+	// 	}
+	// },
 	
 	// PRIVATES ...............................................................................................
 	
@@ -1277,6 +1301,7 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 
 /**
  * EDB processing instruction.
+ * @todo Problem with one-letter variable names in <?input name="a" type="TestData"?>
  * @param {String} pi
  */
 edb.Instruction = function ( pi ) {
@@ -1375,7 +1400,7 @@ edb.State.MODE_TAG = "tag";
  * The onreadystatechange method fires when ready, 
  * the method "run" may by then invoke the script.
  */
-edb.Template = gui.Exemplar.create ( "edb.Template", Object.prototype, {
+edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	
 	/**
 	 * Script may be run when this switches to "ready".
@@ -1692,7 +1717,7 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 /**
  * Core compiler methods.
  */
-edb.Compiler = gui.Exemplar.create ( Object.prototype, {
+edb.Compiler = gui.Class.create ( Object.prototype, {
 
 	/**
 	 * Compile EDBML to function source.
@@ -2606,10 +2631,11 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_compiler : null,
 
 	/**
-	 * Called when compile is done, as expected.
+	 * Called when compile is done, as expected. In development mode, 
+	 * load invokable function as a blob file; otherwise skip to init.
 	 */
 	_oncompiled : function () {
-		try { // in development mode, load invokable function as a blob file; otherwise skip to init
+		try {
 			if ( this._useblob ()) {
 				this._loadblob ();
 			} else {
@@ -2676,11 +2702,15 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_functionload : function ( name, src ){
 		src = gui.URL.absolute ( this.context.document, src );
 		var func = edb.Function.get ( src, this.context );
-		if ( func ) {
-			this.functions [ name ] = func;
+		if ( !gui.Type.isDefined ( this.functions [ name ])) {
+			if ( func ) {
+				this.functions [ name ] = func;
+			} else {
+				this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
+				this.functions [ name ] = src;
+			}
 		} else {
-			this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
-			this.functions [ name ] = src;
+			throw new Error ( "var \"" + name +  "\" already used" );
 		}
 	},
 
@@ -2862,7 +2892,9 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	onconstruct : function ( pointer, context, handler ) {
 		this._super.onconstruct ( pointer, context, handler );
 		this.input = new edb.InputPlugin ();
-		this.input.context = this.context;
+		this.input.context = this.context; // as constructor arg?
+		this.input.onconstruct (); // huh?
+		console.warn ( "Bad: onconstruct should autoinvoke" );
 		this._keys = new Set (); // tracking data model changes
 
 		// @todo this *must* be added before it can be removed ?
@@ -3081,6 +3113,10 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 });
 
 
+/**
+ * Here it is.
+ * @extends {edb.Function}
+ */
 edb.Tag = edb.Function.extend ( "edb.Tag", {
 
 	/**
@@ -3332,6 +3368,7 @@ edb.UpdateAssistant = {
 
 
 /**
+ * It's the update manager.
  * @param {gui.Spirit} spirit
  */
 edb.UpdateManager = function UpdateManager ( spirit ) {
@@ -3804,7 +3841,7 @@ edb.UpdateCollector.prototype = {
 /**
  * Year!
  */
-edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
+edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 		
 	/**
 	 * Matches hard|atts|insert|append|remove

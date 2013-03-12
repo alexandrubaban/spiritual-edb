@@ -97,7 +97,7 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 	 * TODO: rename!
 	 */
 	set : function () { // implementation, ...mimetypes
-		var args = gui.Type.list ( arguments );
+		var args = gui.Object.toArray ( arguments );
 		var impl = args.shift ();
 		args.forEach ( function ( type ) {
 			this._loaders.set ( type, impl );

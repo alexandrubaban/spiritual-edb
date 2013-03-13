@@ -10,7 +10,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_compile : function ( script, head ) {
-		var state = new edb.State ();
+		var state = new edb.State ( '"use strict";\n' );
 		script.split ( "\n" ).forEach ( function ( line, index ) {
 			this._compileline ( state, line, index );
 		}, this );
@@ -152,14 +152,10 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 					var tag;
 					if (( tag = this._tagstart ( line ))) {
 						state.mode = "tag";
-						state.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
-						var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
-						var atts = JSON.stringify ( gui.AttPlugin.getmap ( elem ));
-						state.conf.push ( atts );
+						this._aaa ( state, line, i );
 					} else if (( tag = this._tagstop ( line ))) {
-						state.body += "}, " + state.conf.pop () + " );";
-						state.mode = "tag";
-						state.conf = null;
+						state.mode = "tag"; // js ??????????????????????????????????
+						this._bbb ( state );
 					} else {
 						state.mode = "html";
 						state.spot = state.body.length - 1;
@@ -173,6 +169,71 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 		}
 	},
 
+	_aaa : function ( state, line, i ) {
+		state.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
+		var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
+		var json = JSON.stringify ( gui.AttPlugin.getmap ( elem ), null, "\t" );
+		var atts = this._fixerupper ( json );
+		state.conf.push ( atts );
+	},
+
+	_bbb : function ( state ) {
+		state.body += "}, " + state.conf.pop () + ");";
+		state.conf = null;
+	},
+
+	_fixerupper : function ( json ) {
+
+		var state = new edb.State ();
+		state.body = "";
+
+		var lines = json.split ( "\n" );
+		lines.forEach ( function ( line, index ) {
+			Array.forEach ( line, function ( c, i ) {
+				switch ( c ) {
+					case "\"" :
+						if ( !state.peek && !state.poke ) {
+							if ( this._ahead ( line, i, "${" )) {
+								state.peek = true;
+								state.skip = 3;
+							} else if ( this._ahead ( line, i, "#{" )) {
+								state.poke = true;
+								state.skip = 3;
+								state.func = " function () {\n";
+								state.spot = state.body.length - 1;
+							}
+						}
+						break;
+					case "}" :
+						if ( state.peek || state.poke ) {
+							if ( this._skipahead ( line, i, "\"" )) {
+								if ( state.poke ) {
+									state.func += "\n}";
+									state.body = state.body.substring ( 0, state.spot ) + 
+										state.func + state.body.substring ( state.spot );
+								}
+								state.peek = false;
+								state.poke = false;
+								state.skip = 2;
+							}
+						}
+						break;
+				}
+				if ( state.skip-- <= 0 ) {
+					if ( state.poke ) {
+						state.func += c;
+					} else {
+						state.body += c;
+					}
+				}
+			}, this );
+			if ( index < lines.length - 1 ) {
+				state.body += "\n";
+			}
+		}, this );
+		return state.body; //.replace ( /"\${/g, "" ).replace ( /\}"/g, "" );
+	},
+
 	/**
 	 * Compile character as tag.
 	 * @param {edb.State} state
@@ -182,6 +243,12 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	 */
 	_compiletag : function ( state, c, i, line ) {
 		switch ( c ) {
+			case "$" :
+				if ( this._ahead ( line, i, "{" )) {
+					state.refs = true;
+					state.skip = 2;
+				}
+				break;
 			case ">" :
 				//state.tagt = false;
 				state.mode = "js";
@@ -215,6 +282,31 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	},
 
 	/**
+	 * Space-stripped text at index equals string?
+	 * @param {String} line
+	 * @param {number} index
+	 * @param {String} string
+	 * @returns {boolean}
+	 */
+	_skipahead : function ( line, index, string ) {
+		line = line.substr ( index ).replace ( / /g, "" );
+		return this._ahead ( line, 0, string );
+	},
+
+	/**
+	 * @todo
+	 * Space-stripped text before index equals string?
+	 * @param {String} line
+	 * @param {number} index
+	 * @param {String} string
+	 * @returns {boolean}
+	 *
+	_skipbehind : function ( line, index, string ) {
+		return this._behind ( line.replace ( / /g, "" ), index, string );
+	},
+	*/
+
+	/**
 	 * Tag start?
 	 * @param {String} line
 	 */
@@ -239,6 +331,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 		var attr = edb.Compiler._ATTREXP;
 		var rest, name, dels, what;
 		if ( this._behind ( line, i, "@" )) {}
+		else if ( this._behind ( line, i, "#{" )) { alert ( line )} // onclick="#{@passed}"
 		else if ( this._ahead ( line, i, "@" )) {
 			state.body += "' + att._all () + '";
 			state.skip = 2;
@@ -254,7 +347,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	},
 
 	/*
-	 * Parse @ notation in script.
+	 * Parse @ notation in script.Ptag
 	 * TODO: preserve email address and allow same-line @
 	 * @param {String} line
 	 * @param {number} i

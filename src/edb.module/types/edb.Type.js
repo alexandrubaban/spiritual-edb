@@ -1,8 +1,9 @@
 /**
+ * EDB type base class. 
  * @see {edb.Object}
  * @see {edb.Array}
  */
-edb.Type = function Type () {}; // EDB model base class. 
+edb.Type = function Type () {}; 
 edb.Type.prototype = {
 	
 	/**

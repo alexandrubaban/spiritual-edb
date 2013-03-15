@@ -46,7 +46,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 			case "html" :
 				this._compilehtml ( c, runner, status, result);
 				break;
-			default : // @todo case "js"
+			default : // @TODO case "js"
 				this._compilescript ( c, runner, status, result );
 				break;
 		}
@@ -281,7 +281,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	},
 
 	/**
-	 * @todo
+	 * @TODO
 	 * Space-stripped text before index equals string?
 	 * @param {String} line
 	 * @param {number} index
@@ -379,8 +379,8 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 
 	/**
 	 * Format script output.
-	 * @todo Indent switch cases
-	 * @todo Remove blank lines
+	 * @TODO Indent switch cases
+	 * @TODO Remove blank lines
 	 * @param {String} body
 	 * @returns {String}
 	 */
@@ -415,7 +415,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	 * @static
 	 * Matches a qualified attribute name (class,id,src,href) allowing 
 	 * underscores, dashes and dots while not starting with a number.
-	 * @todo https://github.com/jshint/jshint/issues/383
+	 * @TODO https://github.com/jshint/jshint/issues/383
 	 * @type {RegExp}
 	 */
 	_ATTREXP : /^[^\d][a-zA-Z0-9-_\.]+/

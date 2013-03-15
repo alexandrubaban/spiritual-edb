@@ -1,6 +1,6 @@
 /**
  * Tracking compiler state.
- * @todo Comments all over.
+ * @TODO Comments all over.
  * @param {String} body
  */
 edb.State = function ( body ) {

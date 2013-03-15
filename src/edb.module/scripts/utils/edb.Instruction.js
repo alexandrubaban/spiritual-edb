@@ -1,6 +1,6 @@
 /**
  * EDB processing instruction.
- * @todo Problem with one-letter variable names in <?input name="a" type="TestData"?>
+ * @TODO Problem with one-letter variable names in <?input name="a" type="TestData"?>
  * @param {String} pi
  */
 edb.Instruction = function ( pi ) {

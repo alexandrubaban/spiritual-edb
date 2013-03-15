@@ -22,7 +22,7 @@ edb.Att.prototype = gui.Object.create ( null, {
 
 	/**
 	 * Resolve key-value to HTML attribute declaration.
-	 * @todo Rename "_html"
+	 * @TODO Rename "_html"
 	 * @param {String} att
 	 * @returns {String} 
 	 */

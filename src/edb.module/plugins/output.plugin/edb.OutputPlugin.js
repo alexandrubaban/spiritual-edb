@@ -1,7 +1,7 @@
 /**
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
- * @todo formalize how this is supposed to be clear
- * @todo static interface for all this stuff
+ * @TODO formalize how this is supposed to be clear
+ * @TODO static interface for all this stuff
  */
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
@@ -65,7 +65,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
 	 * Lookup edb.Type constructor for argument (if not it is already).
-	 * @todo Check that it is actually an edb.Type thing...
+	 * @TODO Check that it is actually an edb.Type thing...
 	 * @param {object} arg
 	 * @returns {function}
 	 */

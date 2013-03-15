@@ -341,7 +341,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Get function for SRC.
-	 * @todo pass document not window	
+	 * @TODO pass document not window	
 	 * @param {String} src
 	 * @param {Window} win
 	 * @returns {function}
@@ -403,7 +403,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Mount compiled scripts as blob files in development mode?
-	 * @todo map to gui.Client.hasBlob somehow...
+	 * @TODO map to gui.Client.hasBlob somehow...
 	 * @type {boolean}
 	 */
 	useblob : true

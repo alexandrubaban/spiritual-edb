@@ -20,8 +20,8 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 	/**
 	 * True when there's a script; and when it's loaded.
-	 * @todo Should there also be a "loading" boolean?
-	 * @todo Should all this happen via life events?
+	 * @TODO Should there also be a "loading" boolean?
+	 * @TODO Should all this happen via life events?
 	 * @type {boolean}
 	 */
 	loaded : true,
@@ -155,7 +155,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * Write the actual HTML to screen. You should probably only 
 	 * call this method if you are producing your own markup 
 	 * somehow, ie. not using EDBML templates out of the box. 
-	 * @todo Only do something if string argument has diffed 
+	 * @TODO Only do something if string argument has diffed 
 	 * @param {String} html
 	 */
 	write : function ( html ) {
@@ -167,7 +167,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		this.ran = true;
 		this.spirit.life.dispatch ( 
 			edb.LIFE_SCRIPT_DID_RUN,  
-			( this._latest = html ) !== this._latest // @todo Support this kind of arg...
+			( this._latest = html ) !== this._latest // @TODO Support this kind of arg...
 		);
 
 		/*
@@ -195,7 +195,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 	/**
 	 * Script compiled. Let's do this.
-	 * @todo life-event should probably go here...
+	 * @TODO life-event should probably go here...
 	 * @param {edb.Script} script
 	 */
 	_compiled : function ( script ) {

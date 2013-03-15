@@ -26,7 +26,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		console.warn ( "Bad: onconstruct should autoinvoke" );
 		this._keys = new Set (); // tracking data model changes
 
-		// @todo this *must* be added before it can be removed ?
+		// @TODO this *must* be added before it can be removed ?
 		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
 	},
 

@@ -36,7 +36,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 	/**
 	 * Remove handler for one or more input types.
-	 * @todo Cleanup more stuff?
+	 * @TODO Cleanup more stuff?
 	 * @param {object} arg
 	 * @param @optional {object} handler implements InputListener (defaults to this)
 	 * @returns {gui.InputPlugin}
@@ -50,7 +50,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 	/**
 	 * Get data for latest input of type (or best match).
-	 * @todo Safeguard somewhat
+	 * @TODO Safeguard somewhat
 	 * @param {function} type
 	 * @returns {object}
 	 */
@@ -92,7 +92,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 	/**
 	 * Add input handler for types.
-	 * @todo Are we sure that tick works synch in all browsers 
+	 * @TODO Are we sure that tick works synch in all browsers 
 	 * (FF)? If not, better to wait for this.spirit.life.ready
 	 * @param {Array<function>} types
 	 * @param {IInputHandler} handler

@@ -144,7 +144,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 
 /*
  * Building edb.Array.prototype...
- * @todo Super support? Mixin the stuff?
+ * @TODO Super support? Mixin the stuff?
  */
 ( function generatecode () {
 

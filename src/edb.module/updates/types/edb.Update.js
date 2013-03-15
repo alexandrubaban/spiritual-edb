@@ -12,7 +12,7 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 	/**
 	 * Identifies associated element in one of two ways:
 	 * 1) It's the id of an element in this.window. Or if no id:
-	 * 2) It's the "$instanceid" of a gui.Spirít in this.window
+	 * 2) It's the $instanceid of a gui.Spirít in this.window
 	 * @see  {edb.Update#element}
 	 * @type {String}
 	 */
@@ -35,8 +35,8 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 	 * @param {Document} doc
 	 */
 	onconstruct : function ( doc ) {
-		this.document = doc;
 		this.window = doc.defaultView;
+		this.document = doc;
 	},
 	
 	/**
@@ -131,7 +131,8 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 		}
 	}
 	
-}, {}, {
+
+}, {}, { // Static .......................................................
 	
 	/**
 	 * @static

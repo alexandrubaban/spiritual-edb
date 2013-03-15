@@ -34,19 +34,10 @@ gui.module ( "edb", {
 
 	/**
 	 * Init module.
+	 * @TODO detect sandbox...
 	 * @param {Window} context
 	 */
 	init : function ( context ) {
-		context.Object.model = function ( a1, a2 ) {
-			return edb.Object.extend ( a1, a2 );
-		};
-		context.Array.model = function ( a1, a2 ) {
-			return edb.Array.extend ( a1, a2 );
-		};
-		context.Map.model = function ( a1, a2 ) {
-			return edb.MapModel.extend ( a1, a2 );
-		};
-		// TODO: detect sandbox...
 		if ( context === gui.context ) { // TODO: better detect top context
 			if ( edb.Template && edb.TemplateLoader ) { // hack to bypass the sandbox (future project)
 				edb.Template.setImplementation ( 

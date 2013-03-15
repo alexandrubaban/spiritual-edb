@@ -48,10 +48,10 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 			} else if ( !data._instanceid ) { // TODO: THE WEAKNESS
 				switch ( gui.Type.of ( data )) {
 					case "object" :
-						Type = Object.model ();
+						Type = edb.Object.extend ();
 						break;
 					case "array" :
-						Type = Array.model ();
+						Type = edb.Array.extend ();
 						break;
 				}
 				data = this._format ( data, Type );

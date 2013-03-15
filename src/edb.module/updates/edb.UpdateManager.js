@@ -3,7 +3,7 @@
  * @param {gui.Spirit} spirit
  */
 edb.UpdateManager = function UpdateManager ( spirit ) {
-	this._keyid = spirit.dom.id () || spirit.spiritkey;
+	this._keyid = spirit.dom.id () || spirit.$instanceid;
 	this._spirit = spirit;
 	this._doc = spirit.document;
 };
@@ -35,7 +35,7 @@ edb.UpdateManager.prototype = {
 	/**
 	 * This can be one of two:
 	 * 1) Spirit element ID (if element has ID).
-	 * 2) Spirits spiritkey (if no element ID).
+	 * 2) Spirits $instanceid (if no element ID).
 	 * @type {String}
 	 */
 	_keyid : null,

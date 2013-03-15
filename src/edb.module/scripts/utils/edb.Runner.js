@@ -64,6 +64,7 @@ edb.Runner.prototype = {
 
 	/**
 	 * Run line.
+	 * @todo Oldschool iteration is faster.
 	 * @param {edb.Compiler} compiler
 	 * @param {Array<String>} lines
 	 * @param {edb.Status} status
@@ -82,6 +83,7 @@ edb.Runner.prototype = {
 
 	/**
 	 * Run chars.
+	 * @todo Oldschool iteration is faster.
 	 * @param {edb.Compiler} compiler
 	 * @param {Array<String>} chars
 	 * @param {edb.Status} status

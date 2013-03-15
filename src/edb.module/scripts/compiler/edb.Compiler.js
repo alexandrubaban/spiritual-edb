@@ -331,7 +331,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 		var attr = edb.Compiler._ATTREXP;
 		var rest, name, dels, what;
 		if ( this._behind ( line, i, "@" )) {}
-		else if ( this._behind ( line, i, "#{" )) { alert ( line )} // onclick="#{@passed}"
+		else if ( this._behind ( line, i, "#{" )) {} // @todo onclick="#{@passed}" ???
 		else if ( this._ahead ( line, i, "@" )) {
 			state.body += "' + att._all () + '";
 			state.skip = 2;

@@ -15,7 +15,6 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 		var result = new edb.Result ( '"use strict";\n' );
 		runner.run ( this, script, status, result );
 		status.body += ( status.mode === "html" ? "';" : "" ) + "\nreturn out.write ();";
-		alert ( "DONE " + status.body )
 		return this._format ( status.body );
 	},
 

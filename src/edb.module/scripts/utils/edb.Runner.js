@@ -1,7 +1,7 @@
 /**
  * Script runner.
  */
-edb.Runner = function () {}
+edb.Runner = function Runner () {};
 
 edb.Runner.prototype = {
 

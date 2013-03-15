@@ -3,7 +3,7 @@
  * @todo Comments all over.
  * @param {String} body
  */
-edb.Status = function ( body ) {
+edb.Status = function Status ( body ) {
 	this.body = body || "";
 	this.conf = [];
 };

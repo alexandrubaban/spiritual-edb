@@ -7,7 +7,7 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	 * Hello.
 	 */
 	__construct__ : function ( data ) {
-		this._instanceKey = gui.KeyMaster.generateKey ();
+		this._instanceid = this.$instanceid;
 		var type = gui.Type.of ( data );
 		switch ( type ) {
 			case "object" :

@@ -19,7 +19,7 @@ edb.Type.prototype = {
 	 * Why was this only the case only for Safari iPad?
 	 * @type {String}
 	 */
-	_instanceKey : null,
+	_instanceid : null,
 	
 	/**
 	 * Construct.
@@ -36,14 +36,14 @@ edb.Type.prototype = {
 	 * Sub.
 	 */
 	$sub : function () {
-		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_SUB, this._instanceKey );
+		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_SUB, this._instanceid );
 	},
 	
 	/**
 	 * Pub.
 	 */
 	$pub : function () {
-		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_PUB, this._instanceKey );
+		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_PUB, this._instanceid );
 	},
 	
 	/**

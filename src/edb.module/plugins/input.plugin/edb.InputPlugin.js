@@ -100,7 +100,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	_add : function ( types, handler ) {
 		types.forEach ( function ( type ) {
 			this._watches.push ( type );
-			this._addchecks ( type.__indexident__, [ handler ]);
+			this._addchecks ( type.$classid, [ handler ]);
 			if ( type.output ) { // type has been output already?
 				gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
 					this._todoname ();
@@ -119,7 +119,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 			var index = this._watches.indexOf ( type );
 			if ( index >-1 ) {
 				this._watches.remove ( index );
-				this._removechecks ( type.__indexident__, [ handler ]);
+				this._removechecks ( type.$classid, [ handler ]);
 			}
 		}, this );
 	},
@@ -179,7 +179,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	_updatehandlers : function ( input ) {
 		var keys = gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
-			var list = this._xxx [ Type.__indexident__ ];
+			var list = this._xxx [ Type.$classid ];
 			if ( list ) {
 				list.forEach ( function ( checks ) {
 					var handler = checks [ 0 ];

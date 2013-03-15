@@ -45,7 +45,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 				if ( data instanceof Type === false ) {
 					data = new Type ( data );
 				}
-			} else if ( !data._instanceKey ) { // TODO: THE WEAKNESS
+			} else if ( !data._instanceid ) { // TODO: THE WEAKNESS
 				switch ( gui.Type.of ( data )) {
 					case "object" :
 						Type = Object.model ();

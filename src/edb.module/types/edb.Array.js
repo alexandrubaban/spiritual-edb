@@ -13,7 +13,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 * Secret constructor.
 	 */
 	__construct__ : function () {		
-		this._instanceKey = gui.KeyMaster.generateKey ();
+		this._instanceid = this.$instanceid;
 		/*
 		 * Autoboxing?
 		 * TODO: WHAT EXACTLY IS THIS STEP DOING?
@@ -41,7 +41,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 			if ( gui.Type.isFunction ( boxer )) {
 				input.forEach ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
-						if ( !o._instanceKey ) { // TODO: use instanceOf model
+						if ( !o._instanceid ) { // TODO: use instanceOf model
 							var Model = boxer;
 							if ( !gui.Type.isConstructor ( Model )) { // model constructor or filter function?
 								Model = boxer ( o ); // was: if ( !model.__data__ )...

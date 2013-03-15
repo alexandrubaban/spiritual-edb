@@ -31,14 +31,6 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 	document : null,
 	
 	/**
-	 * Secret constructor.
-	 * @param {Document} doc
-	 */
-	__construct__ : function ( doc ) {
-		this.onconstruct ( doc );
-	},
-	
-	/**
 	 * Invoked when update is newed up.
 	 * @param {Document} doc
 	 */

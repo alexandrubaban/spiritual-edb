@@ -6,7 +6,7 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	/**
 	 * Hello.
 	 */
-	__construct__ : function ( data ) {
+	$onconstruct : function ( data ) {
 		this._instanceid = this.$instanceid;
 		var type = gui.Type.of ( data );
 		switch ( type ) {

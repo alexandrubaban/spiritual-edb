@@ -12,7 +12,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	/**
 	 * Secret constructor.
 	 */
-	__construct__ : function () {		
+	$onconstruct : function () {		
 		this._instanceid = this.$instanceid;
 		/*
 		 * Autoboxing?

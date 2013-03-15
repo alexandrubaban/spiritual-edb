@@ -103,7 +103,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	_Compiler : edb.ScriptCompiler,
 
 	/**
-	 * Tracking keys in edb.Model and edb.ArrayModel
+	 * Tracking keys in edb.Type and edb.Array
 	 * @type {Set<String>}
 	 */
 	_keys : null,

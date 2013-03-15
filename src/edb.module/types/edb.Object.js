@@ -1,7 +1,7 @@
 /**
  * DataObject.
  */
-edb.ObjectModel = gui.Class.create ( "edb.ObjectModel", edb.Model.prototype, {
+edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	
 	/**
 	 * Hello.
@@ -12,7 +12,7 @@ edb.ObjectModel = gui.Class.create ( "edb.ObjectModel", edb.Model.prototype, {
 		switch ( type ) {
 			case "object" :
 			case "undefined" :
-				edb.ObjectModel.approximate ( this, data );
+				edb.Object.approximate ( this, data );
 				this.onconstruct ();
 				break;
 			default :
@@ -34,7 +34,7 @@ edb.ObjectModel = gui.Class.create ( "edb.ObjectModel", edb.Model.prototype, {
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
-	 * @param {object} handler The object that intercepts properties (the edb.ObjectModel)
+	 * @param {object} handler The object that intercepts properties (the edb.Object)
 	 * @param {object} proxy The object whose properties are being intercepted (the JSON data)
 	 */
 	approximate : function ( handler, proxy ) {
@@ -69,7 +69,7 @@ edb.ObjectModel = gui.Class.create ( "edb.ObjectModel", edb.Model.prototype, {
 					break;
 				
 				/*
-				 * TODO: Consider new instance of edb.ObjectModel by default.
+				 * TODO: Consider new instance of edb.Object by default.
 				 * TODO: Cosnsider how to guess an object apart from a Map.
 				 */
 				case "object" :
@@ -78,7 +78,7 @@ edb.ObjectModel = gui.Class.create ( "edb.ObjectModel", edb.Model.prototype, {
 					break;
 					
 				/*
-				 * TODO: Consider new instance of edb.ArrayModel by default.
+				 * TODO: Consider new instance of edb.Array by default.
 				 */
 				case "array" :
 					console.warn ( "TODO: approximate array: " + key );
@@ -126,7 +126,7 @@ edb.ObjectModel = gui.Class.create ( "edb.ObjectModel", edb.Model.prototype, {
 		var keys = [];
 		function fix ( key ) {
 			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
-				if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
+				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
 					if ( !key.startsWith ( "_" )) {
 						keys.push ( key );
 					}

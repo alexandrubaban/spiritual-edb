@@ -38,10 +38,10 @@ gui.module ( "edb", {
 	 */
 	init : function ( context ) {
 		context.Object.model = function ( a1, a2 ) {
-			return edb.ObjectModel.extend ( a1, a2 );
+			return edb.Object.extend ( a1, a2 );
 		};
 		context.Array.model = function ( a1, a2 ) {
-			return edb.ArrayModel.extend ( a1, a2 );
+			return edb.Array.extend ( a1, a2 );
 		};
 		context.Map.model = function ( a1, a2 ) {
 			return edb.MapModel.extend ( a1, a2 );

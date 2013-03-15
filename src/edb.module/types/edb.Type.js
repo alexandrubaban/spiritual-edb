@@ -1,9 +1,9 @@
 /**
- * @see {edb.ObjectModel}
- * @see {edb.ArrayModel}
+ * @see {edb.Object}
+ * @see {edb.Array}
  */
-edb.Model = function Model () {}; // EDB model base class. 
-edb.Model.prototype = {
+edb.Type = function Type () {}; // EDB model base class. 
+edb.Type.prototype = {
 	
 	/**
 	 * Primary storage key (whatever serverside or localstorage).
@@ -74,6 +74,6 @@ edb.Model.prototype = {
 	 * @returns {String}
 	 */
 	toString : function () {
-		return "edb.Model#toString :)";
+		return "edb.Type#toString :)";
 	}
 };

@@ -1,8 +1,8 @@
 [
 	"src/edb.module/edb.js",
-	"src/edb.module/models/edb.Model.js",
-	"src/edb.module/models/edb.ObjectModel.js",
-	"src/edb.module/models/edb.ArrayModel.js",
+	"src/edb.module/types/edb.Type.js",
+	"src/edb.module/types/edb.Object.js",
+	"src/edb.module/types/edb.Array.js",
 	"src/edb.module/plugins/script.plugin/edb.ScriptPlugin.js",
 	"src/edb.module/plugins/output.plugin/edb.OutputPlugin.js",
 	"src/edb.module/plugins/input.plugin/edb.InputPlugin.js",

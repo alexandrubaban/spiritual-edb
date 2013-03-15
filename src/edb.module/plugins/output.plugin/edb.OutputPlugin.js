@@ -8,7 +8,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	/**
 	 * Dispatch data as type (eg. instantiate model with JSON and publish the instance on page).
 	 * @param {object} data
-	 * @param @optional {function|String} type edb.Model constructor or "my.ns.MyModel"
+	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyModel"
 	 */
 	dispatch : function ( data, Type ) {
 		var input = this._format ( data, Type );
@@ -64,8 +64,8 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	},
 
 	/**
-	 * Lookup edb.Model constructor for argument (if not it is already).
-	 * @todo Check that it is actually an edb.Model thing...
+	 * Lookup edb.Type constructor for argument (if not it is already).
+	 * @todo Check that it is actually an edb.Type thing...
 	 * @param {object} arg
 	 * @returns {function}
 	 */
@@ -79,7 +79,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 				type = gui.Object.lookup ( arg, this.context );
 				break;
 			case "object" :
-				console.error ( this + ": expected edb.Model constructor (not an object)" );
+				console.error ( this + ": expected edb.Type constructor (not an object)" );
 				break;
 		}
 		if ( !type ) {

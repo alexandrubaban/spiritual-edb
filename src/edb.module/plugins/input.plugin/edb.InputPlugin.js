@@ -23,7 +23,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	
 	/**
 	 * Add handler for one or more input types.
-	 * @param {edb.Model|String|Array<edb.Model|String>} arg
+	 * @param {edb.Type|String|Array<edb.Type|String>} arg
 	 * @param @optional {object} IInputHandler Defaults to this.spirit
 	 * @returns {gui.InputPlugin}
 	 */

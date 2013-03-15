@@ -1,7 +1,7 @@
 /**
  * Array-like data model. Aliased as Array.model ();
  */
-edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
+edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	
 	/**
 	 * Autoboxed data model.
@@ -54,7 +54,7 @@ edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
 			}
 		}
 		// proxy methods and invoke non-secret constructor
-		edb.ArrayModel.approximate ( this, {});
+		edb.Array.approximate ( this, {});
 		this.onconstruct ();
 	}
 	
@@ -70,7 +70,7 @@ edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
-	 * @param {object} handler The object that intercepts properties (the edb.ArrayModel)
+	 * @param {object} handler The object that intercepts properties (the edb.Array)
 	 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
 	 */
 	approximate : function ( handler, proxy ) {
@@ -84,7 +84,7 @@ edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
 					break;
 				case "object" :
 				case "array" :
-					console.warn ( "TODO: complex stuff on edb.ArrayModel :)" );
+					console.warn ( "TODO: complex stuff on edb.Array :)" );
 					break;
 				/*
 				 * Simple properties copied from handler to 
@@ -127,7 +127,7 @@ edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
 		function fix ( key ) {
 			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
 				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-					if ( !gui.Type.isDefined ( edb.Model.prototype [ key ])) {
+					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
 						if ( !key.startsWith ( "_" )) {
 							keys.push ( key );
 						}
@@ -143,7 +143,7 @@ edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
 });
 
 /*
- * Building edb.ArrayModel.prototype...
+ * Building edb.Array.prototype...
  * @todo Super support? Mixin the stuff?
  */
 ( function generatecode () {
@@ -151,10 +151,10 @@ edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
 	"use strict";
 	
 	/*
-	 * Copy edb.Model methods and properties (manually because we extend from Array).
+	 * Copy edb.Type methods and properties (manually because we extend from Array).
 	 */
-	Object.keys ( edb.Model.prototype ).forEach ( function ( def ) {
-		this [ def ] = edb.Model.prototype [ def ];
+	Object.keys ( edb.Type.prototype ).forEach ( function ( def ) {
+		this [ def ] = edb.Type.prototype [ def ];
 	}, this );
 	
 	/*
@@ -199,7 +199,7 @@ edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
 	
 	/*
 	 * TODO: This is wrong on so many...
-	 * @param {edb.ArrayModel} other
+	 * @param {edb.Array} other
 	 */
 	this.concat = function ( other ) {
 		var clone = new this.constructor (); // must not construct() the instance!
@@ -212,4 +212,4 @@ edb.ArrayModel = gui.Class.create ( "edb.ArrayModel", Array.prototype, {
 		return clone;
 	};
 	
-}).call ( edb.ArrayModel.prototype );
+}).call ( edb.Array.prototype );

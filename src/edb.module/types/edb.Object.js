@@ -1,5 +1,6 @@
 /**
- * DataObject.
+ * EDB object type. 
+ * @extends {edb.Type}
  */
 edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	
@@ -24,13 +25,16 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	}
 
 
-}, { // recurring static fields .........................................
+}, { // recurring static fields ............................................................
 	
-	__name__ : "DataObject",
+
+	/**
+	 * @TODO don't do this 
+	 */
 	__data__ : true
 	
 	
-}, { // static fields ............................................
+}, { // static fields ......................................................................
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
@@ -57,14 +61,6 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 					if ( gui.Type.isConstructor ( def )) {
 						var C = def;
 						model [ key ] = new C ( proxy [ key ]);
-
-						/*
-						hotfix [ key ] = true;
-						if ( key === "children" ) {
-							//alert ( JSON.stringify ( proxy [ key ]));
-							alert ( "ObjectModel " + handler [ key ][ 0 ]);
-						}
-						*/
 					}
 					break;
 				
@@ -101,19 +97,19 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 		 * Handler intercepts all accessors for simple properties.
 		 */
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-				Object.defineProperty ( handler, key, {
-					enumerable : true,
-					configurable : true,
-					get : function () {
-						this.$sub ();
-						return model [ key ] || proxy [ key ];
-					},
-					set : function ( value ) {
-						var target = model [ key ] ? model : proxy;
-						target [ key ] = value;
-						this.$pub ();
-					}
-				});
+			Object.defineProperty ( handler, key, {
+				enumerable : true,
+				configurable : true,
+				get : function () {
+					this.$sub ();
+					return model [ key ] || proxy [ key ];
+				},
+				set : function ( value ) {
+					var target = model [ key ] ? model : proxy;
+					target [ key ] = value;
+					this.$pub ();
+				}
+			});
 		});
 	},
 

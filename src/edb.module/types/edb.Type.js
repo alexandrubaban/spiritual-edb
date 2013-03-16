@@ -1,5 +1,5 @@
 /**
- * EDB type base class. 
+ * EDB base type. 
  * @see {edb.Object}
  * @see {edb.Array}
  */
@@ -10,7 +10,7 @@ edb.Type.prototype = {
 	 * Primary storage key (whatever serverside or localstorage).
 	 * @type {String}
 	 */
-	$primaryKey : "id",
+	$primarykey : "id",
 		
 	/**
 	 * Instance key (clientside session only).
@@ -23,6 +23,7 @@ edb.Type.prototype = {
 	
 	/**
 	 * Construct.
+	 * @TODO instead use $onconstruct consistantly throughout types.
 	 */
 	onconstruct : function () {},
 	
@@ -34,6 +35,7 @@ edb.Type.prototype = {
 
 	/**
 	 * Sub.
+	 * @TODO don't breoadcast global
 	 */
 	$sub : function () {
 		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_SUB, this._instanceid );
@@ -41,6 +43,7 @@ edb.Type.prototype = {
 	
 	/**
 	 * Pub.
+	 * @TODO don't breoadcast global
 	 */
 	$pub : function () {
 		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_PUB, this._instanceid );
@@ -68,13 +71,5 @@ edb.Type.prototype = {
 		return JSON.stringify ( 
 			clone, null, pretty ? "\t" : "" 
 		);
-	},
-	
-	/**
-	 * Identification.
-	 * @returns {String}
-	 */
-	toString : function () {
-		return "edb.Type#toString :)";
 	}
 };

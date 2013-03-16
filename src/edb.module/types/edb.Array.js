@@ -1,72 +1,82 @@
 /**
- * Array-like data model. Aliased as Array.model ();
+ * EDB array-like type.
+ * @extends {edb.Type} (although not really)
  */
 edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	
 	/**
-	 * Autoboxed data model.
-	 * @type {function} model constructor (or filter function)
+	 * Content type.
+	 * @type {function} constructor for type (or filter function)
 	 */
-	$contentmodel : null,
+	$contenttype : null,
+
+	/**
+	 * Sugar for $contentype.
+	 * @type {function}
+	 */
+	$of : null,
 
 	/**
 	 * Secret constructor.
 	 */
 	$onconstruct : function () {		
-		this._instanceid = this.$instanceid;
+		this._instanceid = this.$instanceid; // iOS strangeness...
 		/*
 		 * Autoboxing?
 		 * TODO: WHAT EXACTLY IS THIS STEP DOING?
 		 */
 		var C = this.constructor;
 		if ( C.__content__ ) {
-			this.$contentmodel = C.__content__;
+			this.$contenttype = C.__content__;
 			C.__content__ = null;
 		}
-		/*
-		 * TODO: sample for type Object or Array and autocast autoboxing!
-		 */
-		if ( gui.Type.isDefined ( arguments [ 0 ])) {
+
+		if ( arguments.length ) {
 			// accept one argument (an array) or use Arguments object as an array
-			var input = [];
+			var args = [];
 			if ( gui.Type.isArray ( arguments [ 0 ])) {
-				input = arguments [ 0 ];
+				args = arguments [ 0 ];
 			} else {
 				Array.forEach ( arguments, function ( arg ) {
-					input.push ( arg );
+					args.push ( arg );
 				});
 			}
-			// TODO: this less cryptic
-			var boxer = this.$contentmodel || this.$cm;
-			if ( gui.Type.isFunction ( boxer )) {
-				input.forEach ( function ( o, i ) {
+			var type = this.$contenttype || this.$of;
+			if ( gui.Type.isFunction ( type )) {
+				args = args.map ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
 						if ( !o._instanceid ) { // TODO: use instanceOf model
-							var Model = boxer;
-							if ( !gui.Type.isConstructor ( Model )) { // model constructor or filter function?
-								Model = boxer ( o ); // was: if ( !model.__data__ )...
+							var Type = type;
+							if ( !gui.Type.isConstructor ( Type )) { // model constructor or filter function?
+								Type = type ( o );
 							}
-							o = new Model ( o );
+							o = new Type ( o );
 						}
-						Array.prototype.push.call ( this, o ); // bypass $pub() setup
 					}
-				}, this );
+					return o;
+				});
 			}
+			args.forEach ( function ( arg ) {
+				Array.prototype.push.call ( this, arg ); // bypass $pub() setup
+			}, this );
 		}
+
 		// proxy methods and invoke non-secret constructor
 		edb.Array.approximate ( this, {});
-		this.onconstruct ();
+		this.onconstruct.call ( this, arguments );
 	}
 	
 	
-}, { // recurring static fields .........................................
+}, { // recurring static fields ............................................................
 	
-	__name__ : "DataList",
+	/**
+	 * @TODO don't do this 
+	 */
 	__data__ : true,
 	__content__ : null
 
 
-}, { // static fields ............................................
+}, { // static fields ......................................................................
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.

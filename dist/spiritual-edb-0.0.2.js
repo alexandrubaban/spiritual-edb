@@ -31,17 +31,18 @@ window.edb = gui.namespace ( "edb", {
 
 
 /**
+ * EDB base type. 
  * @see {edb.Object}
  * @see {edb.Array}
  */
-edb.Type = function Type () {}; // EDB model base class. 
+edb.Type = function Type () {}; 
 edb.Type.prototype = {
 	
 	/**
 	 * Primary storage key (whatever serverside or localstorage).
 	 * @type {String}
 	 */
-	$primaryKey : "id",
+	$primarykey : "id",
 		
 	/**
 	 * Instance key (clientside session only).
@@ -50,10 +51,11 @@ edb.Type.prototype = {
 	 * Why was this only the case only for Safari iPad?
 	 * @type {String}
 	 */
-	_instanceKey : null,
+	_instanceid : null,
 	
 	/**
 	 * Construct.
+	 * @TODO instead use $onconstruct consistantly throughout types.
 	 */
 	onconstruct : function () {},
 	
@@ -65,16 +67,18 @@ edb.Type.prototype = {
 
 	/**
 	 * Sub.
+	 * @TODO don't breoadcast global
 	 */
 	$sub : function () {
-		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_SUB, this._instanceKey );
+		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_SUB, this._instanceid );
 	},
 	
 	/**
 	 * Pub.
+	 * @TODO don't breoadcast global
 	 */
 	$pub : function () {
-		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_PUB, this._instanceKey );
+		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_PUB, this._instanceid );
 	},
 	
 	/**
@@ -99,28 +103,21 @@ edb.Type.prototype = {
 		return JSON.stringify ( 
 			clone, null, pretty ? "\t" : "" 
 		);
-	},
-	
-	/**
-	 * Identification.
-	 * @returns {String}
-	 */
-	toString : function () {
-		return "edb.Type#toString :)";
 	}
 };
 
 
 /**
- * DataObject.
+ * EDB object type. 
+ * @extends {edb.Type}
  */
 edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	
 	/**
 	 * Hello.
 	 */
-	__construct__ : function ( data ) {
-		this._instanceKey = gui.KeyMaster.generateKey ();
+	$onconstruct : function ( data ) {
+		this._instanceid = this.$instanceid;
 		var type = gui.Type.of ( data );
 		switch ( type ) {
 			case "object" :
@@ -137,13 +134,16 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	}
 
 
-}, { // recurring static fields .........................................
+}, { // recurring static fields ............................................................
 	
-	__name__ : "DataObject",
+
+	/**
+	 * @TODO don't do this 
+	 */
 	__data__ : true
 	
 	
-}, { // static fields ............................................
+}, { // static fields ......................................................................
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
@@ -170,14 +170,6 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 					if ( gui.Type.isConstructor ( def )) {
 						var C = def;
 						model [ key ] = new C ( proxy [ key ]);
-
-						/*
-						hotfix [ key ] = true;
-						if ( key === "children" ) {
-							//alert ( JSON.stringify ( proxy [ key ]));
-							alert ( "ObjectModel " + handler [ key ][ 0 ]);
-						}
-						*/
 					}
 					break;
 				
@@ -214,19 +206,19 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 		 * Handler intercepts all accessors for simple properties.
 		 */
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-				Object.defineProperty ( handler, key, {
-					enumerable : true,
-					configurable : true,
-					get : function () {
-						this.$sub ();
-						return model [ key ] || proxy [ key ];
-					},
-					set : function ( value ) {
-						var target = model [ key ] ? model : proxy;
-						target [ key ] = value;
-						this.$pub ();
-					}
-				});
+			Object.defineProperty ( handler, key, {
+				enumerable : true,
+				configurable : true,
+				get : function () {
+					this.$sub ();
+					return model [ key ] || proxy [ key ];
+				},
+				set : function ( value ) {
+					var target = model [ key ] ? model : proxy;
+					target [ key ] = value;
+					this.$pub ();
+				}
+			});
 		});
 	},
 
@@ -255,74 +247,84 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 
 
 /**
- * Array-like data model. Aliased as Array.model ();
+ * EDB array-like type.
+ * @extends {edb.Type} (although not really)
  */
 edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	
 	/**
-	 * Autoboxed data model.
-	 * @type {function} model constructor (or filter function)
+	 * Content type.
+	 * @type {function} constructor for type (or filter function)
 	 */
-	$contentmodel : null,
+	$contenttype : null,
+
+	/**
+	 * Sugar for $contentype.
+	 * @type {function}
+	 */
+	$of : null,
 
 	/**
 	 * Secret constructor.
 	 */
-	__construct__ : function () {		
-		this._instanceKey = gui.KeyMaster.generateKey ();
+	$onconstruct : function () {		
+		this._instanceid = this.$instanceid; // iOS strangeness...
 		/*
 		 * Autoboxing?
 		 * TODO: WHAT EXACTLY IS THIS STEP DOING?
 		 */
 		var C = this.constructor;
 		if ( C.__content__ ) {
-			this.$contentmodel = C.__content__;
+			this.$contenttype = C.__content__;
 			C.__content__ = null;
 		}
-		/*
-		 * TODO: sample for type Object or Array and autocast autoboxing!
-		 */
-		if ( gui.Type.isDefined ( arguments [ 0 ])) {
+
+		if ( arguments.length ) {
 			// accept one argument (an array) or use Arguments object as an array
-			var input = [];
+			var args = [];
 			if ( gui.Type.isArray ( arguments [ 0 ])) {
-				input = arguments [ 0 ];
+				args = arguments [ 0 ];
 			} else {
 				Array.forEach ( arguments, function ( arg ) {
-					input.push ( arg );
+					args.push ( arg );
 				});
 			}
-			// TODO: this less cryptic
-			var boxer = this.$contentmodel || this.$cm;
-			if ( gui.Type.isFunction ( boxer )) {
-				input.forEach ( function ( o, i ) {
+			var type = this.$contenttype || this.$of;
+			if ( gui.Type.isFunction ( type )) {
+				args = args.map ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
-						if ( !o._instanceKey ) { // TODO: use instanceOf model
-							var Model = boxer;
-							if ( !gui.Type.isConstructor ( Model )) { // model constructor or filter function?
-								Model = boxer ( o ); // was: if ( !model.__data__ )...
+						if ( !o._instanceid ) { // TODO: use instanceOf model
+							var Type = type;
+							if ( !gui.Type.isConstructor ( Type )) { // model constructor or filter function?
+								Type = type ( o );
 							}
-							o = new Model ( o );
+							o = new Type ( o );
 						}
-						Array.prototype.push.call ( this, o ); // bypass $pub() setup
 					}
-				}, this );
+					return o;
+				});
 			}
+			args.forEach ( function ( arg ) {
+				Array.prototype.push.call ( this, arg ); // bypass $pub() setup
+			}, this );
 		}
+
 		// proxy methods and invoke non-secret constructor
 		edb.Array.approximate ( this, {});
-		this.onconstruct ();
+		this.onconstruct.call ( this, arguments );
 	}
 	
 	
-}, { // recurring static fields .........................................
+}, { // recurring static fields ............................................................
 	
-	__name__ : "DataList",
+	/**
+	 * @TODO don't do this 
+	 */
 	__data__ : true,
 	__content__ : null
 
 
-}, { // static fields ............................................
+}, { // static fields ......................................................................
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
@@ -400,7 +402,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 
 /*
  * Building edb.Array.prototype...
- * @todo Super support? Mixin the stuff?
+ * @TODO Super support? Mixin the stuff?
  */
 ( function generatecode () {
 
@@ -493,8 +495,8 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 	/**
 	 * True when there's a script; and when it's loaded.
-	 * @todo Should there also be a "loading" boolean?
-	 * @todo Should all this happen via life events?
+	 * @TODO Should there also be a "loading" boolean?
+	 * @TODO Should all this happen via life events?
 	 * @type {boolean}
 	 */
 	loaded : true,
@@ -628,7 +630,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * Write the actual HTML to screen. You should probably only 
 	 * call this method if you are producing your own markup 
 	 * somehow, ie. not using EDBML templates out of the box. 
-	 * @todo Only do something if string argument has diffed 
+	 * @TODO Only do something if string argument has diffed 
 	 * @param {String} html
 	 */
 	write : function ( html ) {
@@ -640,7 +642,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		this.ran = true;
 		this.spirit.life.dispatch ( 
 			edb.LIFE_SCRIPT_DID_RUN,  
-			( this._latest = html ) !== this._latest // @todo Support this kind of arg...
+			( this._latest = html ) !== this._latest // @TODO Support this kind of arg...
 		);
 
 		/*
@@ -668,7 +670,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 	/**
 	 * Script compiled. Let's do this.
-	 * @todo life-event should probably go here...
+	 * @TODO life-event should probably go here...
 	 * @param {edb.Script} script
 	 */
 	_compiled : function ( script ) {
@@ -697,8 +699,8 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 
 /**
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
- * @todo formalize how this is supposed to be clear
- * @todo static interface for all this stuff
+ * @TODO formalize how this is supposed to be clear
+ * @TODO static interface for all this stuff
  */
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
@@ -742,13 +744,13 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 				if ( data instanceof Type === false ) {
 					data = new Type ( data );
 				}
-			} else if ( !data._instanceKey ) { // TODO: THE WEAKNESS
+			} else if ( !data._instanceid ) { // TODO: THE WEAKNESS
 				switch ( gui.Type.of ( data )) {
 					case "object" :
-						Type = Object.model ();
+						Type = edb.Object.extend ();
 						break;
 					case "array" :
-						Type = Array.model ();
+						Type = edb.Array.extend ();
 						break;
 				}
 				data = this._format ( data, Type );
@@ -762,7 +764,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
 	 * Lookup edb.Type constructor for argument (if not it is already).
-	 * @todo Check that it is actually an edb.Type thing...
+	 * @TODO Check that it is actually an edb.Type thing...
 	 * @param {object} arg
 	 * @returns {function}
 	 */
@@ -826,7 +828,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 	/**
 	 * Remove handler for one or more input types.
-	 * @todo Cleanup more stuff?
+	 * @TODO Cleanup more stuff?
 	 * @param {object} arg
 	 * @param @optional {object} handler implements InputListener (defaults to this)
 	 * @returns {gui.InputPlugin}
@@ -840,7 +842,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 	/**
 	 * Get data for latest input of type (or best match).
-	 * @todo Safeguard somewhat
+	 * @TODO Safeguard somewhat
 	 * @param {function} type
 	 * @returns {object}
 	 */
@@ -882,7 +884,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 	/**
 	 * Add input handler for types.
-	 * @todo Are we sure that tick works synch in all browsers 
+	 * @TODO Are we sure that tick works synch in all browsers 
 	 * (FF)? If not, better to wait for this.spirit.life.ready
 	 * @param {Array<function>} types
 	 * @param {IInputHandler} handler
@@ -890,7 +892,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	_add : function ( types, handler ) {
 		types.forEach ( function ( type ) {
 			this._watches.push ( type );
-			this._addchecks ( type.__indexident__, [ handler ]);
+			this._addchecks ( type.$classid, [ handler ]);
 			if ( type.output ) { // type has been output already?
 				gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
 					this._todoname ();
@@ -909,7 +911,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 			var index = this._watches.indexOf ( type );
 			if ( index >-1 ) {
 				this._watches.remove ( index );
-				this._removechecks ( type.__indexident__, [ handler ]);
+				this._removechecks ( type.$classid, [ handler ]);
 			}
 		}, this );
 	},
@@ -969,7 +971,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	_updatehandlers : function ( input ) {
 		var keys = gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
-			var list = this._xxx [ Type.__indexident__ ];
+			var list = this._xxx [ Type.$classid ];
 			if ( list ) {
 				list.forEach ( function ( checks ) {
 					var handler = checks [ 0 ];
@@ -1154,7 +1156,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	
 	/**
 	 * Map the attribute "gui.debug" to simply "debug".
-	 * @todo Deprecate this silliness at some point...
+	 * @TODO Deprecate this silliness at some point...
 	 */
 	config : {
 		map : {
@@ -1222,7 +1224,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 
 /**
  * Spirit of the service.
- * @todo rename @type to @model
+ * @TODO rename @type to @model
  * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
  */
 edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
@@ -1264,7 +1266,7 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 	 * If both input type and output type is specified, the service will automatically output new data when all 
 	 * input is recieved. Input data will be supplied as constructor argument to output function; if A and B is 
 	 * input types while C is output type, then input instance a and b will be output as new C ( a, b ) 
-	 * @todo Implement support for this some day :)
+	 * @TODO Implement support for this some day :)
 	 */
 	_pipeline : function () {		
 		console.error ( "TODO: might this be outdated???" );
@@ -1302,7 +1304,7 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 
 /**
  * EDB processing instruction.
- * @todo Problem with one-letter variable names in <?input name="a" type="TestData"?>
+ * @TODO Problem with one-letter variable names in <?input name="a" type="TestData"?>
  * @param {String} pi
  */
 edb.Instruction = function ( pi ) {
@@ -1431,6 +1433,7 @@ edb.Runner.prototype = {
 
 	/**
 	 * Run line.
+	 * @TODO Oldschool iteration is faster.
 	 * @param {edb.Compiler} compiler
 	 * @param {Array<String>} lines
 	 * @param {edb.Status} status
@@ -1449,6 +1452,7 @@ edb.Runner.prototype = {
 
 	/**
 	 * Run chars.
+	 * @TODO Oldschool iteration is faster.
 	 * @param {edb.Compiler} compiler
 	 * @param {Array<String>} chars
 	 * @param {edb.Status} status
@@ -1468,7 +1472,7 @@ edb.Runner.prototype = {
 
 /**
  * Tracking compiler state.
- * @todo Comments all over.
+ * @TODO Comments all over.
  * @param {String} body
  */
 edb.Status = function Status ( body ) {
@@ -1512,7 +1516,7 @@ edb.Result.prototype = {
 
 /**
  * Tracking compiler state.
- * @todo Comments all over.
+ * @TODO Comments all over.
  * @param {String} body
  */
 edb.State = function ( body ) {
@@ -1929,7 +1933,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 			case "html" :
 				this._compilehtml ( state, c, i, line );
 				break;
-			default : // @todo case "js"
+			default : // @TODO case "js"
 				this._compilescript ( state, c, i, line );
 				break;
 		}
@@ -2161,7 +2165,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	},
 
 	/**
-	 * @todo
+	 * @TODO
 	 * Space-stripped text before index equals string?
 	 * @param {String} line
 	 * @param {number} index
@@ -2198,7 +2202,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 		var attr = edb.Compiler._ATTREXP;
 		var rest, name, dels, what;
 		if ( this._behind ( line, i, "@" )) {}
-		else if ( this._behind ( line, i, "#{" )) {} // @todo onclick="#{@passed}" ???
+		else if ( this._behind ( line, i, "#{" )) {} // @TODO onclick="#{@passed}" ???
 		else if ( this._ahead ( line, i, "@" )) {
 			state.body += "' + att._all () + '";
 			state.skip = 2;
@@ -2259,8 +2263,8 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 
 	/**
 	 * Format script output.
-	 * @todo Indent switch cases
-	 * @todo Remove blank lines
+	 * @TODO Indent switch cases
+	 * @TODO Remove blank lines
 	 * @param {String} body
 	 * @returns {String}
 	 */
@@ -2295,7 +2299,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	 * @static
 	 * Matches a qualified attribute name (class,id,src,href) allowing 
 	 * underscores, dashes and dots while not starting with a number.
-	 * @todo https://github.com/jshint/jshint/issues/383
+	 * @TODO https://github.com/jshint/jshint/issues/383
 	 * @type {RegExp}
 	 */
 	_ATTREXP : /^[^\d][a-zA-Z0-9-_\.]+/
@@ -3043,7 +3047,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Get function for SRC.
-	 * @todo pass document not window	
+	 * @TODO pass document not window	
 	 * @param {String} src
 	 * @param {Window} win
 	 * @returns {function}
@@ -3105,7 +3109,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Mount compiled scripts as blob files in development mode?
-	 * @todo map to gui.Client.hasBlob somehow...
+	 * @TODO map to gui.Client.hasBlob somehow...
 	 * @type {boolean}
 	 */
 	useblob : true
@@ -3141,7 +3145,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		console.warn ( "Bad: onconstruct should autoinvoke" );
 		this._keys = new Set (); // tracking data model changes
 
-		// @todo this *must* be added before it can be removed ?
+		// @TODO this *must* be added before it can be removed ?
 		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
 	},
 
@@ -3387,7 +3391,7 @@ edb.Tag = edb.Function.extend ( "edb.Tag", {
 
 	/**
 	 * Mapping src to compiled tags.
-	 * @todo Do we need to do this?
+	 * @TODO Do we need to do this?
 	 * @overwrites {edb.Function#_map}
 	 * @type {Map<String,function>}
 	 */
@@ -3428,7 +3432,7 @@ edb.Att.prototype = gui.Object.create ( null, {
 
 	/**
 	 * Resolve key-value to HTML attribute declaration.
-	 * @todo Rename "_html"
+	 * @TODO Rename "_html"
 	 * @param {String} att
 	 * @returns {String} 
 	 */
@@ -3621,7 +3625,7 @@ edb.UpdateAssistant = {
  * @param {gui.Spirit} spirit
  */
 edb.UpdateManager = function UpdateManager ( spirit ) {
-	this._keyid = spirit.dom.id () || spirit.spiritkey;
+	this._keyid = spirit.dom.id () || spirit.$instanceid;
 	this._spirit = spirit;
 	this._doc = spirit.document;
 };
@@ -3653,7 +3657,7 @@ edb.UpdateManager.prototype = {
 	/**
 	 * This can be one of two:
 	 * 1) Spirit element ID (if element has ID).
-	 * 2) Spirits spiritkey (if no element ID).
+	 * 2) Spirits $instanceid (if no element ID).
 	 * @type {String}
 	 */
 	_keyid : null,
@@ -4101,7 +4105,7 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 	/**
 	 * Identifies associated element in one of two ways:
 	 * 1) It's the id of an element in this.window. Or if no id:
-	 * 2) It's the "spiritkey" of a gui.Spirít in this.window
+	 * 2) It's the $instanceid of a gui.Spirít in this.window
 	 * @see  {edb.Update#element}
 	 * @type {String}
 	 */
@@ -4120,20 +4124,12 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 	document : null,
 	
 	/**
-	 * Secret constructor.
-	 * @param {Document} doc
-	 */
-	__construct__ : function ( doc ) {
-		this.onconstruct ( doc );
-	},
-	
-	/**
 	 * Invoked when update is newed up.
 	 * @param {Document} doc
 	 */
 	onconstruct : function ( doc ) {
-		this.document = doc;
 		this.window = doc.defaultView;
+		this.document = doc;
 	},
 	
 	/**
@@ -4158,7 +4154,7 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 	element : function () {
 		/*
 		 * The root element (the one whose spirit is assigned the script) 
-		 * may be indexed by "spiritkey" if no ID attribute is specified.
+		 * may be indexed by "$instanceid" if no ID attribute is specified.
 		 */
 		var element = null;
 		if ( gui.KeyMaster.isKey ( this.id )) {
@@ -4228,7 +4224,8 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 		}
 	}
 	
-}, {}, {
+
+}, {}, { // Static .......................................................
 	
 	/**
 	 * @static
@@ -4908,19 +4905,10 @@ gui.module ( "edb", {
 
 	/**
 	 * Init module.
+	 * @TODO detect sandbox...
 	 * @param {Window} context
 	 */
 	init : function ( context ) {
-		context.Object.model = function ( a1, a2 ) {
-			return edb.Object.extend ( a1, a2 );
-		};
-		context.Array.model = function ( a1, a2 ) {
-			return edb.Array.extend ( a1, a2 );
-		};
-		context.Map.model = function ( a1, a2 ) {
-			return edb.MapModel.extend ( a1, a2 );
-		};
-		// TODO: detect sandbox...
 		if ( context === gui.context ) { // TODO: better detect top context
 			if ( edb.Template && edb.TemplateLoader ) { // hack to bypass the sandbox (future project)
 				edb.Template.setImplementation ( 

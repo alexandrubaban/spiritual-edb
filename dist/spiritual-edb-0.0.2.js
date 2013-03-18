@@ -117,7 +117,7 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	 * Hello.
 	 */
 	$onconstruct : function ( data ) {
-		this._instanceid = this.$instanceid;
+		this._instanceid = this.$instanceid; // iOS weirdness (@TODO is it still there?)
 		var type = gui.Type.of ( data );
 		switch ( type ) {
 			case "object" :
@@ -140,7 +140,7 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	/**
 	 * @TODO don't do this 
 	 */
-	__data__ : true
+	// __data__ : true
 	
 	
 }, { // static fields ......................................................................
@@ -153,7 +153,7 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	approximate : function ( handler, proxy ) {
 		var def = null;
 		proxy = proxy || {};
-		var model = {}; // mapping properties that redefine from "function" to "object"
+		var instance = Object.create ( null ); // mapping properties that redefine from "function" to "object"
 		this._definitions ( handler ).forEach ( function ( key ) {
 			def = handler [ key ];
 			switch ( gui.Type.of ( def )) {
@@ -163,13 +163,9 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 				 * Similar (named) property in proxy becomes the constructor argument.
 				 */
 				case "function" :
-					
-					/*
-					 * TODO: this for edb.MapModel
-					 */
 					if ( gui.Type.isConstructor ( def )) {
 						var C = def;
-						model [ key ] = new C ( proxy [ key ]);
+						instance [ key ] = new C ( proxy [ key ]);
 					}
 					break;
 				
@@ -211,10 +207,10 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 				configurable : true,
 				get : function () {
 					this.$sub ();
-					return model [ key ] || proxy [ key ];
+					return instance [ key ] || proxy [ key ];
 				},
 				set : function ( value ) {
-					var target = model [ key ] ? model : proxy;
+					var target = instance [ key ] ? instance : proxy;
 					target [ key ] = value;
 					this.$pub ();
 				}
@@ -229,18 +225,15 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	 */
 	_definitions : function ( handler ) {
 		var keys = [];
-		function fix ( key ) {
+		gui.Object.all ( handler, function ( key, value ) {
 			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
 				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
 					if ( !key.startsWith ( "_" )) {
 						keys.push ( key );
 					}
 				}
-			}
-		}
-		for ( var key in handler ) {
-			fix ( key );
-		}
+			}	
+		});
 		return keys;
 	}
 });
@@ -253,13 +246,10 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	
 	/**
-	 * Content type.
-	 * @type {function} constructor for type (or filter function)
-	 */
-	$contenttype : null,
-
-	/**
-	 * Sugar for $contentype.
+	 * Content type. This can be declared as one of:
+	 *
+	 * 1. An edb.Type constructor function (my.ns.MyType)
+	 * 2. A filter function to accept JSON for analysis and return the proper constructor.
 	 * @type {function}
 	 */
 	$of : null,
@@ -269,16 +259,6 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 */
 	$onconstruct : function () {		
 		this._instanceid = this.$instanceid; // iOS strangeness...
-		/*
-		 * Autoboxing?
-		 * TODO: WHAT EXACTLY IS THIS STEP DOING?
-		 */
-		var C = this.constructor;
-		if ( C.__content__ ) {
-			this.$contenttype = C.__content__;
-			C.__content__ = null;
-		}
-
 		if ( arguments.length ) {
 			// accept one argument (an array) or use Arguments object as an array
 			var args = [];
@@ -289,13 +269,13 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 					args.push ( arg );
 				});
 			}
-			var type = this.$contenttype || this.$of;
+			var type = this.$of;
 			if ( gui.Type.isFunction ( type )) {
 				args = args.map ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
-						if ( !o._instanceid ) { // TODO: use instanceOf model
-							var Type = type;
-							if ( !gui.Type.isConstructor ( Type )) { // model constructor or filter function?
+						if ( !o._instanceid ) { // TODO: underscore depends on iPad glitch, does it still glitch?
+							var Type = type;//  type constructor or... 
+							if ( !gui.Type.isConstructor ( Type )) { // ... filter function?
 								Type = type ( o );
 							}
 							o = new Type ( o );
@@ -320,8 +300,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	/**
 	 * @TODO don't do this 
 	 */
-	__data__ : true,
-	__content__ : null
+	// __data__ : true
 
 
 }, { // static fields ......................................................................
@@ -700,14 +679,14 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 /**
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
  * @TODO formalize how this is supposed to be clear
- * @TODO static interface for all this stuff
+ * @TODO static interface for all this stuffel
  */
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
-	 * Dispatch data as type (eg. instantiate model with JSON and publish the instance on page).
+	 * Dispatch data as type (eg. instantiate type with JSON and publish the instance on page).
 	 * @param {object} data
-	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyModel"
+	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
 	 */
 	dispatch : function ( data, Type ) {
 		var input = this._format ( data, Type );
@@ -732,7 +711,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	
 	/**
 	 * Wrap data in edb.Input before we output.
-	 * TODO: DON'T AUTOMATE MODELS, let's just output JSON objects...
+	 * TODO: DON'T AUTOMATE TYPES, let's just output JSON objects. OR WHAT???
 	 * @param {object} data
 	 * @param @optional {function|String} Type
 	 * @returns {edb.Input}
@@ -1039,9 +1018,9 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 	/**
 	 * Lookup ancestor or identical constructor.
-	 * @param {function} target Model constructor
-	 * @param {Array<function>} types Model constructors
-	 * @returns {function} Model constructor
+	 * @param {function} target type constructor
+	 * @param {Array<function>} types type constructors
+	 * @returns {function} type constructor
 	 */
 	_bestmatch : function ( target, types ) {
 		var best = null, rating = Number.MAX_VALUE;
@@ -1223,8 +1202,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 
 
 /**
- * Spirit of the service.
- * @TODO rename @type to @model
+ * Spirit of the data service.
  * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
  */
 edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
@@ -3143,7 +3121,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
 		console.warn ( "Bad: onconstruct should autoinvoke" );
-		this._keys = new Set (); // tracking data model changes
+		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
 		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
@@ -3159,10 +3137,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 			case gui.BROADCAST_DATA_SUB :
 				this._keys.add ( b.data );
 				break;
-			/*
-			 * Timeout allows multiple data model 
-			 * updates before we rerun the script.
-			 */
+			// one tick allows for multiple updates before we rerun the script
 			case gui.BROADCAST_DATA_PUB :
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Template.WAITING ) {

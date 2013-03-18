@@ -10,6 +10,17 @@
  * Namepace object.
  */
 window.edb = gui.namespace ( "edb", {
+	
+	BROADCAST_GETTER : "edb-broadcast-getter",
+	BROADCAST_SETTER : "edb-broadcast-setter",
+	BROADCAST_OUTPUT : "edb-broadcast-output",
+	BROADCAST_FUNCTION_LOADED : "edb-broadcast-function-loaded",
+	BROADCAST_TAG_LOADED : "edb-broadcast-tag-loaded",
+	BROADCAST_SCRIPT_INVOKE : "edb-broadcast-spiritscript-invoke",
+	LIFE_SCRIPT_WILL_RUN : "edb-life-script-will-run",
+	LIFE_SCRIPT_DID_RUN : "edb-life-script-did-run",
+	TICK_SCRIPT_UPDATE : "edb-tick-spiritscript-update",
+	TICK_COLLECT_INPUT : "edb-tick-collect-input",
 
 	/**
 	 * Identification.
@@ -17,25 +28,19 @@ window.edb = gui.namespace ( "edb", {
 	 */
 	toString : function () {
 		return "[namespace edb]";
-	},
-
-	BROADCAST_FUNCTION_LOADED : "broadcast-function-loaded",
-	BROADCAST_TAG_LOADED : "broadcast-tag-loaded",
-	LIFE_SCRIPT_WILL_RUN : "life-script-will-run",
-	LIFE_SCRIPT_DID_RUN : "life-script-did-run",
-	TICK_SCRIPT_UPDATE : "gui-tick-spiritscript-update",
-	TICK_COLLECT_INPUT : "gui-tick-collect-input"
+	}
 
 });
 
 
 
 /**
- * EDB base type. 
+ * Mixin methods and properties common 
+ * to both {edb.Object} and {edb.Array}
  * @see {edb.Object}
  * @see {edb.Array}
  */
-edb.Type = function Type () {}; 
+edb.Type = function () {};
 edb.Type.prototype = {
 	
 	/**
@@ -70,7 +75,7 @@ edb.Type.prototype = {
 	 * @TODO don't breoadcast global
 	 */
 	$sub : function () {
-		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_SUB, this._instanceid );
+		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_GETTER, this._instanceid );
 	},
 	
 	/**
@@ -78,7 +83,7 @@ edb.Type.prototype = {
 	 * @TODO don't breoadcast global
 	 */
 	$pub : function () {
-		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_PUB, this._instanceid );
+		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_SETTER, this._instanceid );
 	},
 	
 	/**
@@ -107,11 +112,54 @@ edb.Type.prototype = {
 };
 
 
+// Static ......................................................................
+
+/*
+ * Dispatch a getter broadcast before base function.
+ */
+edb.Type.getter = gui.Combo.before ( function () {
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_GETTER, this._instanceid );
+});
+
+/*
+ * Dispatch a setter broadcast after base function.
+ */
+edb.Type.setter = gui.Combo.after ( function () {
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SETTER, this._instanceid );
+});
+
+/**
+ * Decorate getters on prototype.
+ * @param {object} proto Prototype to decorate
+ * @param {Array<String>} methods List of method names
+ * @returns {object}
+ */
+edb.Type.decorateGetters = function ( proto, methods ) {
+	methods.forEach ( function ( method ) {
+		proto [ method ] = edb.Type.getter ( proto [ method ]);
+	});
+	return proto;
+};
+
+/**
+ * Decorate setters on prototype.
+ * @param {object} proto Prototype to decorate
+ * @param {Array<String>} methods List of method names
+ * @returns {object}
+ */
+edb.Type.decorateSetters = function ( proto, methods ) {
+	methods.forEach ( function ( method ) {
+		proto [ method ] = edb.Type.setter ( proto [ method ]);
+	});
+	return proto;
+};
+
+
 /**
  * EDB object type. 
  * @extends {edb.Type}
  */
-edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
+edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	
 	/**
 	 * Hello.
@@ -134,16 +182,7 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	}
 
 
-}, { // recurring static fields ............................................................
-	
-
-	/**
-	 * @TODO don't do this 
-	 */
-	// __data__ : true
-	
-	
-}, { // static fields ......................................................................
+}, {}, { // Static ......................................................................
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
@@ -205,16 +244,15 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 			Object.defineProperty ( handler, key, {
 				enumerable : true,
 				configurable : true,
-				get : function () {
-					this.$sub ();
+				get : edb.Type.getter ( function () {
 					return instance [ key ] || proxy [ key ];
-				},
-				set : function ( value ) {
+				}),
+				set : edb.Type.setter ( function ( value ) {
 					var target = instance [ key ] ? instance : proxy;
 					target [ key ] = value;
-					this.$pub ();
-				}
+				})
 			});
+			
 		});
 	},
 
@@ -239,6 +277,18 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 });
 
 
+/*
+ * Mixin methods and properties common 
+ * to both {edb.Object} and {edb.Array}
+ */
+( function mixin () {
+	gui.Object.extend ( 
+		edb.Object.prototype, 
+		edb.Type.prototype 
+	);
+}());
+
+
 /**
  * EDB array-like type.
  * @extends {edb.Type} (although not really)
@@ -246,10 +296,10 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	
 	/**
-	 * Content type. This can be declared as one of:
+	 * The content type can be declared as:
 	 *
 	 * 1. An edb.Type constructor function (my.ns.MyType)
-	 * 2. A filter function to accept JSON for analysis and return the proper constructor.
+	 * 2. A filter function to accept JSON (for analysis) and return a constructor.
 	 * @type {function}
 	 */
 	$of : null,
@@ -295,15 +345,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	}
 	
 	
-}, { // recurring static fields ............................................................
-	
-	/**
-	 * @TODO don't do this 
-	 */
-	// __data__ : true
-
-
-}, { // static fields ......................................................................
+}, {}, { // Static .........................................................................
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
@@ -380,24 +422,47 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 });
 
 /*
- * Building edb.Array.prototype...
- * @TODO Super support? Mixin the stuff?
+ * Overloading array methods.
+ * @using {edb.Array.prototype}
  */
-( function generatecode () {
+( function using ( proto ) {
 
 	"use strict";
+
+	/*
+	 * Mixin methods and properties common 
+	 * to both {edb.Object} and {edb.Array}
+	 */
+	gui.Object.extend ( proto, edb.Type.prototype );
 	
 	/*
-	 * Copy edb.Type methods and properties (manually because we extend from Array).
+	 * Dispatch a broadcast whenever the list is inspected or traversed.
 	 */
-	Object.keys ( edb.Type.prototype ).forEach ( function ( def ) {
-		this [ def ] = edb.Type.prototype [ def ];
-	}, this );
-	
+	edb.Type.decorateGetters ( proto, [
+		"filter", 
+		"forEach", 
+		"every", 
+		"map", 
+		"some", 
+		"indexOf", 
+		"lastIndexOf"
+	]);
+
 	/*
-	 * Whenever the list is inspected or traversed, method $sub() should be invoked.
-	 * TODO: make this mechanism public for easy expando
+	 * Dispatch a broadcast whenever the list changes content or structure.
 	 */
+	edb.Type.decorateSetters ( proto, [
+		"push",
+		"pop", 
+		"shift", 
+		"unshift", 
+		"splice", 
+		"reverse" 
+	]);
+
+	/*
+	 * Whenever the list is inspected or traversed, method $sub() will be invoked.
+	 *
 	[
 		"filter", 
 		"forEach", 
@@ -407,18 +472,9 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		"indexOf", 
 		"lastIndexOf"
 	].forEach ( function ( method ) {
-		this [ method ] = function () {
-			var result = Array.prototype [ method ].apply ( this, arguments );
-			this.$sub ();
-			return result;
-		};
-	}, this );
+		proto [ method ] = edb.Type.getter ( proto [ method ]);
+	});
 	
-	/*
-	 * Whenever the list changes content or structure, method $pub() should be invoked.
-	 * TODO: Alwasy validate that added entries match the interface of autoboxed type...
-	 * TODO: make this mechanism public for easy expando
-	 */
 	[
 		"push",
 		"pop", 
@@ -427,18 +483,15 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		"splice", 
 		"reverse" 
 	].forEach ( function ( method ) {
-		this [ method ] = function () {
-			var result = Array.prototype [ method ].apply ( this, arguments );
-			this.$pub ();
-			return result;
-		};
-	}, this );
+		proto [ method ] = edb.Type.setter ( proto [ method ]);
+	});
+	*/
 	
 	/*
 	 * TODO: This is wrong on so many...
 	 * @param {edb.Array} other
 	 */
-	this.concat = function ( other ) {
+	proto.concat = function ( other ) {
 		var clone = new this.constructor (); // must not construct() the instance!
 		this.forEach ( function ( o ) {
 			clone.push ( o );
@@ -449,7 +502,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		return clone;
 	};
 	
-}).call ( edb.Array.prototype );
+}( edb.Array.prototype ));
 
 
 /**
@@ -695,7 +748,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 				input.type.output = input; // TODO: RENAME this abomination
 				gui.Broadcast.dispatchGlobal ( 
 					this.sandboxed ? null : this.spirit, 
-					gui.BROADCAST_OUTPUT, 
+					edb.BROADCAST_OUTPUT, 
 					input 
 				);
 			} else {
@@ -787,7 +840,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	onconstruct : function () {
 		this._super.onconstruct ();
-		gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, this );
+		gui.Broadcast.addGlobal ( edb.BROADCAST_OUTPUT, this );
 		this._watches = [];
 		this._matches = [];
 	},
@@ -841,7 +894,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {gui.Broadcast} b
 	 */
 	onbroadcast : function ( b ) {
-		if ( b.type === gui.BROADCAST_OUTPUT ) {
+		if ( b.type === edb.BROADCAST_OUTPUT ) {
 			this._maybeinput ( b.data );
 		}
 	},
@@ -1106,7 +1159,7 @@ edb.Input.prototype = {
  */
 edb.Input.add = function ( handler ) {
 	console.log ( "deprecated" );
-	gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, handler );
+	gui.Broadcast.addGlobal ( edb.BROADCAST_OUTPUT, handler );
 };
 
 /**
@@ -1117,7 +1170,7 @@ edb.Input.add = function ( handler ) {
  */
 edb.Input.remove = function ( handler ) {
 	console.log ( "deprecated" );
-	gui.Broadcast.removeGlobal ( gui.BROADCAST_OUTPUT, handler );
+	gui.Broadcast.removeGlobal ( edb.BROADCAST_OUTPUT, handler );
 };
 
 
@@ -3016,8 +3069,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {boolean} isBuilding
 	 */
 	_subscribe : function ( isBuilding ) {
-		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( gui.BROADCAST_DATA_SUB, this );
-		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( gui.BROADCAST_DATA_PUB, this );
+		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_GETTER, this );
+		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_SETTER, this );
 	}
 
 
@@ -3124,7 +3177,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
-		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
+		gui.Broadcast.addGlobal ( edb.BROADCAST_SETTER, this );
 	},
 
 	/**
@@ -3134,11 +3187,11 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	onbroadcast : function ( b ) {
 		this._super.onbroadcast ( b );
 		switch ( b.type ) {
-			case gui.BROADCAST_DATA_SUB :
+			case edb.BROADCAST_GETTER :
 				this._keys.add ( b.data );
 				break;
 			// one tick allows for multiple updates before we rerun the script
-			case gui.BROADCAST_DATA_PUB :
+			case edb.BROADCAST_SETTER :
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Template.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
@@ -3272,7 +3325,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		  * Relay invokation to edb.Script in sandboxed context?
 		 */
 		if ( sig ) {
-			gui.Broadcast.dispatchGlobal ( this, gui.BROADCAST_SCRIPT_INVOKE, {
+			gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SCRIPT_INVOKE, {
 				key : key,
 				sig : sig,
 				log : log

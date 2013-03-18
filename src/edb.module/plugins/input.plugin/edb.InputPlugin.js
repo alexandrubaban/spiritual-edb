@@ -16,7 +16,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	onconstruct : function () {
 		this._super.onconstruct ();
-		gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, this );
+		gui.Broadcast.addGlobal ( edb.BROADCAST_OUTPUT, this );
 		this._watches = [];
 		this._matches = [];
 	},
@@ -70,7 +70,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {gui.Broadcast} b
 	 */
 	onbroadcast : function ( b ) {
-		if ( b.type === gui.BROADCAST_OUTPUT ) {
+		if ( b.type === edb.BROADCAST_OUTPUT ) {
 			this._maybeinput ( b.data );
 		}
 	},

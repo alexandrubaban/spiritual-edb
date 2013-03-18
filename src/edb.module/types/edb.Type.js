@@ -1,9 +1,11 @@
 /**
- * EDB type mixin pool.
+ * Mixin methods and properties common 
+ * to both {edb.Object} and {edb.Array}
  * @see {edb.Object}
  * @see {edb.Array}
  */
-edb.Type = {
+edb.Type = function () {};
+edb.Type.prototype = {
 	
 	/**
 	 * Primary storage key (whatever serverside or localstorage).
@@ -37,7 +39,7 @@ edb.Type = {
 	 * @TODO don't breoadcast global
 	 */
 	$sub : function () {
-		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_SUB, this._instanceid );
+		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_GETTER, this._instanceid );
 	},
 	
 	/**
@@ -45,7 +47,7 @@ edb.Type = {
 	 * @TODO don't breoadcast global
 	 */
 	$pub : function () {
-		gui.Broadcast.dispatchGlobal ( null, gui.BROADCAST_DATA_PUB, this._instanceid );
+		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_SETTER, this._instanceid );
 	},
 	
 	/**
@@ -71,4 +73,47 @@ edb.Type = {
 			clone, null, pretty ? "\t" : "" 
 		);
 	}
+};
+
+
+// Static ......................................................................
+
+/*
+ * Dispatch a getter broadcast before base function.
+ */
+edb.Type.getter = gui.Combo.before ( function () {
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_GETTER, this._instanceid );
+});
+
+/*
+ * Dispatch a setter broadcast after base function.
+ */
+edb.Type.setter = gui.Combo.after ( function () {
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SETTER, this._instanceid );
+});
+
+/**
+ * Decorate getters on prototype.
+ * @param {object} proto Prototype to decorate
+ * @param {Array<String>} methods List of method names
+ * @returns {object}
+ */
+edb.Type.decorateGetters = function ( proto, methods ) {
+	methods.forEach ( function ( method ) {
+		proto [ method ] = edb.Type.getter ( proto [ method ]);
+	});
+	return proto;
+};
+
+/**
+ * Decorate setters on prototype.
+ * @param {object} proto Prototype to decorate
+ * @param {Array<String>} methods List of method names
+ * @returns {object}
+ */
+edb.Type.decorateSetters = function ( proto, methods ) {
+	methods.forEach ( function ( method ) {
+		proto [ method ] = edb.Type.setter ( proto [ method ]);
+	});
+	return proto;
 };

@@ -5,10 +5,10 @@
 edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	
 	/**
-	 * Content type. This can be declared as one of:
+	 * The content type can be declared as:
 	 *
 	 * 1. An edb.Type constructor function (my.ns.MyType)
-	 * 2. A filter function to accept JSON for analysis and return the proper constructor.
+	 * 2. A filter function to accept JSON (for analysis) and return a constructor.
 	 * @type {function}
 	 */
 	$of : null,
@@ -115,7 +115,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		function fix ( key ) {
 			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
 				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-					if ( !gui.Type.isDefined ( edb.Type [ key ])) {
+					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
 						if ( !key.startsWith ( "_" )) {
 							keys.push ( key );
 						}
@@ -142,14 +142,36 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 * Mixin methods and properties common 
 	 * to both {edb.Object} and {edb.Array}
 	 */
-	( function mixin () {
-		gui.Object.extend ( proto, edb.Type );
-	}());
+	gui.Object.extend ( proto, edb.Type.prototype );
 	
 	/*
-	 * Whenever the list is inspected or traversed, method $sub() should be invoked.
-	 * @TODO: make this mechanism public for easy expando
+	 * Dispatch a broadcast whenever the list is inspected or traversed.
 	 */
+	edb.Type.decorateGetters ( proto, [
+		"filter", 
+		"forEach", 
+		"every", 
+		"map", 
+		"some", 
+		"indexOf", 
+		"lastIndexOf"
+	]);
+
+	/*
+	 * Dispatch a broadcast whenever the list changes content or structure.
+	 */
+	edb.Type.decorateSetters ( proto, [
+		"push",
+		"pop", 
+		"shift", 
+		"unshift", 
+		"splice", 
+		"reverse" 
+	]);
+
+	/*
+	 * Whenever the list is inspected or traversed, method $sub() will be invoked.
+	 *
 	[
 		"filter", 
 		"forEach", 
@@ -159,18 +181,9 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		"indexOf", 
 		"lastIndexOf"
 	].forEach ( function ( method ) {
-		proto [ method ] = function () {
-			var result = Array.prototype [ method ].apply ( this, arguments );
-			this.$sub ();
-			return result;
-		};
+		proto [ method ] = edb.Type.getter ( proto [ method ]);
 	});
 	
-	/*
-	 * Whenever the list changes content or structure, method $pub() should be invoked.
-	 * @TODO: Alwasy validate that added entries match the interface of autoboxed type...
-	 * @TODO: make this mechanism public for easy expando
-	 */
 	[
 		"push",
 		"pop", 
@@ -179,12 +192,9 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		"splice", 
 		"reverse" 
 	].forEach ( function ( method ) {
-		proto [ method ] = function () {
-			var result = Array.prototype [ method ].apply ( this, arguments );
-			this.$pub ();
-			return result;
-		};
+		proto [ method ] = edb.Type.setter ( proto [ method ]);
 	});
+	*/
 	
 	/*
 	 * TODO: This is wrong on so many...

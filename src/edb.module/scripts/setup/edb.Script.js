@@ -27,7 +27,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
-		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
+		gui.Broadcast.addGlobal ( edb.BROADCAST_SETTER, this );
 	},
 
 	/**
@@ -37,11 +37,11 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	onbroadcast : function ( b ) {
 		this._super.onbroadcast ( b );
 		switch ( b.type ) {
-			case gui.BROADCAST_DATA_SUB :
+			case edb.BROADCAST_GETTER :
 				this._keys.add ( b.data );
 				break;
 			// one tick allows for multiple updates before we rerun the script
-			case gui.BROADCAST_DATA_PUB :
+			case edb.BROADCAST_SETTER :
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Template.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
@@ -175,7 +175,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		  * Relay invokation to edb.Script in sandboxed context?
 		 */
 		if ( sig ) {
-			gui.Broadcast.dispatchGlobal ( this, gui.BROADCAST_SCRIPT_INVOKE, {
+			gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SCRIPT_INVOKE, {
 				key : key,
 				sig : sig,
 				log : log

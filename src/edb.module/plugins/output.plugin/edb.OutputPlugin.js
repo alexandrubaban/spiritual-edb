@@ -17,7 +17,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 				input.type.output = input; // TODO: RENAME this abomination
 				gui.Broadcast.dispatchGlobal ( 
 					this.sandboxed ? null : this.spirit, 
-					gui.BROADCAST_OUTPUT, 
+					edb.BROADCAST_OUTPUT, 
 					input 
 				);
 			} else {

@@ -87,16 +87,15 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 			Object.defineProperty ( handler, key, {
 				enumerable : true,
 				configurable : true,
-				get : function () {
-					this.$sub ();
+				get : edb.Type.getter ( function () {
 					return instance [ key ] || proxy [ key ];
-				},
-				set : function ( value ) {
+				}),
+				set : edb.Type.setter ( function ( value ) {
 					var target = instance [ key ] ? instance : proxy;
 					target [ key ] = value;
-					this.$pub ();
-				}
+				})
 			});
+			
 		});
 	},
 
@@ -109,7 +108,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 		var keys = [];
 		gui.Object.all ( handler, function ( key, value ) {
 			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
-				if ( !gui.Type.isDefined ( edb.Type [ key ])) {
+				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
 					if ( !key.startsWith ( "_" )) {
 						keys.push ( key );
 					}
@@ -126,5 +125,8 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
  * to both {edb.Object} and {edb.Array}
  */
 ( function mixin () {
-	gui.Object.extend ( edb.Object.prototype, edb.Type );
+	gui.Object.extend ( 
+		edb.Object.prototype, 
+		edb.Type.prototype 
+	);
 }());

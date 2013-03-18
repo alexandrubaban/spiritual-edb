@@ -1,14 +1,14 @@
 /**
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
  * @TODO formalize how this is supposed to be clear
- * @TODO static interface for all this stuff
+ * @TODO static interface for all this stuffel
  */
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
-	 * Dispatch data as type (eg. instantiate model with JSON and publish the instance on page).
+	 * Dispatch data as type (eg. instantiate type with JSON and publish the instance on page).
 	 * @param {object} data
-	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyModel"
+	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
 	 */
 	dispatch : function ( data, Type ) {
 		var input = this._format ( data, Type );
@@ -33,7 +33,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	
 	/**
 	 * Wrap data in edb.Input before we output.
-	 * TODO: DON'T AUTOMATE MODELS, let's just output JSON objects...
+	 * TODO: DON'T AUTOMATE TYPES, let's just output JSON objects. OR WHAT???
 	 * @param {object} data
 	 * @param @optional {function|String} Type
 	 * @returns {edb.Input}

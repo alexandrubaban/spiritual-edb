@@ -24,7 +24,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
 		console.warn ( "Bad: onconstruct should autoinvoke" );
-		this._keys = new Set (); // tracking data model changes
+		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
 		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
@@ -40,10 +40,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 			case gui.BROADCAST_DATA_SUB :
 				this._keys.add ( b.data );
 				break;
-			/*
-			 * Timeout allows multiple data model 
-			 * updates before we rerun the script.
-			 */
+			// one tick allows for multiple updates before we rerun the script
 			case gui.BROADCAST_DATA_PUB :
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Template.WAITING ) {

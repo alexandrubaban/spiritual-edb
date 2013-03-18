@@ -1,10 +1,9 @@
 /**
- * EDB base type. 
+ * EDB type mixin pool.
  * @see {edb.Object}
  * @see {edb.Array}
  */
-edb.Type = function Type () {}; 
-edb.Type.prototype = {
+edb.Type = {
 	
 	/**
 	 * Primary storage key (whatever serverside or localstorage).

@@ -5,13 +5,10 @@
 edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	
 	/**
-	 * Content type.
-	 * @type {function} constructor for type (or filter function)
-	 */
-	$contenttype : null,
-
-	/**
-	 * Sugar for $contentype.
+	 * Content type. This can be declared as one of:
+	 *
+	 * 1. An edb.Type constructor function (my.ns.MyType)
+	 * 2. A filter function to accept JSON for analysis and return the proper constructor.
 	 * @type {function}
 	 */
 	$of : null,
@@ -21,16 +18,6 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 */
 	$onconstruct : function () {		
 		this._instanceid = this.$instanceid; // iOS strangeness...
-		/*
-		 * Autoboxing?
-		 * TODO: WHAT EXACTLY IS THIS STEP DOING?
-		 */
-		var C = this.constructor;
-		if ( C.__content__ ) {
-			this.$contenttype = C.__content__;
-			C.__content__ = null;
-		}
-
 		if ( arguments.length ) {
 			// accept one argument (an array) or use Arguments object as an array
 			var args = [];
@@ -41,13 +28,13 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 					args.push ( arg );
 				});
 			}
-			var type = this.$contenttype || this.$of;
+			var type = this.$of;
 			if ( gui.Type.isFunction ( type )) {
 				args = args.map ( function ( o, i ) {
 					if ( o !== undefined ) { // why can o be undefined in Firefox?
-						if ( !o._instanceid ) { // TODO: use instanceOf model
-							var Type = type;
-							if ( !gui.Type.isConstructor ( Type )) { // model constructor or filter function?
+						if ( !o._instanceid ) { // TODO: underscore depends on iPad glitch, does it still glitch?
+							var Type = type;//  type constructor or... 
+							if ( !gui.Type.isConstructor ( Type )) { // ... filter function?
 								Type = type ( o );
 							}
 							o = new Type ( o );
@@ -67,16 +54,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	}
 	
 	
-}, { // recurring static fields ............................................................
-	
-	/**
-	 * @TODO don't do this 
-	 */
-	__data__ : true,
-	__content__ : null
-
-
-}, { // static fields ......................................................................
+}, {}, { // Static .........................................................................
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
@@ -137,7 +115,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		function fix ( key ) {
 			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
 				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
+					if ( !gui.Type.isDefined ( edb.Type [ key ])) {
 						if ( !key.startsWith ( "_" )) {
 							keys.push ( key );
 						}
@@ -153,23 +131,24 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 });
 
 /*
- * Building edb.Array.prototype...
- * @TODO Super support? Mixin the stuff?
+ * Overloading array methods.
+ * @using {edb.Array.prototype}
  */
-( function generatecode () {
+( function using ( proto ) {
 
 	"use strict";
-	
+
 	/*
-	 * Copy edb.Type methods and properties (manually because we extend from Array).
+	 * Mixin methods and properties common 
+	 * to both {edb.Object} and {edb.Array}
 	 */
-	Object.keys ( edb.Type.prototype ).forEach ( function ( def ) {
-		this [ def ] = edb.Type.prototype [ def ];
-	}, this );
+	( function mixin () {
+		gui.Object.extend ( proto, edb.Type );
+	}());
 	
 	/*
 	 * Whenever the list is inspected or traversed, method $sub() should be invoked.
-	 * TODO: make this mechanism public for easy expando
+	 * @TODO: make this mechanism public for easy expando
 	 */
 	[
 		"filter", 
@@ -180,17 +159,17 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		"indexOf", 
 		"lastIndexOf"
 	].forEach ( function ( method ) {
-		this [ method ] = function () {
+		proto [ method ] = function () {
 			var result = Array.prototype [ method ].apply ( this, arguments );
 			this.$sub ();
 			return result;
 		};
-	}, this );
+	});
 	
 	/*
 	 * Whenever the list changes content or structure, method $pub() should be invoked.
-	 * TODO: Alwasy validate that added entries match the interface of autoboxed type...
-	 * TODO: make this mechanism public for easy expando
+	 * @TODO: Alwasy validate that added entries match the interface of autoboxed type...
+	 * @TODO: make this mechanism public for easy expando
 	 */
 	[
 		"push",
@@ -200,18 +179,18 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		"splice", 
 		"reverse" 
 	].forEach ( function ( method ) {
-		this [ method ] = function () {
+		proto [ method ] = function () {
 			var result = Array.prototype [ method ].apply ( this, arguments );
 			this.$pub ();
 			return result;
 		};
-	}, this );
+	});
 	
 	/*
 	 * TODO: This is wrong on so many...
 	 * @param {edb.Array} other
 	 */
-	this.concat = function ( other ) {
+	proto.concat = function ( other ) {
 		var clone = new this.constructor (); // must not construct() the instance!
 		this.forEach ( function ( o ) {
 			clone.push ( o );
@@ -222,4 +201,4 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		return clone;
 	};
 	
-}).call ( edb.Array.prototype );
+}( edb.Array.prototype ));

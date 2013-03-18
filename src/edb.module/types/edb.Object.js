@@ -2,13 +2,13 @@
  * EDB object type. 
  * @extends {edb.Type}
  */
-edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
+edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	
 	/**
 	 * Hello.
 	 */
 	$onconstruct : function ( data ) {
-		this._instanceid = this.$instanceid;
+		this._instanceid = this.$instanceid; // iOS weirdness (@TODO is it still there?)
 		var type = gui.Type.of ( data );
 		switch ( type ) {
 			case "object" :
@@ -25,16 +25,7 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	}
 
 
-}, { // recurring static fields ............................................................
-	
-
-	/**
-	 * @TODO don't do this 
-	 */
-	__data__ : true
-	
-	
-}, { // static fields ......................................................................
+}, {}, { // Static ......................................................................
 
 	/**
 	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
@@ -44,7 +35,7 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	approximate : function ( handler, proxy ) {
 		var def = null;
 		proxy = proxy || {};
-		var model = {}; // mapping properties that redefine from "function" to "object"
+		var instance = Object.create ( null ); // mapping properties that redefine from "function" to "object"
 		this._definitions ( handler ).forEach ( function ( key ) {
 			def = handler [ key ];
 			switch ( gui.Type.of ( def )) {
@@ -54,13 +45,9 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 				 * Similar (named) property in proxy becomes the constructor argument.
 				 */
 				case "function" :
-					
-					/*
-					 * TODO: this for edb.MapModel
-					 */
 					if ( gui.Type.isConstructor ( def )) {
 						var C = def;
-						model [ key ] = new C ( proxy [ key ]);
+						instance [ key ] = new C ( proxy [ key ]);
 					}
 					break;
 				
@@ -102,10 +89,10 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 				configurable : true,
 				get : function () {
 					this.$sub ();
-					return model [ key ] || proxy [ key ];
+					return instance [ key ] || proxy [ key ];
 				},
 				set : function ( value ) {
-					var target = model [ key ] ? model : proxy;
+					var target = instance [ key ] ? instance : proxy;
 					target [ key ] = value;
 					this.$pub ();
 				}
@@ -120,18 +107,24 @@ edb.Object = gui.Class.create ( "edb.Object", edb.Type.prototype, {
 	 */
 	_definitions : function ( handler ) {
 		var keys = [];
-		function fix ( key ) {
+		gui.Object.all ( handler, function ( key, value ) {
 			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
-				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
+				if ( !gui.Type.isDefined ( edb.Type [ key ])) {
 					if ( !key.startsWith ( "_" )) {
 						keys.push ( key );
 					}
 				}
-			}
-		}
-		for ( var key in handler ) {
-			fix ( key );
-		}
+			}	
+		});
 		return keys;
 	}
 });
+
+
+/*
+ * Mixin methods and properties common 
+ * to both {edb.Object} and {edb.Array}
+ */
+( function mixin () {
+	gui.Object.extend ( edb.Object.prototype, edb.Type );
+}());

@@ -1,6 +1,5 @@
 /**
- * Spirit of the service.
- * @TODO rename @type to @model
+ * Spirit of the data service.
  * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
  */
 edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {

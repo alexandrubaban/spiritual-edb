@@ -247,9 +247,9 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 	/**
 	 * Lookup ancestor or identical constructor.
-	 * @param {function} target Model constructor
-	 * @param {Array<function>} types Model constructors
-	 * @returns {function} Model constructor
+	 * @param {function} target type constructor
+	 * @param {Array<function>} types type constructors
+	 * @returns {function} type constructor
 	 */
 	_bestmatch : function ( target, types ) {
 		var best = null, rating = Number.MAX_VALUE;

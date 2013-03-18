@@ -168,33 +168,6 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		"splice", 
 		"reverse" 
 	]);
-
-	/*
-	 * Whenever the list is inspected or traversed, method $sub() will be invoked.
-	 *
-	[
-		"filter", 
-		"forEach", 
-		"every", 
-		"map", 
-		"some", 
-		"indexOf", 
-		"lastIndexOf"
-	].forEach ( function ( method ) {
-		proto [ method ] = edb.Type.getter ( proto [ method ]);
-	});
-	
-	[
-		"push",
-		"pop", 
-		"shift", 
-		"unshift", 
-		"splice", 
-		"reverse" 
-	].forEach ( function ( method ) {
-		proto [ method ] = edb.Type.setter ( proto [ method ]);
-	});
-	*/
 	
 	/*
 	 * TODO: This is wrong on so many...

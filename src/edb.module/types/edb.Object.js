@@ -5,44 +5,49 @@
 edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	
 	/**
-	 * Hello.
+	 * Construct edb.Object with optional data.
+	 * @param @optional {object|edb.Object} data
 	 */
 	$onconstruct : function ( data ) {
 		this._instanceid = this.$instanceid; // iOS weirdness (@TODO is it still there?)
-		var type = gui.Type.of ( data );
-		switch ( type ) {
-			case "object" :
+		switch ( gui.Type.of ( data )) {
+			case "object" : 
 			case "undefined" :
-				edb.Object.approximate ( this, data );
-				this.onconstruct ();
+				edb.Object.approximate ( this, data || Object.create ( null ));
 				break;
 			default :
 				throw new TypeError ( 
 					"Unexpected argument of type " + 
-					type.toUpperCase () + ":\n" + data 
+					gui.Type.of ( data )
 				);
+				break;
 		}
+		this.onconstruct (); // @TODO do we wan't this?
 	}
 
 
 }, {}, { // Static ......................................................................
 
 	/**
-	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
-	 * @param {object} handler The object that intercepts properties (the edb.Object)
-	 * @param {object} proxy The object whose properties are being intercepted (the JSON data)
+	 * Servers two purposes:
+	 * 
+	 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
+	 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
+	 * 
+	 * @param {edb.Object} handler The edb.Object instance that intercepts properties
+	 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 	 */
 	approximate : function ( handler, proxy ) {
 		var def = null;
-		proxy = proxy || {};
-		var instance = Object.create ( null ); // mapping properties that redefine from "function" to "object"
+		var instance = Object.create ( null ); // mapping properties that redefine from "function" (constructor) to "object" (instance)
 		this._definitions ( handler ).forEach ( function ( key ) {
-			def = handler [ key ];
-			switch ( gui.Type.of ( def )) {
+			switch ( gui.Type.of (( def = handler [ key ]))) {
 
 				/*
 				 * Method type functions are skipped, constructors get instantiated. 
-				 * Similar (named) property in proxy becomes the constructor argument.
+				 * Similar (named) property in proxy becomes the constructor argument, 
+				 * eg. mything : MyThing ({ name: "thing" }) would new up an instance 
+				 * of MyThing (with object argument) and assign it to the property.
 				 */
 				case "function" :
 					if ( gui.Type.isConstructor ( def )) {
@@ -81,27 +86,25 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 		});
 		
 		/* 
-		 * Handler intercepts all accessors for simple properties.
+		 * Setup property accessors for handler.
 		 */
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-			Object.defineProperty ( handler, key, {
-				enumerable : true,
-				configurable : true,
-				get : edb.Type.getter ( function () {
+			gui.Accessors.defineAccessor ( handler, key, {
+				getter : edb.Type.getter ( function () {
 					return instance [ key ] || proxy [ key ];
 				}),
-				set : edb.Type.setter ( function ( value ) {
+				setter : edb.Type.setter ( function ( value ) {
 					var target = instance [ key ] ? instance : proxy;
 					target [ key ] = value;
 				})
 			});
-			
 		});
 	},
 
 	/**
-	 * Hello.
-	 * @param {object} handler
+	 * List non-private fields names from handler that are not 
+	 * mixed in from {edb.Type} and not inherited from Object.
+	 * @param {edb.Object} handler
 	 * @returns {Array<String>}
 	 */
 	_definitions : function ( handler ) {

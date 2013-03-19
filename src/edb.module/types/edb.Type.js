@@ -8,7 +8,7 @@ edb.Type = function () {};
 edb.Type.prototype = {
 	
 	/**
-	 * Primary storage key (whatever serverside or localstorage).
+	 * Primary storage key (serverside or localstorage).
 	 * @type {String}
 	 */
 	$primarykey : "id",
@@ -23,35 +23,14 @@ edb.Type.prototype = {
 	_instanceid : null,
 	
 	/**
-	 * Construct.
+	 * Called after $onconstruct (by gui.Class convention).
 	 * @TODO instead use $onconstruct consistantly throughout types.
 	 */
 	onconstruct : function () {},
 	
 	/**
-	 * TODO: what is this?
-	 * Init (rename?).
-	 */
-	$init : function () {},
-
-	/**
-	 * Sub.
-	 * @TODO don't breoadcast global
-	 */
-	$sub : function () {
-		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_GETTER, this._instanceid );
-	},
-	
-	/**
-	 * Pub.
-	 * @TODO don't breoadcast global
-	 */
-	$pub : function () {
-		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_SETTER, this._instanceid );
-	},
-	
-	/**
-	 * Serialize to string.
+	 * Serialize to JSON string *without* private and expando 
+	 * properties as designated by underscore and dollar char.
 	 * @param {boolean} pretty
 	 */
 	$serialize : function ( pretty ) {
@@ -62,16 +41,14 @@ edb.Type.prototype = {
 		 */
 		var clone = JSON.parse ( JSON.stringify ( this ));
 		Object.keys ( clone ).forEach ( function ( key ) {
-			switch ( key.charAt ( 0 )) {
+			switch ( key [ 0 ]) {
 				case "$" :
 				case "_" :
 					delete clone [ key ];
 					break;
 			}
 		});
-		return JSON.stringify ( 
-			clone, null, pretty ? "\t" : "" 
-		);
+		return JSON.stringify ( clone, null, pretty ? "\t" : "" );
 	}
 };
 
@@ -93,7 +70,7 @@ edb.Type.setter = gui.Combo.after ( function () {
 });
 
 /**
- * Decorate getters on prototype.
+ * Decorate getter methods on prototype.
  * @param {object} proto Prototype to decorate
  * @param {Array<String>} methods List of method names
  * @returns {object}
@@ -106,7 +83,7 @@ edb.Type.decorateGetters = function ( proto, methods ) {
 };
 
 /**
- * Decorate setters on prototype.
+ * Decorate setter methods on prototype.
  * @param {object} proto Prototype to decorate
  * @param {Array<String>} methods List of method names
  * @returns {object}

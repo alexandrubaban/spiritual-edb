@@ -38,7 +38,8 @@ edb.Input.prototype = {
  * @param {object} handler Implements InputListener
  */
 edb.Input.add = function ( handler ) {
-	gui.Broadcast.addGlobal ( gui.BROADCAST_OUTPUT, handler );
+	console.log ( "deprecated" );
+	gui.Broadcast.addGlobal ( edb.BROADCAST_OUTPUT, handler );
 };
 
 /**
@@ -48,5 +49,6 @@ edb.Input.add = function ( handler ) {
  * @param {object} handler Implements InputListener
  */
 edb.Input.remove = function ( handler ) {
-	gui.Broadcast.removeGlobal ( gui.BROADCAST_OUTPUT, handler );
+	console.log ( "deprecated" );
+	gui.Broadcast.removeGlobal ( edb.BROADCAST_OUTPUT, handler );
 };

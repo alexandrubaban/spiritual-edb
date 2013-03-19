@@ -1,13 +1,14 @@
 /**
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
- * @todo formalize how this is supposed to be clear
+ * @TODO formalize how this is supposed to be clear
+ * @TODO static interface for all this stuffel
  */
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
-	 * Dispatch data as type (eg. instantiate model with JSON and publish the instance on page).
+	 * Dispatch data as type (eg. instantiate type with JSON and publish the instance on page).
 	 * @param {object} data
-	 * @param @optional {function|String} type edb.Model constructor or "my.ns.MyModel"
+	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
 	 */
 	dispatch : function ( data, Type ) {
 		var input = this._format ( data, Type );
@@ -16,7 +17,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 				input.type.output = input; // TODO: RENAME this abomination
 				gui.Broadcast.dispatchGlobal ( 
 					this.sandboxed ? null : this.spirit, 
-					gui.BROADCAST_OUTPUT, 
+					edb.BROADCAST_OUTPUT, 
 					input 
 				);
 			} else {
@@ -26,20 +27,13 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 			throw new TypeError ( "Not an instance of edb.Input: " + input );
 		}
 	},
-
-	/**
-	 * @deprecated
-	 */
-	type : function () {
-		throw new Error ( "deprecated" );
-	},
-
+	
 	
 	// PRIVATES .........................................................................
 	
 	/**
 	 * Wrap data in edb.Input before we output.
-	 * TODO: DON'T AUTOMATE MODELS, let's just output JSON objects...
+	 * TODO: DON'T AUTOMATE TYPES, let's just output JSON objects. OR WHAT???
 	 * @param {object} data
 	 * @param @optional {function|String} Type
 	 * @returns {edb.Input}
@@ -51,13 +45,13 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 				if ( data instanceof Type === false ) {
 					data = new Type ( data );
 				}
-			} else if ( !data._instanceKey ) { // TODO: THE WEAKNESS
+			} else if ( !data._instanceid ) { // TODO: THE WEAKNESS
 				switch ( gui.Type.of ( data )) {
 					case "object" :
-						Type = Object.model ();
+						Type = edb.Object.extend ();
 						break;
 					case "array" :
-						Type = Array.model ();
+						Type = edb.Array.extend ();
 						break;
 				}
 				data = this._format ( data, Type );
@@ -70,8 +64,8 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	},
 
 	/**
-	 * Lookup edb.Model constructor for argument (if not it is already).
-	 * @todo Check that it is actually an edb.Model thing...
+	 * Lookup edb.Type constructor for argument (if not it is already).
+	 * @TODO Check that it is actually an edb.Type thing...
 	 * @param {object} arg
 	 * @returns {function}
 	 */
@@ -85,7 +79,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 				type = gui.Object.lookup ( arg, this.context );
 				break;
 			case "object" :
-				console.error ( this + ": expected edb.Model constructor (not an object)" );
+				console.error ( this + ": expected edb.Type constructor (not an object)" );
 				break;
 		}
 		if ( !type ) {

@@ -21,11 +21,13 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	onconstruct : function ( pointer, context, handler ) {
 		this._super.onconstruct ( pointer, context, handler );
 		this.input = new edb.InputPlugin ();
-		this.input.context = this.context;
-		this._keys = new Set (); // tracking data model changes
+		this.input.context = this.context; // as constructor arg?
+		this.input.onconstruct (); // huh?
+		console.warn ( "Bad: onconstruct should autoinvoke" );
+		this._keys = new Set (); // tracking data changes
 
-		// @todo this *must* be added before it can be removed ?
-		gui.Broadcast.addGlobal ( gui.BROADCAST_DATA_PUB, this );
+		// @TODO this *must* be added before it can be removed ?
+		gui.Broadcast.addGlobal ( edb.BROADCAST_SETTER, this );
 	},
 
 	/**
@@ -35,14 +37,11 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	onbroadcast : function ( b ) {
 		this._super.onbroadcast ( b );
 		switch ( b.type ) {
-			case gui.BROADCAST_DATA_SUB :
+			case edb.BROADCAST_GETTER :
 				this._keys.add ( b.data );
 				break;
-			/*
-			 * Timeout allows multiple data model 
-			 * updates before we rerun the script.
-			 */
-			case gui.BROADCAST_DATA_PUB :
+			// one tick allows for multiple updates before we rerun the script
+			case edb.BROADCAST_SETTER :
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Template.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
@@ -101,7 +100,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	_Compiler : edb.ScriptCompiler,
 
 	/**
-	 * Tracking keys in edb.Model and edb.ArrayModel
+	 * Tracking keys in edb.Type and edb.Array
 	 * @type {Set<String>}
 	 */
 	_keys : null,
@@ -176,7 +175,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		  * Relay invokation to edb.Script in sandboxed context?
 		 */
 		if ( sig ) {
-			gui.Broadcast.dispatchGlobal ( this, gui.BROADCAST_SCRIPT_INVOKE, {
+			gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SCRIPT_INVOKE, {
 				key : key,
 				sig : sig,
 				log : log

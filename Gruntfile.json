@@ -1,9 +1,8 @@
 [
 	"src/edb.module/edb.js",
-	"src/edb.module/models/edb.Model.js",
-	"src/edb.module/models/edb.ObjectModel.js",
-	"src/edb.module/models/edb.ArrayModel.js",
-	"src/edb.module/models/edb.MapModel.js",
+	"src/edb.module/types/edb.Type.js",
+	"src/edb.module/types/edb.Object.js",
+	"src/edb.module/types/edb.Array.js",
 	"src/edb.module/plugins/script.plugin/edb.ScriptPlugin.js",
 	"src/edb.module/plugins/output.plugin/edb.OutputPlugin.js",
 	"src/edb.module/plugins/input.plugin/edb.InputPlugin.js",
@@ -11,6 +10,11 @@
 	"src/edb.module/spirits/edb.ScriptSpirit.js",
 	"src/edb.module/spirits/edb.ServiceSpirit.js",
 	"src/edb.module/scripts/utils/edb.Instruction.js",
+	
+	"src/edb.module/scripts/utils/edb.Runner.js",
+	"src/edb.module/scripts/utils/edb.Status.js",
+	"src/edb.module/scripts/utils/edb.Result.js",
+
 	"src/edb.module/scripts/utils/edb.State.js",
 	"src/edb.module/scripts/utils/edb.Template.js",
 	"src/edb.module/scripts/utils/edb.TemplateLoader.js",

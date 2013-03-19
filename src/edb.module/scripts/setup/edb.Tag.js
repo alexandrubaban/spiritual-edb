@@ -1,3 +1,7 @@
+/**
+ * Here it is.
+ * @extends {edb.Function}
+ */
 edb.Tag = edb.Function.extend ( "edb.Tag", {
 
 	/**
@@ -24,7 +28,7 @@ edb.Tag = edb.Function.extend ( "edb.Tag", {
 
 	/**
 	 * Mapping src to compiled tags.
-	 * @todo Do we need to do this?
+	 * @TODO Do we need to do this?
 	 * @overwrites {edb.Function#_map}
 	 * @type {Map<String,function>}
 	 */

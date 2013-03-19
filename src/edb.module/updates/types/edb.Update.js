@@ -1,7 +1,7 @@
 /**
  * Year!
  */
-edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
+edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 		
 	/**
 	 * Matches hard|atts|insert|append|remove
@@ -12,7 +12,7 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	/**
 	 * Identifies associated element in one of two ways:
 	 * 1) It's the id of an element in this.window. Or if no id:
-	 * 2) It's the "spiritkey" of a gui.Spirít in this.window
+	 * 2) It's the $instanceid of a gui.Spirít in this.window
 	 * @see  {edb.Update#element}
 	 * @type {String}
 	 */
@@ -31,20 +31,12 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	document : null,
 	
 	/**
-	 * Secret constructor.
-	 * @param {Document} doc
-	 */
-	__construct__ : function ( doc ) {
-		this.onconstruct ( doc );
-	},
-	
-	/**
 	 * Invoked when update is newed up.
 	 * @param {Document} doc
 	 */
 	onconstruct : function ( doc ) {
-		this.document = doc;
 		this.window = doc.defaultView;
+		this.document = doc;
 	},
 	
 	/**
@@ -69,7 +61,7 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 	element : function () {
 		/*
 		 * The root element (the one whose spirit is assigned the script) 
-		 * may be indexed by "spiritkey" if no ID attribute is specified.
+		 * may be indexed by "$instanceid" if no ID attribute is specified.
 		 */
 		var element = null;
 		if ( gui.KeyMaster.isKey ( this.id )) {
@@ -139,7 +131,8 @@ edb.Update = gui.Exemplar.create ( "edb.Update", Object.prototype, {
 		}
 	}
 	
-}, {}, {
+
+}, {}, { // Static .......................................................
 	
 	/**
 	 * @static

@@ -1,6 +1,5 @@
 /**
- * Spirit of the service.
- * @todo rename @type to @model
+ * Spirit of the data service.
  * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
  */
 edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
@@ -25,18 +24,16 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 		}
 	},
 
-	/**
-	 * TODO: enable this pipeline stuff
-	 * @param {edb.Input} input
-	 *
-	oninput : function ( input ) {
-		this._super.oninput ( input );
-		if ( this.att.get ( "type" ) && this.input.done ) {
-			this._pipeline ();
-		}
-	},
-	*/
-	
+	// /**
+	//  * TODO: enable this pipeline stuff
+	//  * @param {edb.Input} input
+	//  */
+	// oninput : function ( input ) {
+	// 	this._super.oninput ( input );
+	// 	if ( this.att.get ( "type" ) && this.input.done ) {
+	// 		this._pipeline ();
+	// 	}
+	// },
 	
 	// PRIVATES ...............................................................................................
 	
@@ -44,7 +41,7 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 	 * If both input type and output type is specified, the service will automatically output new data when all 
 	 * input is recieved. Input data will be supplied as constructor argument to output function; if A and B is 
 	 * input types while C is output type, then input instance a and b will be output as new C ( a, b ) 
-	 * @todo Implement support for this some day :)
+	 * @TODO Implement support for this some day :)
 	 */
 	_pipeline : function () {		
 		console.error ( "TODO: might this be outdated???" );

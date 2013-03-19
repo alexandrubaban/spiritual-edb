@@ -3,13 +3,13 @@
  * @TODO Comments all over.
  * @param {String} body
  */
-edb.State = function ( body ) {
+edb.Status = function Status ( body ) {
 	this.body = body || "";
 	this.conf = [];
 };
 
-edb.State.prototype = {
-	mode : edb.State.MODE_JS,
+edb.Status.prototype = {
+	mode : edb.Status.MODE_JS,
 	body : null,
 	peek : false,
 	poke : false,
@@ -29,6 +29,6 @@ edb.State.prototype = {
 
 // Static ..........................
 
-edb.State.MODE_JS = "js";
-edb.State.MODE_HTML = "html";
-edb.State.MODE_TAG = "tag";
+edb.Status.MODE_JS = "js";
+edb.Status.MODE_HTML = "html";
+edb.Status.MODE_TAG = "tag";

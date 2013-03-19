@@ -2,9 +2,13 @@
  * Converts JS props to HTML attributes during EDBML rendering phase. 
  * Any methods added to this prototype will become available in EDBML 
  * scripts as: att.mymethod() TODO: How can Att instances be passed?
- * @type {HashMap<String,Object>}
+ * @param @optional Map<String,object> atts Default properties
  */
-edb.Att = function Att () {};
+edb.Att = function Att ( atts ) {
+	if ( atts ) {
+		gui.Object.extend ( this, atts );
+	}
+};
 
 edb.Att.prototype = gui.Object.create ( null, {
 
@@ -18,6 +22,7 @@ edb.Att.prototype = gui.Object.create ( null, {
 
 	/**
 	 * Resolve key-value to HTML attribute declaration.
+	 * @TODO Rename "_html"
 	 * @param {String} att
 	 * @returns {String} 
 	 */

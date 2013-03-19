@@ -3,7 +3,7 @@
  * The onreadystatechange method fires when ready, 
  * the method "run" may by then invoke the script.
  */
-edb.Template = gui.Exemplar.create ( "edb.Template", Object.prototype, {
+edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	
 	/**
 	 * Script may be run when this switches to "ready".
@@ -116,7 +116,7 @@ edb.Template = gui.Exemplar.create ( "edb.Template", Object.prototype, {
 	 * @param {String} mimeype (accepts multiple mimetype args)
 	 */
 	setImplementation : function () { // implementation, ...mimetypes
-		var args = gui.Type.list ( arguments );
+		var args = gui.Object.toArray ( arguments );
 		var impl = args.shift ();
 		args.forEach ( function ( type ) {
 			this._implementations.set ( type, impl );

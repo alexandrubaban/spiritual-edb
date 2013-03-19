@@ -173,10 +173,11 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_compiler : null,
 
 	/**
-	 * Called when compile is done, as expected.
+	 * Called when compile is done, as expected. In development mode, 
+	 * load invokable function as a blob file; otherwise skip to init.
 	 */
 	_oncompiled : function () {
-		try { // in development mode, load invokable function as a blob file; otherwise skip to init
+		try {
 			if ( this._useblob ()) {
 				this._loadblob ();
 			} else {
@@ -243,11 +244,15 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_functionload : function ( name, src ){
 		src = gui.URL.absolute ( this.context.document, src );
 		var func = edb.Function.get ( src, this.context );
-		if ( func ) {
-			this.functions [ name ] = func;
+		if ( !gui.Type.isDefined ( this.functions [ name ])) {
+			if ( func ) {
+				this.functions [ name ] = func;
+			} else {
+				this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
+				this.functions [ name ] = src;
+			}
 		} else {
-			this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
-			this.functions [ name ] = src;
+			throw new Error ( "var \"" + name +  "\" already used" );
 		}
 	},
 
@@ -327,8 +332,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {boolean} isBuilding
 	 */
 	_subscribe : function ( isBuilding ) {
-		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( gui.BROADCAST_DATA_SUB, this );
-		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( gui.BROADCAST_DATA_PUB, this );
+		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_GETTER, this );
+		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_SETTER, this );
 	}
 
 
@@ -336,7 +341,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Get function for SRC.
-	 * @todo pass document not window	
+	 * @TODO pass document not window	
 	 * @param {String} src
 	 * @param {Window} win
 	 * @returns {function}
@@ -398,7 +403,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Mount compiled scripts as blob files in development mode?
-	 * @todo map to gui.Client.hasBlob somehow...
+	 * @TODO map to gui.Client.hasBlob somehow...
 	 * @type {boolean}
 	 */
 	useblob : true

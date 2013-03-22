@@ -11,25 +11,26 @@
  */
 window.edb = gui.namespace ( "edb", {
 	
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () { return "[namespace edb]"; },
+
+	/**
+	 * Constants.
+	 */
 	BROADCAST_GETTER : "edb-broadcast-getter",
 	BROADCAST_SETTER : "edb-broadcast-setter",
 	BROADCAST_OUTPUT : "edb-broadcast-output",
 	BROADCAST_FUNCTION_LOADED : "edb-broadcast-function-loaded",
 	BROADCAST_TAG_LOADED : "edb-broadcast-tag-loaded",
-	BROADCAST_SCRIPT_INVOKE : "edb-broadcast-spiritscript-invoke",
+	BROADCAST_SCRIPT_INVOKE : "edb-broadcast-script-invoke",
 	LIFE_SCRIPT_WILL_RUN : "edb-life-script-will-run",
 	LIFE_SCRIPT_DID_RUN : "edb-life-script-did-run",
-	TICK_SCRIPT_UPDATE : "edb-tick-spiritscript-update",
-	TICK_COLLECT_INPUT : "edb-tick-collect-input",
-
-	/**
-	 * Identification.
-	 * @returns {String}
-	 */
-	toString : function () {
-		return "[namespace edb]";
-	}
-
+	TICK_SCRIPT_UPDATE : "edb-tick-script-update",
+	TICK_COLLECT_INPUT : "edb-tick-collect-input"
+	
 });
 
 
@@ -44,7 +45,7 @@ edb.Type = function () {};
 edb.Type.prototype = {
 	
 	/**
-	 * Primary storage key (whatever serverside or localstorage).
+	 * Primary storage key (serverside or localstorage).
 	 * @type {String}
 	 */
 	$primarykey : "id",
@@ -59,35 +60,14 @@ edb.Type.prototype = {
 	_instanceid : null,
 	
 	/**
-	 * Construct.
+	 * Called after $onconstruct (by gui.Class convention).
 	 * @TODO instead use $onconstruct consistantly throughout types.
 	 */
 	onconstruct : function () {},
 	
 	/**
-	 * TODO: what is this?
-	 * Init (rename?).
-	 */
-	$init : function () {},
-
-	/**
-	 * Sub.
-	 * @TODO don't breoadcast global
-	 */
-	$sub : function () {
-		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_GETTER, this._instanceid );
-	},
-	
-	/**
-	 * Pub.
-	 * @TODO don't breoadcast global
-	 */
-	$pub : function () {
-		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_SETTER, this._instanceid );
-	},
-	
-	/**
-	 * Serialize to string.
+	 * Serialize to JSON string *without* private and expando 
+	 * properties as designated by underscore and dollar char.
 	 * @param {boolean} pretty
 	 */
 	$serialize : function ( pretty ) {
@@ -98,16 +78,14 @@ edb.Type.prototype = {
 		 */
 		var clone = JSON.parse ( JSON.stringify ( this ));
 		Object.keys ( clone ).forEach ( function ( key ) {
-			switch ( key.charAt ( 0 )) {
+			switch ( key [ 0 ]) {
 				case "$" :
 				case "_" :
 					delete clone [ key ];
 					break;
 			}
 		});
-		return JSON.stringify ( 
-			clone, null, pretty ? "\t" : "" 
-		);
+		return JSON.stringify ( clone, null, pretty ? "\t" : "" );
 	}
 };
 
@@ -129,7 +107,7 @@ edb.Type.setter = gui.Combo.after ( function () {
 });
 
 /**
- * Decorate getters on prototype.
+ * Decorate getter methods on prototype.
  * @param {object} proto Prototype to decorate
  * @param {Array<String>} methods List of method names
  * @returns {object}
@@ -142,7 +120,7 @@ edb.Type.decorateGetters = function ( proto, methods ) {
 };
 
 /**
- * Decorate setters on prototype.
+ * Decorate setter methods on prototype.
  * @param {object} proto Prototype to decorate
  * @param {Array<String>} methods List of method names
  * @returns {object}
@@ -162,44 +140,48 @@ edb.Type.decorateSetters = function ( proto, methods ) {
 edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	
 	/**
-	 * Hello.
+	 * Construct edb.Object with optional data.
+	 * @param @optional {object|edb.Object} data
 	 */
 	$onconstruct : function ( data ) {
 		this._instanceid = this.$instanceid; // iOS weirdness (@TODO is it still there?)
-		var type = gui.Type.of ( data );
-		switch ( type ) {
-			case "object" :
+		switch ( gui.Type.of ( data )) {
+			case "object" : 
 			case "undefined" :
-				edb.Object.approximate ( this, data );
-				this.onconstruct ();
+				edb.Object.approximate ( this, data || Object.create ( null ));
 				break;
 			default :
 				throw new TypeError ( 
 					"Unexpected argument of type " + 
-					type.toUpperCase () + ":\n" + data 
+					gui.Type.of ( data )
 				);
 		}
+		this.onconstruct (); // @TODO do we wan't this?
 	}
 
 
 }, {}, { // Static ......................................................................
 
 	/**
-	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
-	 * @param {object} handler The object that intercepts properties (the edb.Object)
-	 * @param {object} proxy The object whose properties are being intercepted (the JSON data)
+	 * Servers two purposes:
+	 * 
+	 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
+	 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
+	 * 
+	 * @param {edb.Object} handler The edb.Object instance that intercepts properties
+	 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 	 */
 	approximate : function ( handler, proxy ) {
 		var def = null;
-		proxy = proxy || {};
-		var instance = Object.create ( null ); // mapping properties that redefine from "function" to "object"
+		var instance = Object.create ( null ); // mapping properties that redefine from "function" (constructor) to "object" (instance)
 		this._definitions ( handler ).forEach ( function ( key ) {
-			def = handler [ key ];
-			switch ( gui.Type.of ( def )) {
+			switch ( gui.Type.of (( def = handler [ key ]))) {
 
 				/*
 				 * Method type functions are skipped, constructors get instantiated. 
-				 * Similar (named) property in proxy becomes the constructor argument.
+				 * Similar (named) property in proxy becomes the constructor argument, 
+				 * eg. mything : MyThing ({ name: "thing" }) would new up an instance 
+				 * of MyThing (with object argument) and assign it to the property.
 				 */
 				case "function" :
 					if ( gui.Type.isConstructor ( def )) {
@@ -238,27 +220,25 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 		});
 		
 		/* 
-		 * Handler intercepts all accessors for simple properties.
+		 * Setup property accessors for handler.
 		 */
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-			Object.defineProperty ( handler, key, {
-				enumerable : true,
-				configurable : true,
-				get : edb.Type.getter ( function () {
+			gui.Accessors.defineAccessor ( handler, key, {
+				getter : edb.Type.getter ( function () {
 					return instance [ key ] || proxy [ key ];
 				}),
-				set : edb.Type.setter ( function ( value ) {
+				setter : edb.Type.setter ( function ( value ) {
 					var target = instance [ key ] ? instance : proxy;
 					target [ key ] = value;
 				})
 			});
-			
 		});
 	},
 
 	/**
-	 * Hello.
-	 * @param {object} handler
+	 * List non-private fields names from handler that are not 
+	 * mixed in from {edb.Type} and not inherited from Object.
+	 * @param {edb.Object} handler
 	 * @returns {Array<String>}
 	 */
 	_definitions : function ( handler ) {
@@ -459,33 +439,6 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		"splice", 
 		"reverse" 
 	]);
-
-	/*
-	 * Whenever the list is inspected or traversed, method $sub() will be invoked.
-	 *
-	[
-		"filter", 
-		"forEach", 
-		"every", 
-		"map", 
-		"some", 
-		"indexOf", 
-		"lastIndexOf"
-	].forEach ( function ( method ) {
-		proto [ method ] = edb.Type.getter ( proto [ method ]);
-	});
-	
-	[
-		"push",
-		"pop", 
-		"shift", 
-		"unshift", 
-		"splice", 
-		"reverse" 
-	].forEach ( function ( method ) {
-		proto [ method ] = edb.Type.setter ( proto [ method ]);
-	});
-	*/
 	
 	/*
 	 * TODO: This is wrong on so many...
@@ -967,11 +920,15 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {edb.Input} input
 	 */
 	_maybeinput : function ( input ) {
-		var best = edb.InputPlugin._bestmatch ( input.type, this._watches );
-		if ( best ) {
-			this._updatematch ( input );
-			this.done = this._matches.length === this._watches.length;
-			this._updatehandlers ( input );
+		try {
+			var best = edb.InputPlugin._bestmatch ( input.type, this._watches );
+			if ( best ) {
+				this._updatematch ( input );
+				this.done = this._matches.length === this._watches.length;
+				this._updatehandlers ( input );
+			}
+		} catch ( x ) {
+			console.warn ( x );
 		}
 	},
 

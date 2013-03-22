@@ -20,7 +20,6 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 					"Unexpected argument of type " + 
 					gui.Type.of ( data )
 				);
-				break;
 		}
 		this.onconstruct (); // @TODO do we wan't this?
 	}

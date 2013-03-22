@@ -7,7 +7,7 @@ window.edb = gui.namespace ( "edb", {
 	 * Identification.
 	 * @returns {String}
 	 */
-	toString : function () { return "[namespace edb]" },
+	toString : function () { return "[namespace edb]"; },
 
 	/**
 	 * Constants.

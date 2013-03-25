@@ -9,7 +9,12 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @param @optional {object|edb.Object} data
 	 */
 	$onconstruct : function ( data ) {
-		this._instanceid = this.$instanceid; // iOS weirdness (@TODO is it still there?)
+		Object.defineProperty ( this, "_instanceid", { // iOS weirdness (@TODO is it still there?)
+			value: this.$instanceid,
+			enumerable : false,
+			configurable: false,
+			writable: false
+		});
 		switch ( gui.Type.of ( data )) {
 			case "object" : 
 			case "undefined" :
@@ -21,7 +26,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 					gui.Type.of ( data )
 				);
 		}
-		this.onconstruct (); // @TODO do we wan't this?
+		this.onconstruct.apply ( this, arguments ); // @TODO do we wan't this?
 	}
 
 
@@ -56,25 +61,24 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 					break;
 				
 				/*
-				 * TODO: Consider new instance of edb.Object by default.
-				 * TODO: Cosnsider how to guess an object apart from a Map.
+				 * Let's try creating an edb.Object by default...
+				 * TODO: think more about this
 				 */
 				case "object" :
-					console.warn ( "TODO: approximate object: " + key );
-					console.warn ( JSON.stringify ( def ));
+					handler [ key ] = new edb.Object ( def );
 					break;
 					
 				/*
-				 * TODO: Consider new instance of edb.Array by default.
+				 * Let's try creating an edb.Array by default...
+				 * TODO: think more about this
 				 */
 				case "array" :
-					console.warn ( "TODO: approximate array: " + key );
-					console.warn ( JSON.stringify ( def ));
+					handler [ key ] = new edb.Array ( def );
 					break;
 					
 				/*
-				 * Simple properties copied from handler to 
-				 * proxy. Strings, numbers, booleans etc.
+				 * Simple properties copied from handler to proxy. 
+				 * Strings, numbers, booleans and stuff like that.
 				 */
 				default :
 					if ( !gui.Type.isDefined ( proxy [ key ])) {

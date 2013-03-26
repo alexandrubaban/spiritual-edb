@@ -94,3 +94,17 @@ edb.Type.decorateSetters = function ( proto, methods ) {
 	});
 	return proto;
 };
+
+/**
+ * Redefine the $instanceid to start with an underscore 
+ * because of some iOS weirdness (does it still apply?)
+ * @param {edb.Type} instance
+ */
+edb.Type.underscoreinstanceid = function ( instance ) {
+	Object.defineProperty ( instance, "_instanceid", {
+		value: instance.$instanceid,
+		enumerable : false,
+		configurable: false,
+		writable: false
+	});
+};

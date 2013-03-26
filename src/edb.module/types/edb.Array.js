@@ -16,8 +16,8 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	/**
 	 * Secret constructor.
 	 */
-	$onconstruct : function () {		
-		this._instanceid = this.$instanceid; // iOS strangeness...
+	$onconstruct : function () {
+		edb.Type.underscoreinstanceid ( this ); // iOS bug...
 		if ( arguments.length ) {
 			// accept one argument (an array) or use Arguments object as an array
 			var args = [];

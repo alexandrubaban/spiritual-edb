@@ -9,12 +9,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @param @optional {object|edb.Object} data
 	 */
 	$onconstruct : function ( data ) {
-		Object.defineProperty ( this, "_instanceid", { // iOS weirdness (@TODO is it still there?)
-			value: this.$instanceid,
-			enumerable : false,
-			configurable: false,
-			writable: false
-		});
+		edb.Type.underscoreinstanceid ( this ); // iOS bug...
 		switch ( gui.Type.of ( data )) {
 			case "object" : 
 			case "undefined" :
@@ -42,65 +37,47 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 	 */
 	approximate : function ( handler, proxy ) {
-		var def = null;
-		var instance = Object.create ( null ); // mapping properties that redefine from "function" (constructor) to "object" (instance)
+		var def, Def, instances = Object.create ( null );
 		this._definitions ( handler ).forEach ( function ( key ) {
-			switch ( gui.Type.of (( def = handler [ key ]))) {
-
-				/*
-				 * Method type functions are skipped, constructors get instantiated. 
-				 * Similar (named) property in proxy becomes the constructor argument, 
-				 * eg. mything : MyThing ({ name: "thing" }) would new up an instance 
-				 * of MyThing (with object argument) and assign it to the property.
-				 */
-				case "function" :
-					if ( gui.Type.isConstructor ( def )) {
-						var C = def;
-						instance [ key ] = new C ( proxy [ key ]);
-					}
-					break;
-				
-				/*
-				 * Let's try creating an edb.Object by default...
-				 * TODO: think more about this
-				 */
-				case "object" :
-					handler [ key ] = new edb.Object ( def );
-					break;
-					
-				/*
-				 * Let's try creating an edb.Array by default...
-				 * TODO: think more about this
-				 */
-				case "array" :
-					handler [ key ] = new edb.Array ( def );
-					break;
-					
-				/*
-				 * Simple properties copied from handler to proxy. 
-				 * Strings, numbers, booleans and stuff like that.
-				 */
-				default :
-					if ( !gui.Type.isDefined ( proxy [ key ])) {
-						proxy [ key ] = handler [ key ];
-					}
-					break;
+			def = handler [ key ];
+			if ( gui.Type.isComplex ( def )) {
+				if ( gui.Type.isConstructor ( def )) {
+					Def = def; // capitalized for JsHint
+					instances [ key ] = new Def ( proxy [ key ]);
+				}
+			} else if ( !gui.Type.isDefined ( proxy [ key ])) {
+				proxy [ key ] = handler [ key ];
 			}
 		});
 		
 		/* 
-		 * Setup property accessors for handler.
+		 * Setup property accessors for handler. 
+		 * @TODO how does types get serialized back to server?
+		 *
+		 * 1. Objects by default convert to edb.Object
+		 * 2. Arrays by default convert to edb.Array
+		 * 3. Simple properties get proxy accessors
 		 */
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-			gui.Accessors.defineAccessor ( handler, key, {
-				getter : edb.Type.getter ( function () {
-					return instance [ key ] || proxy [ key ];
-				}),
-				setter : edb.Type.setter ( function ( value ) {
-					var target = instance [ key ] ? instance : proxy;
-					target [ key ] = value;
-				})
-			});
+			switch ( gui.Type.of ( def = proxy [ key ])) {
+				case "object" :
+					handler [ key ] = new edb.Object ( def );
+					break;
+				case "array" :
+					handler [ key ] = new edb.Array ( def );
+					break;
+				default :
+					gui.Accessors.defineAccessor ( handler, key, {
+						getter : edb.Type.getter ( function () {
+							return instances [ key ] || proxy [ key ];
+						}),
+						setter : edb.Type.setter ( function ( value ) {
+							var target = instances [ key ] ? instances : proxy;
+							target [ key ] = value;
+						})
+					});
+					break;
+			}
 		});
 	},
 

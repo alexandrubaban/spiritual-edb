@@ -186,15 +186,15 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 */
 	_declare : function ( script, head ) {
 		var funcs = [];
-		gui.Object.each ( this.functions, function ( name, func ) {
+		gui.Object.each ( this.functions, function ( name, src ) {
 			head.declarations [ name ] = true;
-			funcs.push ( name + " = functions [ '" + name + "' ];\n" );
+			funcs.push ( name + " = f.get ( '" + src + "', window );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
 			head.definitions.push ( 
-				"( function lookup ( functions ) {\n" +
+				"( function lookup ( f ) {\n" +
 				funcs.join ( "" ) +
-				"})( this.script.functions ());" 
+				"}( edb.Function ));"
 			);
 		}
 		return script;
@@ -209,9 +209,10 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	_define : function ( script, head ) {
 		var vars = "";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
-			vars += ", " + name + " = null";
+			vars += ", " + name;
 		});
 		var html = "var Out = edb.Out, Att = edb.Att, Tag = edb.Tag, out = new Out (), att = new Att ()" + vars +";\n";
+		//html += "console.debug('this function is: '+this);\n"
 		head.definitions.forEach ( function ( def ) {
 			html += def +"\n";
 		});

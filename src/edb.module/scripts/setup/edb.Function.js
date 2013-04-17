@@ -51,6 +51,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		 */
 		this.pointer = this.spirit;
 		this.context = context;
+		//alert (this.context.document.location)
 		this.spirit = null;
 
 		this.tags = Object.create ( null );
@@ -241,15 +242,12 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {String} name
 	 * @param {String} src
 	 */
-	_functionload : function ( name, src ){
+	_functionload : function ( name, src ) {
 		src = gui.URL.absolute ( this.context.document, src );
-		var func = edb.Function.get ( src, this.context );
 		if ( !gui.Type.isDefined ( this.functions [ name ])) {
-			if ( func ) {
-				this.functions [ name ] = func;
-			} else {
+			this.functions [ name ] = src;
+			if ( !edb.Function.get ( src, this.context )) {
 				this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
-				this.functions [ name ] = src;
 			}
 		} else {
 			throw new Error ( "var \"" + name +  "\" already used" );
@@ -261,11 +259,13 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {String} src
 	 */
 	_functionloaded : function ( src ) {
+		/*
 		gui.Object.each ( this.functions, function ( name, value ) {
 			if ( value === src ) {
 				this.functions [ name ] = edb.Function.get ( src, this.context );
 			}
 		}, this );
+		*/
 		this._maybeready ();
 	},
 
@@ -322,7 +322,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_done : function () {
 		return [ "functions", "tags" ].every ( function ( map ) {
 			return Object.keys ( this [ map ] ).every ( function ( name ) {
-				return gui.Type.isFunction ( this [ map ][ name ]);
+				//return gui.Type.isFunction ( this [ map ][ name ]);
+				return edb.Function.get ( this [ map ][ name ], this.context ) !== null; // tag may be undefined...
 			}, this );
 		}, this );
 	},
@@ -347,12 +348,17 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {function}
 	 */
 	get : function ( src, win ) {
+		/*
+		if ( gui.Type.isWindow ( win )) {
+			console.warn ( "deprecated" );
+		}
+		*/
 		src = new gui.URL ( win.document, src ).href;
 		var has = gui.Type.isFunction ( this._map [ src ]);
 		if ( !has ) {
 			return this._load ( src, win );
 		}
-		return this._map [ src ];
+		return this._map [ src ] || null;
 	},
 
 

@@ -22,6 +22,24 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 				);
 		}
 		this.onconstruct.apply ( this, arguments ); // @TODO do we wan't this?
+	},
+
+	/**
+	 * Create clone of this object filtering out 
+	 * underscore and dollar prefixed properties. 
+	 * Recursively normalizing nested EDB types.
+	 * @returns {object}
+	 */
+	$normalize : function () {
+		var c, o = Object.create ( null );
+		gui.Object.each ( this, function ( key, value ) {
+			c = key [ 0 ];
+			if ( c !== "$" && c !== "_" && edb.Type.isInstance ( value  )) {
+				value = value.$normalize ();
+			}
+			o [ key ] = value;
+		});
+		return o;
 	}
 
 

@@ -9,7 +9,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 *
 	 * 1. An edb.Type constructor function (my.ns.MyType)
 	 * 2. A filter function to accept JSON (for analysis) and return a constructor.
-	 * @type {function}
+	 * @type {function} Type constructor or filter function
 	 */
 	$of : null,
 
@@ -44,27 +44,41 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 				});
 			}
 			args.forEach ( function ( arg ) {
-				Array.prototype.push.call ( this, arg ); // bypass $pub() setup
+				Array.prototype.push.call ( this, arg ); // bypassing broadcast mechanism
 			}, this );
 		}
 
 		// proxy methods and invoke non-secret constructor
-		edb.Array.approximate ( this, {});
+		edb.Array.approximate ( this );
 		this.onconstruct.call ( this, arguments );
+	},
+
+	/**
+	 * Create true array without expando properties, recursively 
+	 * normalizing nested EDB types. This is the type of object 
+	 * you would typically transmit to the server. 
+	 * @returns {Array}
+	 */
+	$normalize : function () {
+		return Array.map ( this, function ( thing ) {
+			if ( edb.Type.isInstance ( thing )) {
+				return thing.$normalize ();
+			}
+			return thing;
+		});
 	}
 	
 	
 }, {}, { // Static .........................................................................
 
 	/**
-	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
+	 * Simplistic proxy mechanism.
 	 * @param {object} handler The object that intercepts properties (the edb.Array)
 	 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
 	 */
 	approximate : function ( handler, proxy ) {
-		
 		var def = null;
-		proxy = proxy || {};	
+		proxy = proxy || Object.create ( null );	
 		this._definitions ( handler ).forEach ( function ( key ) {
 			def = handler [ key ];
 			switch ( gui.Type.of ( def )) {
@@ -93,14 +107,12 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 			Object.defineProperty ( handler, key, {
 				enumerable : true,
 				configurable : true,
-				get : function () {
-					this.$sub ();
+				get : edb.Type.getter ( function () {
 					return proxy [ key ];
-				},
-				set : function ( value ) {
+				}),
+				set : edb.Type.setter ( function ( value ) {
 					proxy [ key ] = value;
-					this.$pub ();
-				}
+				})
 			});
 		});
 	},
@@ -143,7 +155,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 * to both {edb.Object} and {edb.Array}
 	 */
 	gui.Object.extend ( proto, edb.Type.prototype );
-	
+
 	/*
 	 * Dispatch a broadcast whenever the list is inspected or traversed.
 	 */

@@ -24,31 +24,19 @@ edb.Type.prototype = {
 	
 	/**
 	 * Called after $onconstruct (by gui.Class convention).
-	 * @TODO instead use $onconstruct consistantly throughout types.
+	 * @TODO instead use $onconstruct consistantly throughout types?
 	 */
 	onconstruct : function () {},
 	
 	/**
-	 * Serialize to JSON string *without* private and expando 
-	 * properties as designated by underscore and dollar char.
-	 * @param {boolean} pretty
+	 * Serialize to JSON string without private and expando properties.
+	 * @todo Declare $normalize as a method stub here (and stull work in subclass)
+	 * @param {function} filter
+	 * @param {String|number} tabber
+	 * @returns {String}
 	 */
-	$serialize : function ( pretty ) {
-		
-		/*
-		 * Avoid reading properties during this operation 
-		 * because this may trigger endless $sub() invoke.
-		 */
-		var clone = JSON.parse ( JSON.stringify ( this ));
-		Object.keys ( clone ).forEach ( function ( key ) {
-			switch ( key [ 0 ]) {
-				case "$" :
-				case "_" :
-					delete clone [ key ];
-					break;
-			}
-		});
-		return JSON.stringify ( clone, null, pretty ? "\t" : "" );
+	$stringify : function ( filter, tabber ) {
+		return JSON.stringify ( this.$normalize (), filter, tabber );
 	}
 };
 
@@ -107,4 +95,16 @@ edb.Type.underscoreinstanceid = function ( instance ) {
 		configurable: false,
 		writable: false
 	});
+};
+
+/**
+ * Is type instance?
+ * @param {object} o
+ * @returns {boolean}
+ */
+edb.Type.isInstance = function ( o ) {
+	if ( gui.Type.isComplex ( o )) {
+		return o instanceof edb.Object || o instanceof edb.Array;
+	}
+	return false;
 };

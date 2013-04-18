@@ -72,7 +72,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 }, {}, { // Static .........................................................................
 
 	/**
-	 * Simplistic proxy mechanism.
+	 * Simplistic proxy mechanism. 
 	 * @param {object} handler The object that intercepts properties (the edb.Array)
 	 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
 	 */
@@ -88,10 +88,6 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 				case "array" :
 					console.warn ( "TODO: complex stuff on edb.Array :)" );
 					break;
-				/*
-				 * Simple properties copied from handler to 
-				 * proxy. Strings, numbers, booleans etc.
-				 */
 				default :
 					if ( !gui.Type.isDefined ( proxy [ key ])) {
 						proxy [ key ] = handler [ key ];
@@ -118,28 +114,38 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	},
 
 	/**
-	 * Hello.
+	 * Collect list of definitions to transfer from proxy to handler.
 	 * @param {object} handler
 	 * @returns {Array<String>}
 	 */
 	_definitions : function ( handler ) {
 		var keys = [];
-		function fix ( key ) {
-			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
-				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
-						if ( !key.startsWith ( "_" )) {
-							keys.push ( key );
-						}
+		for ( var key in handler ) {
+			if ( this._define ( key )) {
+				keys.push ( key );
+			}
+		}
+		return keys;
+	},
+
+	/**
+	 * Should define given property?
+	 * @param {String} key
+	 * @returns {boolean}
+	 */
+	_define : function ( key ) {
+		if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
+			if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
+				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
+					if ( !key.startsWith ( "_" )) {
+						return true;
 					}
 				}
 			}
 		}
-		for ( var key in handler ) {
-			fix ( key );
-		}
-		return keys;
+		return false;
 	}
+
 });
 
 /*

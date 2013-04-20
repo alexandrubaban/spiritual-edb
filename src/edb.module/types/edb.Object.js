@@ -85,7 +85,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 					handler [ key ] = new edb.Array ( def );
 					break;
 				default :
-					gui.Accessors.defineAccessor ( handler, key, {
+					gui.Property.accessor ( handler, key, {
 						getter : edb.Type.getter ( function () {
 							return instances [ key ] || proxy [ key ];
 						}),

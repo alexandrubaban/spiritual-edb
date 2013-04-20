@@ -61,31 +61,19 @@ edb.Type.prototype = {
 	
 	/**
 	 * Called after $onconstruct (by gui.Class convention).
-	 * @TODO instead use $onconstruct consistantly throughout types.
+	 * @TODO instead use $onconstruct consistantly throughout types?
 	 */
 	onconstruct : function () {},
 	
 	/**
-	 * Serialize to JSON string *without* private and expando 
-	 * properties as designated by underscore and dollar char.
-	 * @param {boolean} pretty
+	 * Serialize to JSON string without private and expando properties.
+	 * @todo Declare $normalize as a method stub here (and stull work in subclass)
+	 * @param {function} filter
+	 * @param {String|number} tabber
+	 * @returns {String}
 	 */
-	$serialize : function ( pretty ) {
-		
-		/*
-		 * Avoid reading properties during this operation 
-		 * because this may trigger endless $sub() invoke.
-		 */
-		var clone = JSON.parse ( JSON.stringify ( this ));
-		Object.keys ( clone ).forEach ( function ( key ) {
-			switch ( key [ 0 ]) {
-				case "$" :
-				case "_" :
-					delete clone [ key ];
-					break;
-			}
-		});
-		return JSON.stringify ( clone, null, pretty ? "\t" : "" );
+	$stringify : function ( filter, tabber ) {
+		return JSON.stringify ( this.$normalize (), filter, tabber );
 	}
 };
 
@@ -132,6 +120,32 @@ edb.Type.decorateSetters = function ( proto, methods ) {
 	return proto;
 };
 
+/**
+ * Redefine the $instanceid to start with an underscore 
+ * because of some iOS weirdness (does it still apply?)
+ * @param {edb.Type} instance
+ */
+edb.Type.underscoreinstanceid = function ( instance ) {
+	Object.defineProperty ( instance, "_instanceid", {
+		value: instance.$instanceid,
+		enumerable : false,
+		configurable: false,
+		writable: false
+	});
+};
+
+/**
+ * Is type instance?
+ * @param {object} o
+ * @returns {boolean}
+ */
+edb.Type.isInstance = function ( o ) {
+	if ( gui.Type.isComplex ( o )) {
+		return o instanceof edb.Object || o instanceof edb.Array;
+	}
+	return false;
+};
+
 
 /**
  * EDB object type. 
@@ -144,7 +158,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @param @optional {object|edb.Object} data
 	 */
 	$onconstruct : function ( data ) {
-		this._instanceid = this.$instanceid; // iOS weirdness (@TODO is it still there?)
+		edb.Type.underscoreinstanceid ( this ); // iOS bug...
 		switch ( gui.Type.of ( data )) {
 			case "object" : 
 			case "undefined" :
@@ -156,7 +170,25 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 					gui.Type.of ( data )
 				);
 		}
-		this.onconstruct (); // @TODO do we wan't this?
+		this.onconstruct.apply ( this, arguments ); // @TODO do we wan't this?
+	},
+
+	/**
+	 * Create clone of this object filtering out 
+	 * underscore and dollar prefixed properties. 
+	 * Recursively normalizing nested EDB types.
+	 * @returns {object}
+	 */
+	$normalize : function () {
+		var c, o = Object.create ( null );
+		gui.Object.each ( this, function ( key, value ) {
+			c = key [ 0 ];
+			if ( c !== "$" && c !== "_" && edb.Type.isInstance ( value  )) {
+				value = value.$normalize ();
+			}
+			o [ key ] = value;
+		});
+		return o;
 	}
 
 
@@ -172,66 +204,47 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 	 */
 	approximate : function ( handler, proxy ) {
-		var def = null;
-		var instance = Object.create ( null ); // mapping properties that redefine from "function" (constructor) to "object" (instance)
+		var def, Def, instances = Object.create ( null );
 		this._definitions ( handler ).forEach ( function ( key ) {
-			switch ( gui.Type.of (( def = handler [ key ]))) {
-
-				/*
-				 * Method type functions are skipped, constructors get instantiated. 
-				 * Similar (named) property in proxy becomes the constructor argument, 
-				 * eg. mything : MyThing ({ name: "thing" }) would new up an instance 
-				 * of MyThing (with object argument) and assign it to the property.
-				 */
-				case "function" :
-					if ( gui.Type.isConstructor ( def )) {
-						var C = def;
-						instance [ key ] = new C ( proxy [ key ]);
-					}
-					break;
-				
-				/*
-				 * TODO: Consider new instance of edb.Object by default.
-				 * TODO: Cosnsider how to guess an object apart from a Map.
-				 */
-				case "object" :
-					console.warn ( "TODO: approximate object: " + key );
-					console.warn ( JSON.stringify ( def ));
-					break;
-					
-				/*
-				 * TODO: Consider new instance of edb.Array by default.
-				 */
-				case "array" :
-					console.warn ( "TODO: approximate array: " + key );
-					console.warn ( JSON.stringify ( def ));
-					break;
-					
-				/*
-				 * Simple properties copied from handler to 
-				 * proxy. Strings, numbers, booleans etc.
-				 */
-				default :
-					if ( !gui.Type.isDefined ( proxy [ key ])) {
-						proxy [ key ] = handler [ key ];
-					}
-					break;
+			def = handler [ key ];
+			if ( gui.Type.isComplex ( def )) {
+				if ( gui.Type.isConstructor ( def )) {
+					Def = def; // capitalized for JsHint
+					instances [ key ] = new Def ( proxy [ key ]);
+				}
+			} else if ( !gui.Type.isDefined ( proxy [ key ])) {
+				proxy [ key ] = handler [ key ];
 			}
 		});
 		
 		/* 
-		 * Setup property accessors for handler.
+		 * Setup property accessors for handler. 
+		 * @TODO how does types get serialized back to server?
+		 *
+		 * 1. Objects by default convert to edb.Object
+		 * 2. Arrays by default convert to edb.Array
+		 * 3. Simple properties get proxy accessors
 		 */
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-			gui.Accessors.defineAccessor ( handler, key, {
-				getter : edb.Type.getter ( function () {
-					return instance [ key ] || proxy [ key ];
-				}),
-				setter : edb.Type.setter ( function ( value ) {
-					var target = instance [ key ] ? instance : proxy;
-					target [ key ] = value;
-				})
-			});
+			switch ( gui.Type.of ( def = proxy [ key ])) {
+				case "object" :
+					handler [ key ] = new edb.Object ( def );
+					break;
+				case "array" :
+					handler [ key ] = new edb.Array ( def );
+					break;
+				default :
+					gui.Property.accessor ( handler, key, {
+						getter : edb.Type.getter ( function () {
+							return instances [ key ] || proxy [ key ];
+						}),
+						setter : edb.Type.setter ( function ( value ) {
+							var target = instances [ key ] ? instances : proxy;
+							target [ key ] = value;
+						})
+					});
+					break;
+			}
 		});
 	},
 
@@ -280,15 +293,15 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 *
 	 * 1. An edb.Type constructor function (my.ns.MyType)
 	 * 2. A filter function to accept JSON (for analysis) and return a constructor.
-	 * @type {function}
+	 * @type {function} Type constructor or filter function
 	 */
 	$of : null,
 
 	/**
 	 * Secret constructor.
 	 */
-	$onconstruct : function () {		
-		this._instanceid = this.$instanceid; // iOS strangeness...
+	$onconstruct : function () {
+		edb.Type.underscoreinstanceid ( this ); // iOS bug...
 		if ( arguments.length ) {
 			// accept one argument (an array) or use Arguments object as an array
 			var args = [];
@@ -315,27 +328,41 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 				});
 			}
 			args.forEach ( function ( arg ) {
-				Array.prototype.push.call ( this, arg ); // bypass $pub() setup
+				Array.prototype.push.call ( this, arg ); // bypassing broadcast mechanism
 			}, this );
 		}
 
 		// proxy methods and invoke non-secret constructor
-		edb.Array.approximate ( this, {});
+		edb.Array.approximate ( this );
 		this.onconstruct.call ( this, arguments );
+	},
+
+	/**
+	 * Create true array without expando properties, recursively 
+	 * normalizing nested EDB types. This is the type of object 
+	 * you would typically transmit to the server. 
+	 * @returns {Array}
+	 */
+	$normalize : function () {
+		return Array.map ( this, function ( thing ) {
+			if ( edb.Type.isInstance ( thing )) {
+				return thing.$normalize ();
+			}
+			return thing;
+		});
 	}
 	
 	
 }, {}, { // Static .........................................................................
 
 	/**
-	 * Simplistic proxy mechanism: call $sub() on get property and $pub() on set property.
+	 * Simplistic proxy mechanism. 
 	 * @param {object} handler The object that intercepts properties (the edb.Array)
 	 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
 	 */
 	approximate : function ( handler, proxy ) {
-		
 		var def = null;
-		proxy = proxy || {};	
+		proxy = proxy || Object.create ( null );	
 		this._definitions ( handler ).forEach ( function ( key ) {
 			def = handler [ key ];
 			switch ( gui.Type.of ( def )) {
@@ -345,10 +372,6 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 				case "array" :
 					console.warn ( "TODO: complex stuff on edb.Array :)" );
 					break;
-				/*
-				 * Simple properties copied from handler to 
-				 * proxy. Strings, numbers, booleans etc.
-				 */
 				default :
 					if ( !gui.Type.isDefined ( proxy [ key ])) {
 						proxy [ key ] = handler [ key ];
@@ -364,41 +387,49 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 			Object.defineProperty ( handler, key, {
 				enumerable : true,
 				configurable : true,
-				get : function () {
-					this.$sub ();
+				get : edb.Type.getter ( function () {
 					return proxy [ key ];
-				},
-				set : function ( value ) {
+				}),
+				set : edb.Type.setter ( function ( value ) {
 					proxy [ key ] = value;
-					this.$pub ();
-				}
+				})
 			});
 		});
 	},
 
 	/**
-	 * Hello.
+	 * Collect list of definitions to transfer from proxy to handler.
 	 * @param {object} handler
 	 * @returns {Array<String>}
 	 */
 	_definitions : function ( handler ) {
 		var keys = [];
-		function fix ( key ) {
-			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
-				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
-						if ( !key.startsWith ( "_" )) {
-							keys.push ( key );
-						}
+		for ( var key in handler ) {
+			if ( this._define ( key )) {
+				keys.push ( key );
+			}
+		}
+		return keys;
+	},
+
+	/**
+	 * Should define given property?
+	 * @param {String} key
+	 * @returns {boolean}
+	 */
+	_define : function ( key ) {
+		if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
+			if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
+				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
+					if ( !key.startsWith ( "_" )) {
+						return true;
 					}
 				}
 			}
 		}
-		for ( var key in handler ) {
-			fix ( key );
-		}
-		return keys;
+		return false;
 	}
+
 });
 
 /*
@@ -414,7 +445,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 * to both {edb.Object} and {edb.Array}
 	 */
 	gui.Object.extend ( proto, edb.Type.prototype );
-	
+
 	/*
 	 * Dispatch a broadcast whenever the list is inspected or traversed.
 	 */
@@ -920,15 +951,11 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {edb.Input} input
 	 */
 	_maybeinput : function ( input ) {
-		try {
-			var best = edb.InputPlugin._bestmatch ( input.type, this._watches );
-			if ( best ) {
-				this._updatematch ( input );
-				this.done = this._matches.length === this._watches.length;
-				this._updatehandlers ( input );
-			}
-		} catch ( x ) {
-			console.warn ( x );
+		var best = edb.InputPlugin._bestmatch ( input.type, this._watches );
+		if ( best ) {
+			this._updatematch ( input );
+			this.done = this._matches.length === this._watches.length;
+			this._updatehandlers ( input );
 		}
 	},
 
@@ -1405,6 +1432,27 @@ edb.Runner.prototype = {
 		return start >= 0 && line.substr ( start, length ) === string;
 	},
 
+	/**
+	 * Get line string from current position.
+	 * @returns {String}
+	 */
+	lineahead : function () {
+		return this._line.substring ( this._index + 1 );
+	},
+
+	/**
+	 * Space-stripped line text at index equals string?
+	 * @param {String} string
+	 * @returns {boolean}
+	 */
+	skipahead : function ( string ) {
+		console.error ( "TODO" );
+		/*
+		line = line.substr ( index ).replace ( / /g, "" );
+		return this._ahead ( line, 0, string );
+		*/
+	},
+
 	// Private ..........................................................
 
 	/**
@@ -1420,8 +1468,7 @@ edb.Runner.prototype = {
 	_index : -1,
 
 	/**
-	 * Run line.
-	 * @TODO Oldschool iteration is faster.
+	 * Run all lines.
 	 * @param {edb.Compiler} compiler
 	 * @param {Array<String>} lines
 	 * @param {edb.Status} status
@@ -1429,18 +1476,32 @@ edb.Runner.prototype = {
 	 */
 	_runlines : function ( compiler, lines, status, result ) {
 		var stop = lines.length - 1;
-		lines.forEach ( function ( line, i ) {
-			this._line = line;
-			this.firstline = i === 0;
-			this.lastline = i === stop;
-			compiler.online ( line, this, status, result );
-			this._runchars ( compiler, line.split ( "" ), status, result );
+		lines.forEach ( function ( line, index ) {
+			this.firstline = index === 0;
+			this.lastline = index === stop;
+			this._runline ( line, index, compiler, status, result );
 		}, this );
 	},
 
 	/**
-	 * Run chars.
-	 * @TODO Oldschool iteration is faster.
+	 * Run single line.
+	 * @param {String} line
+	 * @param {number} index
+	 * @param {edb.Compiler} compiler
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
+	 */
+	_runline : function ( line, index, compiler, status, result ) {
+		line = this._line = line.trim ();
+		if ( line.length ) {
+			compiler.newline ( line, this, status, result );
+			this._runchars ( compiler, line.split ( "" ), status, result );
+			compiler.endline ( line, this, status, result );
+		}
+	},
+
+	/**
+	 * Run all chars.
 	 * @param {edb.Compiler} compiler
 	 * @param {Array<String>} chars
 	 * @param {edb.Status} status
@@ -1452,25 +1513,30 @@ edb.Runner.prototype = {
 			this._index = i;
 			this.firstchar = i === 0;
 			this.lastchar = i === stop;
-			compiler.onchar ( c, this, status, result );
+			compiler.nextchar ( c, this, status, result );
 		}, this );
 	}
 };
 
 
 /**
- * Tracking compiler state.
- * @TODO Comments all over.
+ * Stateful compiler stuff.
  * @param {String} body
  */
-edb.Status = function Status ( body ) {
-	this.body = body || "";
+edb.Status = function Status () {
 	this.conf = [];
 };
 
+// Static ..........................
+
+edb.Status.MODE_JS = "js";
+edb.Status.MODE_HTML = "html";
+edb.Status.MODE_TAG = "tag";
+
+// Instane .........................
+
 edb.Status.prototype = {
 	mode : edb.Status.MODE_JS,
-	body : null,
 	peek : false,
 	poke : false,
 	cont : false,
@@ -1483,22 +1549,157 @@ edb.Status.prototype = {
 	indx : 0,
 
 	// tags
-	refs : false // pass by reference in tags
+	refs : false, // pass by reference in tags
+
+	/**
+	 * Is JS mode?
+	 * @returns {boolean}
+	 */
+	isjs : function () {
+		return this.mode === edb.Status.MODE_JS;
+	},
+
+	/**
+	 * Is HTML mode?
+	 * @returns {boolean}
+	 */
+	ishtml : function () {
+		return this.mode === edb.Status.MODE_HTML;
+	},
+
+	/**
+	 * Is tag mode?
+	 * @returns {boolean}
+	 */
+	istag : function () {
+		return this.mode === edb.Status.MODE_TAG;
+	},
+
+	/**
+	 * Go JS mode.
+	 */
+	gojs : function () {
+		this.mode = edb.Status.MODE_JS;
+	},
+
+	/**
+	 * Go HTML mode.
+	 */
+	gohtml : function () {
+		this.mode = edb.Status.MODE_HTML;
+	},
+
+	/**
+	 * Go tag mode.
+	 */
+	gotag : function () {
+		this.mode = edb.Status.MODE_TAG;
+	}
 };
 
 
-// Static ..........................
-
-edb.Status.MODE_JS = "js";
-edb.Status.MODE_HTML = "html";
-edb.Status.MODE_TAG = "tag";
-
-
+/**
+ * Collecting compiler result.
+ * @param @optional {String} text
+ */
 edb.Result = function Result ( text ) {
 	this.body = text || "";
 };
+
 edb.Result.prototype = {
-	body : null
+
+	/**
+	 * Result body.
+	 * @type {String}
+	 */
+	body : null,
+
+	/**
+	 * Mark the spot.
+	 */
+	mark : function () {
+		this._spot = this.body.length - 1;
+	},
+
+	/**
+	 * Generate poke at marked spot.
+	 * @param {String} body
+	 * @param {number} spot
+	 * @param {String} func
+	 * @returns {String}
+	 */
+	poke : function ( func, index, sig ) {
+		sig = sig ?  ( ", &quot;" + sig + "&quot;" ) : "";
+		var body = this.body;
+		var spot = this._spot;
+		var prev = body.substring ( 0, spot );
+		var next = body.substring ( spot );
+		this.body = prev + "\n" + 
+			"var __edb__" + index + " = edb.Script.assign ( function ( value, checked ) { \n" +
+			func + ";\n}, this );" + next +
+			"edb.Script.register ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );";
+		this._spot = -1;
+	},
+
+	/**
+	 * Generate and inject poke function into main function body.
+	 * @param {String} body
+	 * @param {number} spot
+	 * @param {String} func
+	 * @returns {String}
+	 */
+	_inject : function ( body, spot, func, index, sig ) {
+		sig = sig ?  ( ", &quot;" + sig + "&quot;" ) : "";
+		return (
+			body.substring ( 0, spot ) + "\n" + 
+			"var __edb__" + index + " = edb.Script.assign ( function ( value, checked ) { \n" +
+			func + ";\n" +
+			"}, this );" +
+			body.substring ( spot ) +
+			"edb.Script.register ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
+		);
+	},
+
+	/**
+	 * Format result body.
+	 * @TODO Indent switch cases
+	 * @TODO Remove blank lines
+	 * @param {String} body
+	 * @returns {String}
+	 */
+	format : function ( body ) {
+		var result = "";
+		var tabs = "\t";
+		var first = null;
+		var last = null;
+		var fixt = null;
+		var flast = null;
+		this.body.split ( "\n" ).forEach ( function ( line ) {
+			line = line.trim ();
+			first = line.charAt ( 0 );
+			last = line.charAt ( line.length - 1 );
+			fixt = line.split ( "//" )[ 0 ].trim ();
+			flast = fixt.charAt ( fixt.length - 1 );
+			if (( first === "}" || first === "]" ) && tabs !== "" ) {				
+				tabs = tabs.slice ( 0, -1 );
+			}
+			result += tabs + line + "\n";
+			if ( last === "{" || last === "[" || flast === "{" || flast === "[" ) {
+				tabs += "\t";
+			}
+		});
+		return result;
+	},
+
+
+	// Private ................................................................
+
+	/**
+	 * @type {number}
+	 */
+	_spot : -1,
+
+	_poke : -1 // TODO: status.indx - bookkeep internally!
 };
 
 
@@ -1858,298 +2059,269 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 
 
 /**
- * Core compiler methods.
+ * Core EDBML compiler business logic.
  */
-edb.Compiler = gui.Class.create ( Object.prototype, {
+edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 
 	/**
-	 * Compile EDBML to function source.
+	 * Compile EDBML source to function body.
 	 * @param {String} script
-	 * @param {What?} head
 	 * @returns {String}
 	 */
-	_compile : function ( script, head ) {
-		var state = new edb.State ( '"use strict";\n' );
-		script.split ( "\n" ).forEach ( function ( line, index ) {
-			this._compileline ( state, line, index );
-		}, this );
-		state.body += ( state.mode === "html" ? "';" : "" ) + "\nreturn out.write ();";
-		return this._format ( state.body );
+	_compile : function ( script ) {
+		var runner = new edb.Runner (); 
+		var status = new edb.Status ();
+		var result = new edb.Result ( '"use strict";\n' );
+		runner.run ( this, script, status, result );
+		result.body += ( status.ishtml () ? "';" : "" ) + "\nreturn out.write ();";
+		return result.format ();
 	},
 
 	/**
-	 * Compile single line.
-	 * @param {edb.State} state
+	 * Line begins.
 	 * @param {String} line
-	 * @param {number} index
+	 * @param {edb.Runner} runner
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
 	 */
-	_compileline : function ( state, line, index ) {
-		line = line.trim (); // beware of whitespace sensitive language
-		state.last = line.length - 1;
-		state.adds = line.charAt ( 0 ) === "+";
-		state.cont = state.cont || ( state.mode === "html" && state.adds );
-		if ( line.length > 0 ) {
-			if ( index > 0 ) {
-				if ( state.mode === "html" ) {	
-					if ( !state.cont ) {
-						state.body += "';\n";
-						state.mode = "js";
-					}
-				} else {
-					state.body += "\n";
+	newline : function ( line, runner, status, result ) {
+		status.last = line.length - 1;
+		status.adds = line [ 0 ] === "+";
+		status.cont = status.cont || ( status.ishtml () && status.adds );
+	},
+
+	/**
+	 * Line ends.
+	 * @param {String} line
+	 * @param {edb.Runner} runner
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
+	 */
+	endline : function  ( line, runner, status, result ) {
+		if ( !runner.firstline ) {
+			if ( status.ishtml ()) {
+				if ( !status.cont ) {
+					result.body += "';\n";
+					status.gojs ();
 				}
-			}
-			state.cont = false;
-			Array.forEach ( line, function ( c, i ) {
-				this._compilechar ( state, c, i, line );
-			}, this );
-		}
-	},
-
-	/**
-	 * Compile single character.
-	 * @param {edb.State} state
-	 * @param {String} c
-	 * @param {number} i
-	 * @param {String} line
-	 */
-	_compilechar : function ( state, c, i, line ) {
-		switch ( state.mode ) {
-			case "tag" :
-				this._compiletag ( state, c, i, line );
-				break;
-			case "html" :
-				this._compilehtml ( state, c, i, line );
-				break;
-			default : // @TODO case "js"
-				this._compilescript ( state, c, i, line );
-				break;
-		}
-		if ( state.skip-- <= 0 ) {
-			if ( state.poke ) {
-				state.func += c;
 			} else {
-				if ( state.mode !== "tag" ) {
-					state.body += c;
-				}
+				result.body += "\n";
 			}
 		}
+		status.cont = false;
 	},
 
 	/**
-	 * Compile character as HTML.
-	 * @param {edb.State} state
+	 * Next char.
 	 * @param {String} c
-	 * @param {number} i
-	 * @param {String} line
+	 * @param {edb.Runner} runner
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
 	 */
-	_compilehtml : function ( state, c, i, line ) {
-		switch ( c ) {
-			case "{" :
-				if ( state.peek || state.poke ) {}
+	nextchar : function ( c, runner, status, result ) {
+		switch ( status.mode ) {
+			case edb.Status.MODE_JS :
+				this._compilejs ( c, runner, status, result );
 				break;
-			case "}" :
-				if ( state.peek ) {
-					state.peek = false;
-					state.skip = 1;
-					state.body += ") + '";
+			case edb.Status.MODE_HTML :
+				this._compilehtml ( c, runner, status, result);
+				break;
+			case edb.Status.MODE_TAG :
+				this._compiletag ( c, runner, status, result );
+				break;
+		}
+		if ( status.skip-- <= 0 ) {
+			if ( status.poke ) {
+				status.func += c;
+			} else {
+				if ( !status.istag ()) {
+					result.body += c;
 				}
-				if ( state.poke ) {
-					state.body = this._inject ( state.body, state.spot, state.func, state.indx++ );
-					state.poke = false;
-					state.func = null;
-					state.skip = 1;
-				}
-				break;
-			case "$" :
-				if ( !state.peek && !state.poke && this._ahead ( line, i, "{" )) {
-					state.peek = true;
-					state.skip = 2;
-					state.body += "' + (";
-				}
-				break;
-			case "#" :
-				if ( !state.peek && !state.poke && this._ahead ( line, i, "{" )) {
-					state.poke = true;
-					state.func = "";
-					state.skip = 2;
-				}
-				break;
-			case "+" :
-				switch ( i ) {
-					case 0 :
-						state.skip = state.adds ? 1 : 0;
-						break;
-					case state.last :
-						state.cont = true;
-						state.skip = 1;
-						break;
-				}
-				break;
-			case "'" :
-				if ( !state.peek && !state.poke ) {
-					state.body += "\\";
-				}
-				break;
-			case "@" :
-				this._htmlatt ( state, line, i );
-				break;
+			}
 		}
 	},
 
 	/**
 	 * Compile character as script.
-	 * @param {edb.State} state
+	 * @param {edb.State} status
 	 * @param {String} c
 	 * @param {number} i
 	 * @param {String} line
 	 */
-	_compilescript : function ( state, c, i, line ) {
+	_compilejs : function ( c, runner, status, result ) {
 		switch ( c ) {
 			case "<" :
-				if ( i === 0 ) {
+				if ( runner.firstchar ) {
+					var line = "JSHINT";
+					var i = "JSHINT";
 					var tag;
-					if (( tag = this._tagstart ( line ))) {
-						state.mode = "tag";
-						this._aaa ( state, line, i );
-					} else if (( tag = this._tagstop ( line ))) {
-						state.mode = "tag"; // js ??????????????????????????????????
-						this._bbb ( state );
+					if ( false && ( tag = this._tagstart ( line ))) {
+						status.gotag ();
+						this._aaa ( status, line, i );
+					} else if ( false && ( tag = this._tagstop ( line ))) {
+						status.gotag (); // js ??????????????????????????????????
+						this._bbb ( status );
 					} else {
-						state.mode = "html";
-						state.spot = state.body.length - 1;
-						state.body += "out.html += '";
+						status.gohtml ();
+						result.mark ();
+						result.body += "out.html += '";
 					}
 				}
 				break;
 			case "@" :
-				this._scriptatt ( state, line, i );
+				this._scriptatt ( runner, status, result );
+				break;
+		}
+	},
+	
+	/**
+	 * Compile character as HTML.
+	 * @param {edb.State} status
+	 * @param {String} c
+	 * @param {number} i
+	 * @param {String} line
+	 */
+	_compilehtml : function ( c, runner, status, result ) {
+		switch ( c ) {
+			case "{" :
+				if ( status.peek || status.poke ) {}
+				break;
+			case "}" :
+				if ( status.peek ) {
+					status.peek = false;
+					status.skip = 1;
+					result.body += ") + '";
+				}
+				if ( status.poke ) {
+					result.poke ( status.func, status.indx++, this._signature );
+					status.poke = false;
+					status.func = null;
+					status.skip = 1;
+				}
+				break;
+			case "$" :
+				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
+					status.peek = true;
+					status.skip = 2;
+					result.body += "' + (";
+				}
+				break;
+			case "#" :
+				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
+					status.poke = true;
+					status.func = "";
+					status.skip = 2;
+				}
+				break;
+			case "+" :
+				if ( runner.firstchar ) {
+					status.skip = status.adds ? 1 : 0;
+				} else if ( runner.lastchar ) {
+					status.cont = true;
+					status.skip = 1;
+				}
+				break;
+			case "'" :
+				if ( !status.peek && !status.poke ) {
+					result.body += "\\";
+				}
+				break;
+			case "@" :
+				//console.error ( "TODO" );
+				this._htmlatt ( runner, status, result );
 				break;
 		}
 	},
 
-	_aaa : function ( state, line, i ) {
-		state.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
+	/*
+	_aaa : function ( status, line, i ) {
+		result.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
 		var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
 		var json = JSON.stringify ( gui.AttPlugin.getmap ( elem ), null, "\t" );
 		var atts = this._fixerupper ( json );
-		state.conf.push ( atts );
+		status.conf.push ( atts );
 	},
 
-	_bbb : function ( state ) {
-		state.body += "}, " + state.conf.pop () + ");";
-		state.conf = null;
+	_bbb : function ( status ) {
+		result.body += "}, " + status.conf.pop () + ");";
+		status.conf = null;
 	},
 
 	_fixerupper : function ( json ) {
 
-		var state = new edb.State ();
-		state.body = "";
+		var status = new edb.State ();
+		result.body = "";
+
 
 		var lines = json.split ( "\n" );
 		lines.forEach ( function ( line, index ) {
 			Array.forEach ( line, function ( c, i ) {
 				switch ( c ) {
 					case "\"" :
-						if ( !state.peek && !state.poke ) {
+						if ( !status.peek && !status.poke ) {
 							if ( this._ahead ( line, i, "${" )) {
-								state.peek = true;
-								state.skip = 3;
+								status.peek = true;
+								status.skip = 3;
 							} else if ( this._ahead ( line, i, "#{" )) {
-								state.poke = true;
-								state.skip = 3;
-								state.func = " function () {\n";
-								state.spot = state.body.length - 1;
+								status.poke = true;
+								status.skip = 3;
+								status.func = " function () {\n";
+								status.spot = result.body.length - 1;
 							}
 						}
 						break;
 					case "}" :
-						if ( state.peek || state.poke ) {
+						if ( status.peek || status.poke ) {
 							if ( this._skipahead ( line, i, "\"" )) {
-								if ( state.poke ) {
-									state.func += "\n}";
-									state.body = state.body.substring ( 0, state.spot ) + 
-										state.func + state.body.substring ( state.spot );
+								if ( status.poke ) {
+									status.func += "\n}";
+									result.body = result.body.substring ( 0, status.spot ) + 
+									status.func + result.body.substring ( status.spot );
 								}
-								state.peek = false;
-								state.poke = false;
-								state.skip = 2;
+								status.peek = false;
+								status.poke = false;
+								status.skip = 2;
 							}
 						}
 						break;
 				}
-				if ( state.skip-- <= 0 ) {
-					if ( state.poke ) {
-						state.func += c;
+				if ( status.skip-- <= 0 ) {
+					if ( status.poke ) {
+						status.func += c;
 					} else {
-						state.body += c;
+						result.body += c;
 					}
 				}
 			}, this );
 			if ( index < lines.length - 1 ) {
-				state.body += "\n";
+				result.body += "\n";
 			}
 		}, this );
-		return state.body; //.replace ( /"\${/g, "" ).replace ( /\}"/g, "" );
+		return result.body; //.replace ( /"\${/g, "" ).replace ( /\}"/g, "" );
 	},
+	*/
 
 	/**
 	 * Compile character as tag.
-	 * @param {edb.State} state
+	 * @param {edb.State} status
 	 * @param {String} c
 	 * @param {number} i
 	 * @param {String} line
 	 */
-	_compiletag : function ( state, c, i, line ) {
+	_compiletag : function ( status, c, i, line ) {
 		switch ( c ) {
 			case "$" :
 				if ( this._ahead ( line, i, "{" )) {
-					state.refs = true;
-					state.skip = 2;
+					status.refs = true;
+					status.skip = 2;
 				}
 				break;
 			case ">" :
-				//state.tagt = false;
-				state.mode = "js";
-				state.skip = 1;
+				//status.tagt = false;
+				status.gojs ();
+				status.skip = 1;
 				break;
 		}
-	},
-
-	/**
-	 * Line text at index equals string?
-	 * @param {String} line
-	 * @param {number} index
-	 * @param {String} string
-	 * @returns {boolean}
-	 */
-	_ahead : function ( line, index, string ) {
-		var i = index + 1, l = string.length;
-		return line.length > index + l && line.substring ( i, i + l ) === string;
-	},
-
-	/**
-	 * Line text before index equals string?
-	 * @param {String} line
-	 * @param {number} index
-	 * @param {String} string
-	 * @returns {boolean}
-	 */
-	_behind : function ( line, index, string ) {
-		var length = string.length, start = index - length;
-		return start >= 0 && line.substr ( start, length ) === string;
-	},
-
-	/**
-	 * Space-stripped text at index equals string?
-	 * @param {String} line
-	 * @param {number} index
-	 * @param {String} string
-	 * @returns {boolean}
-	 */
-	_skipahead : function ( line, index, string ) {
-		line = line.substr ( index ).replace ( / /g, "" );
-		return this._ahead ( line, 0, string );
 	},
 
 	/**
@@ -2182,51 +2354,51 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	},
 
 	/*
-	 * Parse @ notation in markup. 
-	 * @param {String} line
-	 * @param {number} i
-	 */
-	_htmlatt : function ( state, line, i ) {
-		var attr = edb.Compiler._ATTREXP;
-		var rest, name, dels, what;
-		if ( this._behind ( line, i, "@" )) {}
-		else if ( this._behind ( line, i, "#{" )) {} // @TODO onclick="#{@passed}" ???
-		else if ( this._ahead ( line, i, "@" )) {
-			state.body += "' + att._all () + '";
-			state.skip = 2;
-		} else {
-			rest = line.substring ( i + 1 );
-			name = attr.exec ( rest )[ 0 ];
-			dels = this._behind ( line, i, "-" );
-			what = dels ? "att._pop" : "att._out";
-			state.body = dels ? state.body.substring ( 0, state.body.length - 1 ) : state.body;
-			state.body += "' + " + what + " ( '" + name + "' ) + '";
-			state.skip = name.length + 1;
-		}
-	},
-
-	/*
-	 * Parse @ notation in script.Ptag
+	 * Parse @ notation in JS.
 	 * TODO: preserve email address and allow same-line @
 	 * @param {String} line
 	 * @param {number} i
 	 */
-	_scriptatt : function ( state, line, i ) {
+	_scriptatt : function ( runner, status, result ) {
 		var attr = edb.Compiler._ATTREXP;
 		var rest, name;
-		if ( this._behind ( line, i, "@" )) {} 
-		else if ( this._ahead ( line, i, "@" )) {
-			state.body += "var att = new edb.Att ();";
-			state.skip = 2;
+		if ( runner.behind ( "@" )) {} 
+		else if ( runner.ahead ( "@" )) {
+			result.body += "var att = new edb.Att ();";
+			status.skip = 2;
 		} else {
-			rest = line.substring ( i + 1 );
+			rest = runner.lineahead ();
 			name = attr.exec ( rest )[ 0 ];
 			if ( name ) {
-				state.body += rest.replace ( name, "att['" + name + "']" );
-				state.skip = rest.length;
+				result.body += rest.replace ( name, "att['" + name + "']" );
+				status.skip = rest.length;
 			} else {
 				throw "Bad @name: " + rest;
 			}
+		}
+	},
+
+	/*
+	 * Parse @ notation in HTML.
+	 * @param {String} line
+	 * @param {number} i
+	 */
+	_htmlatt : function ( runner, status, result ) {
+		var attr = edb.Compiler._ATTREXP;
+		var rest, name, dels, what;
+		if ( runner.behind ( "@" )) {}
+		else if ( runner.behind ( "#{" )) { console.error ( "todo" );} // onclick="#{@passed}"
+		else if ( runner.ahead ( "@" )) {
+			result.body += "' + att._all () + '";
+			status.skip = 2;
+		} else {
+			rest = runner.lineahead ();
+			name = attr.exec ( rest )[ 0 ];
+			dels = runner.behind ( "-" );
+			what = dels ? "att._pop" : "att._out";
+			result.body = dels ? result.body.substring ( 0, result.body.length - 1 ) : result.body;
+			result.body += "' + " + what + " ( '" + name + "' ) + '";
+			status.skip = name.length + 1;
 		}
 	},
 
@@ -2247,46 +2419,14 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 			body.substring ( spot ) +
 			"edb.Script.register ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
 		);
-	},
-
-	/**
-	 * Format script output.
-	 * @TODO Indent switch cases
-	 * @TODO Remove blank lines
-	 * @param {String} body
-	 * @returns {String}
-	 */
-	_format : function ( body ) {
-		var result = "",
-			tabs = "\t",
-			first = null,
-			last = null,
-			fixt = null,
-			flast = null;
-		body.split ( "\n" ).forEach ( function ( line ) {
-			line = line.trim ();
-			first = line.charAt ( 0 );
-			last = line.charAt ( line.length - 1 );
-			fixt = line.split ( "//" )[ 0 ].trim ();
-			flast = fixt.charAt ( fixt.length - 1 );
-			if (( first === "}" || first === "]" ) && tabs !== "" ) {				
-				tabs = tabs.slice ( 0, -1 );
-			}
-			result += tabs + line + "\n";
-			if ( last === "{" || last === "[" || flast === "{" || flast === "[" ) {
-				tabs += "\t";
-			}
-		});
-		return result;
 	}
 
 
 }, {}, { // Static ............................................................................
 
 	/**
-	 * @static
 	 * Matches a qualified attribute name (class,id,src,href) allowing 
-	 * underscores, dashes and dots while not starting with a number.
+	 * underscores, dashes and dots while not starting with a number. 
 	 * @TODO https://github.com/jshint/jshint/issues/383
 	 * @type {RegExp}
 	 */
@@ -2483,15 +2623,15 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 */
 	_declare : function ( script, head ) {
 		var funcs = [];
-		gui.Object.each ( this.functions, function ( name, func ) {
+		gui.Object.each ( this.functions, function ( name, src ) {
 			head.declarations [ name ] = true;
-			funcs.push ( name + " = functions [ '" + name + "' ];\n" );
+			funcs.push ( name + " = f.get ( '" + src + "', window );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
 			head.definitions.push ( 
-				"( function lookup ( functions ) {\n" +
+				"( function lookup ( f ) {\n" +
 				funcs.join ( "" ) +
-				"})( this.script.functions ());" 
+				"}( edb.Function ));"
 			);
 		}
 		return script;
@@ -2506,9 +2646,10 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	_define : function ( script, head ) {
 		var vars = "";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
-			vars += ", " + name + " = null";
+			vars += ", " + name;
 		});
 		var html = "var Out = edb.Out, Att = edb.Att, Tag = edb.Tag, out = new Out (), att = new Att ()" + vars +";\n";
+		//html += "console.debug('this function is: '+this);\n"
 		head.definitions.forEach ( function ( def ) {
 			html += def +"\n";
 		});
@@ -2545,6 +2686,37 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		} else {
 			throw ( exception );
 		}
+	},
+
+	/**
+	 * Format script output. DEPRECATED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	 * @TODO Indent switch cases
+	 * @TODO Remove blank lines
+	 * @param {String} body
+	 * @returns {String}
+	 */
+	_format : function ( body ) {
+		var result = "",
+			tabs = "\t",
+			first = null,
+			last = null,
+			fixt = null,
+			flast = null;
+		body.split ( "\n" ).forEach ( function ( line ) {
+			line = line.trim ();
+			first = line.charAt ( 0 );
+			last = line.charAt ( line.length - 1 );
+			fixt = line.split ( "//" )[ 0 ].trim ();
+			flast = fixt.charAt ( fixt.length - 1 );
+			if (( first === "}" || first === "]" ) && tabs !== "" ) {				
+				tabs = tabs.slice ( 0, -1 );
+			}
+			result += tabs + line + "\n";
+			if ( last === "{" || last === "[" || flast === "{" || flast === "[" ) {
+				tabs += "\t";
+			}
+		});
+		return result;
 	},
 
 	/**
@@ -2745,6 +2917,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		 */
 		this.pointer = this.spirit;
 		this.context = context;
+		//alert (this.context.document.location)
 		this.spirit = null;
 
 		this.tags = Object.create ( null );
@@ -2935,15 +3108,12 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {String} name
 	 * @param {String} src
 	 */
-	_functionload : function ( name, src ){
+	_functionload : function ( name, src ) {
 		src = gui.URL.absolute ( this.context.document, src );
-		var func = edb.Function.get ( src, this.context );
 		if ( !gui.Type.isDefined ( this.functions [ name ])) {
-			if ( func ) {
-				this.functions [ name ] = func;
-			} else {
+			this.functions [ name ] = src;
+			if ( !edb.Function.get ( src, this.context )) {
 				this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
-				this.functions [ name ] = src;
 			}
 		} else {
 			throw new Error ( "var \"" + name +  "\" already used" );
@@ -2955,11 +3125,13 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {String} src
 	 */
 	_functionloaded : function ( src ) {
+		/*
 		gui.Object.each ( this.functions, function ( name, value ) {
 			if ( value === src ) {
 				this.functions [ name ] = edb.Function.get ( src, this.context );
 			}
 		}, this );
+		*/
 		this._maybeready ();
 	},
 
@@ -3016,7 +3188,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_done : function () {
 		return [ "functions", "tags" ].every ( function ( map ) {
 			return Object.keys ( this [ map ] ).every ( function ( name ) {
-				return gui.Type.isFunction ( this [ map ][ name ]);
+				//return gui.Type.isFunction ( this [ map ][ name ]);
+				return edb.Function.get ( this [ map ][ name ], this.context ) !== null; // tag may be undefined...
 			}, this );
 		}, this );
 	},
@@ -3041,12 +3214,17 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {function}
 	 */
 	get : function ( src, win ) {
+		/*
+		if ( gui.Type.isWindow ( win )) {
+			console.warn ( "deprecated" );
+		}
+		*/
 		src = new gui.URL ( win.document, src ).href;
 		var has = gui.Type.isFunction ( this._map [ src ]);
 		if ( !has ) {
 			return this._load ( src, win );
 		}
-		return this._map [ src ];
+		return this._map [ src ] || null;
 	},
 
 
@@ -4889,11 +5067,11 @@ gui.module ( "edb", {
 	],
 
 	/**
-	 * Init module.
+	 * @TODO this may be a bit silly...
 	 * @TODO detect sandbox...
 	 * @param {Window} context
 	 */
-	init : function ( context ) {
+	oncontextinitialize : function ( context ) {
 		if ( context === gui.context ) { // TODO: better detect top context
 			if ( edb.Template && edb.TemplateLoader ) { // hack to bypass the sandbox (future project)
 				edb.Template.setImplementation ( 

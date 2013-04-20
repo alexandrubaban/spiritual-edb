@@ -252,6 +252,37 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	},
 
 	/**
+	 * Format script output. DEPRECATED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	 * @TODO Indent switch cases
+	 * @TODO Remove blank lines
+	 * @param {String} body
+	 * @returns {String}
+	 */
+	_format : function ( body ) {
+		var result = "",
+			tabs = "\t",
+			first = null,
+			last = null,
+			fixt = null,
+			flast = null;
+		body.split ( "\n" ).forEach ( function ( line ) {
+			line = line.trim ();
+			first = line.charAt ( 0 );
+			last = line.charAt ( line.length - 1 );
+			fixt = line.split ( "//" )[ 0 ].trim ();
+			flast = fixt.charAt ( fixt.length - 1 );
+			if (( first === "}" || first === "]" ) && tabs !== "" ) {				
+				tabs = tabs.slice ( 0, -1 );
+			}
+			result += tabs + line + "\n";
+			if ( last === "{" || last === "[" || flast === "{" || flast === "[" ) {
+				tabs += "\t";
+			}
+		});
+		return result;
+	},
+
+	/**
 	 * Transfer broken script source to script element and import on page.
 	 * Hopefully this will allow the developer console to aid in debugging.
 	 * TODO: Fallback for IE9 (see http://stackoverflow.com/questions/7405345/data-uri-scheme-and-internet-explorer-9-errors)

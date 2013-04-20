@@ -48,6 +48,27 @@ edb.Runner.prototype = {
 		return start >= 0 && line.substr ( start, length ) === string;
 	},
 
+	/**
+	 * Get line string from current position.
+	 * @returns {String}
+	 */
+	lineahead : function () {
+		return this._line.substring ( this._index + 1 );
+	},
+
+	/**
+	 * Space-stripped line text at index equals string?
+	 * @param {String} string
+	 * @returns {boolean}
+	 */
+	skipahead : function ( string ) {
+		console.error ( "TODO" );
+		/*
+		line = line.substr ( index ).replace ( / /g, "" );
+		return this._ahead ( line, 0, string );
+		*/
+	},
+
 	// Private ..........................................................
 
 	/**
@@ -63,8 +84,7 @@ edb.Runner.prototype = {
 	_index : -1,
 
 	/**
-	 * Run line.
-	 * @TODO Oldschool iteration is faster.
+	 * Run all lines.
 	 * @param {edb.Compiler} compiler
 	 * @param {Array<String>} lines
 	 * @param {edb.Status} status
@@ -72,18 +92,32 @@ edb.Runner.prototype = {
 	 */
 	_runlines : function ( compiler, lines, status, result ) {
 		var stop = lines.length - 1;
-		lines.forEach ( function ( line, i ) {
-			this._line = line;
-			this.firstline = i === 0;
-			this.lastline = i === stop;
-			compiler.online ( line, this, status, result );
-			this._runchars ( compiler, line.split ( "" ), status, result );
+		lines.forEach ( function ( line, index ) {
+			this.firstline = index === 0;
+			this.lastline = index === stop;
+			this._runline ( line, index, compiler, status, result );
 		}, this );
 	},
 
 	/**
-	 * Run chars.
-	 * @TODO Oldschool iteration is faster.
+	 * Run single line.
+	 * @param {String} line
+	 * @param {number} index
+	 * @param {edb.Compiler} compiler
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
+	 */
+	_runline : function ( line, index, compiler, status, result ) {
+		line = this._line = line.trim ();
+		if ( line.length ) {
+			compiler.newline ( line, this, status, result );
+			this._runchars ( compiler, line.split ( "" ), status, result );
+			compiler.endline ( line, this, status, result );
+		}
+	},
+
+	/**
+	 * Run all chars.
 	 * @param {edb.Compiler} compiler
 	 * @param {Array<String>} chars
 	 * @param {edb.Status} status
@@ -95,7 +129,7 @@ edb.Runner.prototype = {
 			this._index = i;
 			this.firstchar = i === 0;
 			this.lastchar = i === stop;
-			compiler.onchar ( c, this, status, result );
+			compiler.nextchar ( c, this, status, result );
 		}, this );
 	}
 };

@@ -90,10 +90,7 @@ edb.Type.decorateSetters = function ( proto, methods ) {
  */
 edb.Type.underscoreinstanceid = function ( instance ) {
 	Object.defineProperty ( instance, "_instanceid", {
-		value: instance.$instanceid,
-		enumerable : false,
-		configurable: false,
-		writable: false
+		value: instance.$instanceid
 	});
 };
 

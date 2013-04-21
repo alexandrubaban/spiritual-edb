@@ -6,13 +6,13 @@ edb.Status = function Status () {
 	this.conf = [];
 };
 
-// Static ..........................
+// Static ....................................................
 
 edb.Status.MODE_JS = "js";
 edb.Status.MODE_HTML = "html";
 edb.Status.MODE_TAG = "tag";
 
-// Instane .........................
+// Instance ..................................................
 
 edb.Status.prototype = {
 	mode : edb.Status.MODE_JS,

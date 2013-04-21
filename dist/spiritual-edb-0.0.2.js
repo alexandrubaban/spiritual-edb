@@ -127,10 +127,7 @@ edb.Type.decorateSetters = function ( proto, methods ) {
  */
 edb.Type.underscoreinstanceid = function ( instance ) {
 	Object.defineProperty ( instance, "_instanceid", {
-		value: instance.$instanceid,
-		enumerable : false,
-		configurable: false,
-		writable: false
+		value: instance.$instanceid
 	});
 };
 
@@ -1527,13 +1524,13 @@ edb.Status = function Status () {
 	this.conf = [];
 };
 
-// Static ..........................
+// Static ....................................................
 
 edb.Status.MODE_JS = "js";
 edb.Status.MODE_HTML = "html";
 edb.Status.MODE_TAG = "tag";
 
-// Instane .........................
+// Instance ..................................................
 
 edb.Status.prototype = {
 	mode : edb.Status.MODE_JS,
@@ -1609,134 +1606,47 @@ edb.Result = function Result ( text ) {
 edb.Result.prototype = {
 
 	/**
-	 * Result body.
+	 * Main result string.
 	 * @type {String}
 	 */
 	body : null,
 
 	/**
-	 * Mark the spot.
+	 * Temp string buffer.
+	 * @type {String}
 	 */
-	mark : function () {
-		this._spot = this.body.length - 1;
-	},
+	temp : null,
 
 	/**
-	 * Generate poke at marked spot.
-	 * @param {String} body
-	 * @param {number} spot
-	 * @param {String} func
-	 * @returns {String}
-	 */
-	poke : function ( func, index, sig ) {
-		sig = sig ?  ( ", &quot;" + sig + "&quot;" ) : "";
-		var body = this.body;
-		var spot = this._spot;
-		var prev = body.substring ( 0, spot );
-		var next = body.substring ( spot );
-		this.body = prev + "\n" + 
-			"var __edb__" + index + " = edb.Script.assign ( function ( value, checked ) { \n" +
-			func + ";\n}, this );" + next +
-			"edb.Script.register ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );";
-		this._spot = -1;
-	},
-
-	/**
-	 * Generate and inject poke function into main function body.
-	 * @param {String} body
-	 * @param {number} spot
-	 * @param {String} func
-	 * @returns {String}
-	 */
-	_inject : function ( body, spot, func, index, sig ) {
-		sig = sig ?  ( ", &quot;" + sig + "&quot;" ) : "";
-		return (
-			body.substring ( 0, spot ) + "\n" + 
-			"var __edb__" + index + " = edb.Script.assign ( function ( value, checked ) { \n" +
-			func + ";\n" +
-			"}, this );" +
-			body.substring ( spot ) +
-			"edb.Script.register ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
-		);
-	},
-
-	/**
-	 * Format result body.
+	 * Format result for readability.
 	 * @TODO Indent switch cases
 	 * @TODO Remove blank lines
-	 * @param {String} body
 	 * @returns {String}
 	 */
-	format : function ( body ) {
-		var result = "";
-		var tabs = "\t";
-		var first = null;
-		var last = null;
-		var fixt = null;
-		var flast = null;
+	format : function () {
+		var result = "",
+			tabs = "\t",
+			init = null,
+			last = null,
+			fixt = null,
+			hack = null;
 		this.body.split ( "\n" ).forEach ( function ( line ) {
 			line = line.trim ();
-			first = line.charAt ( 0 );
+			init = line.charAt ( 0 );
 			last = line.charAt ( line.length - 1 );
 			fixt = line.split ( "//" )[ 0 ].trim ();
-			flast = fixt.charAt ( fixt.length - 1 );
-			if (( first === "}" || first === "]" ) && tabs !== "" ) {				
+			hack = fixt.charAt ( fixt.length - 1 );
+			if (( init === "}" || init === "]" ) && tabs !== "" ) {				
 				tabs = tabs.slice ( 0, -1 );
 			}
 			result += tabs + line + "\n";
-			if ( last === "{" || last === "[" || flast === "{" || flast === "[" ) {
+			if ( last === "{" || last === "[" || hack === "{" || hack === "[" ) {
 				tabs += "\t";
 			}
 		});
 		return result;
-	},
-
-
-	// Private ................................................................
-
-	/**
-	 * @type {number}
-	 */
-	_spot : -1,
-
-	_poke : -1 // TODO: status.indx - bookkeep internally!
+	}
 };
-
-
-/**
- * Tracking compiler state.
- * @TODO Comments all over.
- * @param {String} body
- */
-edb.State = function ( body ) {
-	this.body = body || "";
-	this.conf = [];
-};
-
-edb.State.prototype = {
-	mode : edb.State.MODE_JS,
-	body : null,
-	peek : false,
-	poke : false,
-	cont : false,
-	adds : false,
-	func : null,
-	conf : null,
-	skip : 0,
-	last : 0,
-	spot : 0,
-	indx : 0,
-
-	// tags
-	refs : false // pass by reference in tags
-};
-
-
-// Static ..........................
-
-edb.State.MODE_JS = "js";
-edb.State.MODE_HTML = "html";
-edb.State.MODE_TAG = "tag";
 
 
 /**
@@ -2132,7 +2042,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 		}
 		if ( status.skip-- <= 0 ) {
 			if ( status.poke ) {
-				status.func += c;
+				result.temp += c;
 			} else {
 				if ( !status.istag ()) {
 					result.body += c;
@@ -2143,10 +2053,10 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 
 	/**
 	 * Compile character as script.
-	 * @param {edb.State} status
 	 * @param {String} c
-	 * @param {number} i
-	 * @param {String} line
+	 * @param {edb.Runner} runner
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
 	 */
 	_compilejs : function ( c, runner, status, result ) {
 		switch ( c ) {
@@ -2163,7 +2073,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 						this._bbb ( status );
 					} else {
 						status.gohtml ();
-						result.mark ();
+						status.spot = result.body.length - 1;
 						result.body += "out.html += '";
 					}
 				}
@@ -2176,10 +2086,10 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	
 	/**
 	 * Compile character as HTML.
-	 * @param {edb.State} status
 	 * @param {String} c
-	 * @param {number} i
-	 * @param {String} line
+	 * @param {edb.Runner} runner
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
 	 */
 	_compilehtml : function ( c, runner, status, result ) {
 		switch ( c ) {
@@ -2193,9 +2103,10 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 					result.body += ") + '";
 				}
 				if ( status.poke ) {
-					result.poke ( status.func, status.indx++, this._signature );
+					this._poke ( status, result );
 					status.poke = false;
-					status.func = null;
+					result.temp = null;
+					status.spot = -1;
 					status.skip = 1;
 				}
 				break;
@@ -2209,8 +2120,8 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 			case "#" :
 				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
 					status.poke = true;
-					status.func = "";
 					status.skip = 2;
+					result.temp = "";
 				}
 				break;
 			case "+" :
@@ -2227,86 +2138,17 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 				}
 				break;
 			case "@" :
-				//console.error ( "TODO" );
 				this._htmlatt ( runner, status, result );
 				break;
 		}
 	},
 
-	/*
-	_aaa : function ( status, line, i ) {
-		result.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
-		var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
-		var json = JSON.stringify ( gui.AttPlugin.getmap ( elem ), null, "\t" );
-		var atts = this._fixerupper ( json );
-		status.conf.push ( atts );
-	},
-
-	_bbb : function ( status ) {
-		result.body += "}, " + status.conf.pop () + ");";
-		status.conf = null;
-	},
-
-	_fixerupper : function ( json ) {
-
-		var status = new edb.State ();
-		result.body = "";
-
-
-		var lines = json.split ( "\n" );
-		lines.forEach ( function ( line, index ) {
-			Array.forEach ( line, function ( c, i ) {
-				switch ( c ) {
-					case "\"" :
-						if ( !status.peek && !status.poke ) {
-							if ( this._ahead ( line, i, "${" )) {
-								status.peek = true;
-								status.skip = 3;
-							} else if ( this._ahead ( line, i, "#{" )) {
-								status.poke = true;
-								status.skip = 3;
-								status.func = " function () {\n";
-								status.spot = result.body.length - 1;
-							}
-						}
-						break;
-					case "}" :
-						if ( status.peek || status.poke ) {
-							if ( this._skipahead ( line, i, "\"" )) {
-								if ( status.poke ) {
-									status.func += "\n}";
-									result.body = result.body.substring ( 0, status.spot ) + 
-									status.func + result.body.substring ( status.spot );
-								}
-								status.peek = false;
-								status.poke = false;
-								status.skip = 2;
-							}
-						}
-						break;
-				}
-				if ( status.skip-- <= 0 ) {
-					if ( status.poke ) {
-						status.func += c;
-					} else {
-						result.body += c;
-					}
-				}
-			}, this );
-			if ( index < lines.length - 1 ) {
-				result.body += "\n";
-			}
-		}, this );
-		return result.body; //.replace ( /"\${/g, "" ).replace ( /\}"/g, "" );
-	},
-	*/
-
 	/**
 	 * Compile character as tag.
-	 * @param {edb.State} status
 	 * @param {String} c
-	 * @param {number} i
-	 * @param {String} line
+	 * @param {edb.Runner} runner
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
 	 */
 	_compiletag : function ( status, c, i, line ) {
 		switch ( c ) {
@@ -2317,40 +2159,10 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 				}
 				break;
 			case ">" :
-				//status.tagt = false;
 				status.gojs ();
 				status.skip = 1;
 				break;
 		}
-	},
-
-	/**
-	 * @TODO
-	 * Space-stripped text before index equals string?
-	 * @param {String} line
-	 * @param {number} index
-	 * @param {String} string
-	 * @returns {boolean}
-	 *
-	_skipbehind : function ( line, index, string ) {
-		return this._behind ( line.replace ( / /g, "" ), index, string );
-	},
-	*/
-
-	/**
-	 * Tag start?
-	 * @param {String} line
-	 */
-	_tagstart : function ( line ) {
-		return this._ahead ( line, 0, "ole" );
-	},
-
-	/**
-	 * Tag stop?
-	 * @param {String} line
-	 */
-	_tagstop : function ( line ) {
-		return this._ahead ( line, 0, "/ole>" );
 	},
 
 	/*
@@ -2403,23 +2215,107 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	},
 
 	/**
-	 * Generate and inject poke function into main function body.
-	 * @param {String} body
-	 * @param {number} spot
-	 * @param {String} func
-	 * @returns {String}
+	 * Generate poke at marked spot.
 	 */
-	_inject : function ( body, spot, func, index ) {
-		var sig = this._signature ?  ( ", &quot;" + this._signature + "&quot;" ) : "";
-		return (
-			body.substring ( 0, spot ) + "\n" + 
-			"var __edb__" + index + " = edb.Script.assign ( function ( value, checked ) { \n" +
-			func + ";\n" +
-			"}, this );" +
-			body.substring ( spot ) +
-			"edb.Script.register ( event ).invoke ( &quot;\' + __edb__" + index + " + \'&quot;" + sig + " );"
-		);
+	_poke : function ( status, result ) {
+		var sig = this._signature ? ( ", &quot;" + this._signature + "&quot;" ) : "";
+		var body = result.body,
+			temp = result.temp,
+			spot = status.spot,
+			prev = body.substring ( 0, spot ),
+			next = body.substring ( spot ),
+			name = gui.KeyMaster.generateKey ( "poke" );
+		result.body = prev + "\n" + 
+			"var " + name + " = edb.Script.assign ( function ( value, checked ) { \n" +
+			temp + ";\n}, this );" + next +
+			"edb.Script.register ( event ).invoke ( &quot;\' + " + name + " + \'&quot;" + sig + " );";
 	}
+	
+
+	// TAGS .....................................................................
+
+	/**
+	 * Tag start?
+	 * @param {String} line
+	 *
+	_tagstart : function ( line ) {
+		return this._ahead ( line, 0, "ole" );
+	},
+
+	/**
+	 * Tag stop?
+	 * @param {String} line
+	 *
+	_tagstop : function ( line ) {
+		return this._ahead ( line, 0, "/ole>" );
+	},
+	
+	_aaa : function ( status, line, i ) {
+		result.body += "out.html += Tag.get ( '#ole', window )( function ( out ) {";
+		var elem = new gui.HTMLParser ( document ).parse ( line + "</ole>" )[ 0 ];
+		var json = JSON.stringify ( gui.AttPlugin.getmap ( elem ), null, "\t" );
+		var atts = this._fixerupper ( json );
+		status.conf.push ( atts );
+	},
+
+	_bbb : function ( status ) {
+		result.body += "}, " + status.conf.pop () + ");";
+		status.conf = null;
+	},
+
+	_fixerupper : function ( json ) {
+
+		var status = new edb.State ();
+		result.body = "";
+
+
+		var lines = json.split ( "\n" );
+		lines.forEach ( function ( line, index ) {
+			Array.forEach ( line, function ( c, i ) {
+				switch ( c ) {
+					case "\"" :
+						if ( !status.peek && !status.poke ) {
+							if ( this._ahead ( line, i, "${" )) {
+								status.peek = true;
+								status.skip = 3;
+							} else if ( this._ahead ( line, i, "#{" )) {
+								status.poke = true;
+								status.skip = 3;
+								result.temp = " function () {\n";
+								status.spot = result.body.length - 1;
+							}
+						}
+						break;
+					case "}" :
+						if ( status.peek || status.poke ) {
+							if ( this._skipahead ( line, i, "\"" )) {
+								if ( status.poke ) {
+									result.temp += "\n}";
+									result.body = result.body.substring ( 0, status.spot ) + 
+									result.temp + result.body.substring ( status.spot );
+								}
+								status.peek = false;
+								status.poke = false;
+								status.skip = 2;
+							}
+						}
+						break;
+				}
+				if ( status.skip-- <= 0 ) {
+					if ( status.poke ) {
+						result.temp += c;
+					} else {
+						result.body += c;
+					}
+				}
+			}, this );
+			if ( index < lines.length - 1 ) {
+				result.body += "\n";
+			}
+		}, this );
+		return result.body; //.replace ( /"\${/g, "" ).replace ( /\}"/g, "" );
+	}
+	*/
 
 
 }, {}, { // Static ............................................................................

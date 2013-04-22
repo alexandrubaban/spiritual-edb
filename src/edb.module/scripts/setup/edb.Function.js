@@ -390,15 +390,17 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 			sig = win.gui.signature;
 		new edb.TemplateLoader ( win.document ).load ( src,
 			function onload ( source, directives ) {
-				new Implementation ( null, win, function onreadystatechange () {
-					if ( this.readyState === edb.Template.READY ) {
-						func = Implementation._map [ src ] = this._function;
-						if ( directives.debug ) {
-							this.debug ();
+				if ( source ) {
+					new Implementation ( null, win, function onreadystatechange () {
+						if ( this.readyState === edb.Template.READY ) {
+							func = Implementation._map [ src ] = this._function;
+							if ( directives.debug ) {
+								this.debug ();
+							}
+							gui.Broadcast.dispatch ( null, cast, src, sig );
 						}
-						gui.Broadcast.dispatch ( null, cast, src, sig );
-					}
-				}).compile ( source, directives );
+					}).compile ( source, directives );
+				}
 			}
 		);
 		return func;

@@ -38,7 +38,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	 * @param {edb.Result} result
 	 */
 	endline : function  ( line, runner, status, result ) {
-		if ( !runner.firstline ) {
+		//if ( !runner.firstline ) {
 			if ( status.ishtml ()) {
 				if ( !status.cont ) {
 					result.body += "';\n";
@@ -47,7 +47,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 			} else {
 				result.body += "\n";
 			}
-		}
+		//}
 		status.cont = false;
 	},
 

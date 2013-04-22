@@ -73,11 +73,11 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 		var temp = this._document.createElement ( "div" );
 		temp.innerHTML = text;
 		var script = temp.querySelector ( url.hash || "script" );
-		if ( script ) {
+		if ( script ) {	
 			this.directives = gui.AttPlugin.getmap ( script );
 			return script.textContent;
 		} else {
-			console.error ( "No script found: " + url.location );
+			console.error ( "No such script: " + url.location + url.hash || "" );
 		}
 	}
 

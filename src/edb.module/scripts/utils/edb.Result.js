@@ -22,31 +22,40 @@ edb.Result.prototype = {
 
 	/**
 	 * Format result for readability.
-	 * @TODO Indent switch cases
-	 * @TODO Remove blank lines
 	 * @returns {String}
 	 */
 	format : function () {
-		var result = "",
-			tabs = "\t",
-			init = null,
-			last = null,
-			fixt = null,
-			hack = null;
-		this.body.split ( "\n" ).forEach ( function ( line ) {
-			line = line.trim ();
-			init = line.charAt ( 0 );
-			last = line.charAt ( line.length - 1 );
-			fixt = line.split ( "//" )[ 0 ].trim ();
-			hack = fixt.charAt ( fixt.length - 1 );
-			if (( init === "}" || init === "]" ) && tabs !== "" ) {				
-				tabs = tabs.slice ( 0, -1 );
-			}
-			result += tabs + line + "\n";
-			if ( last === "{" || last === "[" || hack === "{" || hack === "[" ) {
-				tabs += "\t";
-			}
-		});
-		return result;
+		return edb.Result.format ( this.body );
 	}
 };
+
+/**
+ * Format JS for readability.
+ * @TODO Indent switch cases
+ * @TODO Remove blank lines
+ * @param {String} body
+ * @returns {String}
+ */
+edb.Result.format = function ( body ) {
+	var result = "",
+		tabs = "\t",
+		init = null,
+		last = null,
+		fixt = null,
+		hack = null;
+	body.split ( "\n" ).forEach ( function ( line ) {
+		line = line.trim ();
+		init = line.charAt ( 0 );
+		last = line.charAt ( line.length - 1 );
+		fixt = line.split ( "//" )[ 0 ].trim ();
+		hack = fixt.charAt ( fixt.length - 1 );
+		if (( init === "}" || init === "]" ) && tabs !== "" ) {				
+			tabs = tabs.slice ( 0, -1 );
+		}
+		result += tabs + line + "\n";
+		if ( last === "{" || last === "[" || hack === "{" || hack === "[" ) {
+			tabs += "\t";
+		}
+	});
+	return result;
+}

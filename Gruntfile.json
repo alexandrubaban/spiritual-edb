@@ -19,6 +19,7 @@
 	"src/edb.module/scripts/compiler/edb.FunctionCompiler.js",
 	"src/edb.module/scripts/compiler/edb.ScriptCompiler.js",
 	"src/edb.module/scripts/compiler/edb.TagCompiler.js",
+	"src/edb.module/scripts/compiler/edb.Dependency.js",
 	"src/edb.module/scripts/setup/edb.Function.js",
 	"src/edb.module/scripts/setup/edb.Script.js",
 	"src/edb.module/scripts/setup/edb.Tag.js",

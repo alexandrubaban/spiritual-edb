@@ -40,7 +40,6 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 			case edb.BROADCAST_GETTER :
 				this._keys.add ( b.data );
 				break;
-			// one tick allows for multiple updates before we rerun the script
 			case edb.BROADCAST_SETTER :
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Template.WAITING ) {

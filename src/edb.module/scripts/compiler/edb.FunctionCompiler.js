@@ -16,16 +16,11 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	params : null,
 
 	/**
-	 * Required functions. Mapping src to variable name.
-	 * @type {Map<String,String>}
+	 * Required functions and tags. Mapping 
+	 * variable name to dependency tracker.
+	 * @type {Array<edb.Dependency>}
 	 */
-	functions : null,
-
-	/**
-	 * Required tags. Mapping src to variable name.
-	 * @type {Map<String,String>}
-	 */
-	tags : null,
+	dependencies : null,
 
 	/**
 	 * Mapping script tag attributes.
@@ -59,28 +54,28 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		
 	/**
 	 * Compile EDBML to invocable function.
-	 * @param {Window} scope Function to be declared in scope of this window (or worker context).
+	 * @param {Window} context
 	 * @param @optional {boolean} fallback
 	 * @returns {function}
 	 */
-	compile : function ( scope ) {
+	compile : function ( context ) {
 		var result = null;
+		this.dependencies = [];
 		this.params = [];
-		this.tags = Object.create ( null );
-		this.functions = Object.create ( null );
+		this._context = context;
 		this._vars = [];
 		var head = {
 			declarations : Object.create ( null ), // Map<String,boolean>
-			definitions : [] // Array<String>
+			functiondefs : [] // Array<String>
 		};
 		this.sequence.forEach ( function ( step ) {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
-			result = this._convert ( scope, this.source, this.params );
+			result = this._convert ( context, this.source, this.params );
 			this.source = this._source ( this.source, this.params );
 		} catch ( exception ) {
-			result = this._fail ( scope, exception );
+			result = this._fail ( context, exception );
 		}
 		return result;
 	},
@@ -99,6 +94,12 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 
 	// PRIVATE ..............................................................................
 	
+	/**
+	 * Function to be declared in this window (or worker scope).
+	 * @type {Window}
+	 */
+	_context : null,
+
 	/**
 	 * (Optionally) stamp a signature into edb.ScriptCompiler.invoke() callbacks.
 	 * @type {String} 
@@ -159,21 +160,32 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 * @param {edb.Instruction} pi
 	 */
 	_instruct : function ( pi ) {
+		var type = pi.type;
 		var atts = pi.atts;
-		switch ( pi.type ) {
+		var href = atts.src;
+		var name = atts.name;
+		var cont = this._context;
+		switch ( type ) {
 			case "param" :
-				this.params.push ( atts.name );
+				this.params.push ( name );
 				break;
 			case "function" :
-				this.functions [ atts.name ] = atts.src;
-				break;
 			case "tag" :
-				var name = atts.src.split ( "#" )[ 1 ];
-				if ( name ) {
-					this.tags [ name ] = atts.src;
-				} else {
-					throw new Error ( "Missing #identifier: " + atts.src );
+				if ( type === edb.Dependency.TYPE_TAG ) {
+					if ( href.contains ( "#" )) {
+						name = href.split ( "#" )[ 1 ];
+					} else {
+						throw new Error ( "Missing tag #identifier: " + href );
+					}
 				}
+				this.dependencies.push ( 
+					new edb.Dependency ( 
+						cont,
+						type,
+						name,
+						href
+					)
+				);
 				break;
 		}
 	},
@@ -186,13 +198,13 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 */
 	_declare : function ( script, head ) {
 		var funcs = [];
-		gui.Object.each ( this.functions, function ( name, src ) {
-			head.declarations [ name ] = true;
-			funcs.push ( name + " = f.get ( '" + src + "', window );\n" );
+		this.dependencies.forEach ( function ( dep ) {
+			head.declarations [ dep.name ] = true;
+			funcs.push ( dep.name + " = func.get ( '" + dep.href + "', window );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
-			head.definitions.push ( 
-				"( function lookup ( f ) {\n" +
+			head.functiondefs.push ( 
+				"( function lookup ( func ) {\n" +
 				funcs.join ( "" ) +
 				"}( edb.Function ));"
 			);
@@ -212,8 +224,7 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 			vars += ", " + name;
 		});
 		var html = "var Out = edb.Out, Att = edb.Att, Tag = edb.Tag, out = new Out (), att = new Att ()" + vars +";\n";
-		//html += "console.debug('this function is: '+this);\n"
-		head.definitions.forEach ( function ( def ) {
+		head.functiondefs.forEach ( function ( def ) {
 			html += def +"\n";
 		});
 		return html + script;
@@ -243,45 +254,14 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	_fail : function ( scope, exception ) {
 		if ( !this._failed ) {
 			this._failed = true;
-			this._debug ( scope, this._format ( this.source ));
+			this._debug ( scope, edb.Result.format ( this.source ));
 			this.source = "<p class=\"error\">" + exception.message + "</p>";
 			return this.compile ( scope, true );
 		} else {
 			throw ( exception );
 		}
 	},
-
-	/**
-	 * Format script output. DEPRECATED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	 * @TODO Indent switch cases
-	 * @TODO Remove blank lines
-	 * @param {String} body
-	 * @returns {String}
-	 */
-	_format : function ( body ) {
-		var result = "",
-			tabs = "\t",
-			first = null,
-			last = null,
-			fixt = null,
-			flast = null;
-		body.split ( "\n" ).forEach ( function ( line ) {
-			line = line.trim ();
-			first = line.charAt ( 0 );
-			last = line.charAt ( line.length - 1 );
-			fixt = line.split ( "//" )[ 0 ].trim ();
-			flast = fixt.charAt ( fixt.length - 1 );
-			if (( first === "}" || first === "]" ) && tabs !== "" ) {				
-				tabs = tabs.slice ( 0, -1 );
-			}
-			result += tabs + line + "\n";
-			if ( last === "{" || last === "[" || flast === "{" || flast === "[" ) {
-				tabs += "\t";
-			}
-		});
-		return result;
-	},
-
+	
 	/**
 	 * Transfer broken script source to script element and import on page.
 	 * Hopefully this will allow the developer console to aid in debugging.

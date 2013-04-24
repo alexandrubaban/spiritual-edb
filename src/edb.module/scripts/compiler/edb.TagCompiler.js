@@ -1,5 +1,5 @@
 /**
- * Tags are functions with boilerplate code.
+ * Compile function as tag. Tags are functions with boilerplate code.
  * @extends {edb.FunctionCompiler}
  */
 edb.TagCompiler = edb.FunctionCompiler.extend ( "edb.TagCompiler", {

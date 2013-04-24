@@ -35,20 +35,30 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 	},
 
 	/**
-	 * 
+	 * Declare.
+	 * @overloads {edb.FunctionCompiler} declare
 	 * @param {String} script
 	 * @returns {String}
 	 */
 	_declare : function ( script, head ) {
 		this._super._declare ( script, head );
+		return this._declareinputs ( script, head );
+	},
+
+	/**
+	 * Declare inputs.
+	 * @param {String} script
+	 * @returns {String}
+	 */
+	_declareinputs : function ( script, head ) {
 		var defs = [];
 		gui.Object.each ( this.inputs, function ( name, type ) {
 			head.declarations [ name ] = true;
-			defs.push ( name + " = __input__.get ( " + type + " );\n" );
+			defs.push ( name + " = input.get ( " + type + " );\n" );
 		}, this );
 		if ( defs [ 0 ]) {
-			head.definitions.push ( 
-				"( function lookup ( __input__ ) {\n" +
+			head.functiondefs.push ( 
+				"( function lookup ( input ) {\n" +
 				defs.join ( "" ) +
 				"})( this.script.input ());" 
 			);

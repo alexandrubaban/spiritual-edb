@@ -24,10 +24,17 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	params : null,
 
 	/**
-	 * Mapping dependencies while booting, converted to functions once resolved.
-	 * @type {Map<String,edb.Dependency|function>}
+	 * Note to self: While loading the function we 
+	 * are mapping variable name to function src...
+	 * @type {Map<String,String|function>}
 	 */
 	functions : null,
+
+	/**
+	 * Experiomental...
+	 * @type {Map<String,String|function>} ???????
+	 */
+	tags : null,
 	
 	/**
 	 * Construct.
@@ -37,7 +44,6 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	onconstruct : function ( pointer, context, handler ) {
 		this._super.onconstruct ( pointer, context, handler );
-		this.functions = Object.create ( null );
 		/*
 		 * Redefine these terms into concepts that makes more 
 		 * sense when runinng script inside a worker context. 
@@ -45,7 +51,11 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		 */
 		this.pointer = this.spirit;
 		this.context = context;
+		//alert (this.context.document.location)
 		this.spirit = null;
+
+		this.tags = Object.create ( null );
+		this.functions = Object.create ( null );
 	},
 	
 	/**
@@ -55,7 +65,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * 2. Compile source to invokable function 
 	 * 3. Preserve source for debugging
 	 * 4. Copy expected params
-	 * 5. Load required functions.
+	 * 5. Load required functions and tags.
 	 * 6. Report done whan all is loaded.
 	 * @overwrites {edb.Template#compile}
 	 * @param {String} source
@@ -71,7 +81,12 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 			this._function = compiler.compile ( this.context );
 			this._source = compiler.source;
 			this.params = compiler.params;
-			this._dependencies ( compiler );
+			gui.Object.each ( compiler.tags, function ( name, src ) {
+				this._tagload ( name, src );
+			}, this );
+			gui.Object.each ( compiler.functions, function ( name, src ) {
+				this._functionload ( name, src );
+			}, this );
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
 		}
@@ -83,24 +98,6 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	debug : function () {
 		console.debug ( this._source );
-	},
-
-	/**
-	 * Resolve dependencies.
-	 * @param {edb.Compiler} compiler
-	 */
-	_dependencies : function ( compiler ) {
-		compiler.dependencies.filter ( function ( dep ) {
-			return dep.type === edb.Dependency.TYPE_FUNCTION;
-		}).map ( function ( dep ) {
-			this.functions [ dep.name ] = null; // null all first
-			return dep;
-		}, this ).forEach ( function ( dep ) {
-			dep.resolve ().then ( function ( resolved ) {
-				this.functions [ dep.name ] = resolved;
-				this._maybeready ();
-			}, this );
-		}, this );
 	},
 
 	/**
@@ -141,6 +138,9 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		switch ( b.type ) {
 			case edb.BROADCAST_FUNCTION_LOADED :
 				this._functionloaded ( b.data );
+				break;
+			case edb.BROADCAST_TAG_LOADED :
+				this._tagloaded ( b.data );
 				break;
 		}
 	},
@@ -222,6 +222,82 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	},
 
 	/**
+	 * Load function from src.
+	 * @param {String} name
+	 * @param {String} src
+	 */
+	_tagload : function ( name, src ) {
+		src = gui.URL.absolute ( this.context.document, src );
+		if ( !gui.Type.isDefined ( this.tags [ name ])) {
+			this.tags [ name ] = src;
+			if ( !edb.Tag.get ( src, this.context )) {
+				this._await ( edb.BROADCAST_TAG_LOADED, true );
+			}
+		} else {
+			throw new Error ( "var \"" + name +  "\" already used" );
+		}
+		/*
+		var tag = edb.Tag.get ( src, this.context );
+		if ( tag ) {
+			this.tags [ name ] = tag;
+		} else {
+			this._await ( edb.BROADCAST_TAG_LOADED, true );
+			this.tags [ name ] = src;
+		}
+		*/
+	},
+
+	/**
+	 * Load function from src.
+	 * @param {String} name
+	 * @param {String} src
+	 */
+	_functionload : function ( name, src ) {
+		src = gui.URL.absolute ( this.context.document, src );
+		if ( !gui.Type.isDefined ( this.functions [ name ])) {
+			this.functions [ name ] = src;
+			if ( !edb.Function.get ( src, this.context )) {
+				this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
+			}
+		} else {
+			throw new Error ( "var \"" + name +  "\" already used" );
+		}
+	},
+
+	/**
+	 * Funtion loaded from src.
+	 * @param {String} src
+	 */
+	_functionloaded : function ( src ) {
+		this._maybeready ();
+	},
+
+	/**
+	 * Funtion loaded from src.
+	 * @param {String} src
+	 */
+	_tagloaded : function ( src ) {
+		/*
+		gui.Object.each ( this.tags, function ( name, value ) {
+			if ( value === src ) {
+				this.tags [ name ] = edb.Tag.get ( src, this.context );
+			}
+		}, this );
+		*/
+		this._maybeready ();
+	},
+
+	/**
+	 * Watch for incoming functions and tags.
+	 * @param {boolean} add
+	 */
+	_await : function ( msg, add ) {
+		var act = add ? "add" : "remove";
+		var sig = this.context.gui.signature;
+		gui.Broadcast [ act ] ( msg, this, sig );
+	},
+
+	/**
 	 * Report ready? Otherwise waiting 
 	 * for data types to initialize...
 	 */
@@ -229,6 +305,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		if ( this.readyState !== edb.Template.LOADING ) {
 			this._gostate ( edb.Template.WORKING );
 			if ( this._done ()) {
+				this._await ( edb.BROADCAST_TAG_LOADED, false );
+				this._await ( edb.BROADCAST_FUNCTION_LOADED, false );
 				this._gostate ( edb.Template.READY );
 			} else {
 				this._gostate ( edb.Template.WAITING );
@@ -241,8 +319,10 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {boolean}
 	 */
 	_done : function () {
-		return Object.keys ( this.functions ).every ( function ( name ) {
-			return this.functions [ name ] !== null;
+		return [ "functions", "tags" ].every ( function ( map ) {
+			return Object.keys ( this [ map ]).every ( function ( name ) {
+				return edb.Function.get ( this [ map ][ name ], this.context ) !== null; // tag may be undefined...
+			}, this );
 		}, this );
 	},
 	
@@ -267,7 +347,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	get : function ( src, win ) {
 		src = new gui.URL ( win.document, src ).href;
-		if ( !gui.Type.isFunction ( this._map [ src ])) {
+		var has = gui.Type.isFunction ( this._map [ src ]);
+		if ( !has ) {
 			return this._load ( src, win );
 		}
 		return this._map [ src ] || null;

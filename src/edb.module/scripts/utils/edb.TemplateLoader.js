@@ -24,8 +24,10 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 			this._cached ( url, callback, thisp );
 		} else if ( url.external ) {				
 			this._request ( url, callback, thisp );
-		} else {
+		} else if ( url.hash ) {
 			this._lookup ( url, callback, thisp );
+		} else {
+			console.error ( "Now what?" );
 		}
 	},
 
@@ -45,7 +47,8 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 		this.directives = null;
 	},
 	
-	// PRIVATES ........................................................
+
+	// PRIVATES ........................................................................
 	
 	/**
 	 * Lookup script in document DOM (as opposed to HTTP request).

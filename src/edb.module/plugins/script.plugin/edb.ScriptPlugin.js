@@ -70,6 +70,8 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	onconstruct : function () {
 		this._super.onconstruct ();
 		var spirit = this.spirit;
+		//this.functions = this.functions.bind ( this );
+		this.inputs = this.inputs.bind ( this );
 		if ( spirit instanceof edb.ScriptSpirit ) {
 			this.autorun = false;
 		} else if ( this.diff ) {
@@ -91,19 +93,22 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	},
 
 	/**
-	 * Mapping imported functions to declared variable names.
-	 * @returns {Map<String,function>}
-	 */
-	functions : function () {
-		return this._script.functions;
+	 * Return function for URI.
+	 * @param {String} href
+	 * @returns {function}
+	 *
+	functions : function ( href ) {
+		return edb.Function.get ( this.context, href );
 	},
+	*/
 
 	/**
-	 * Returns something to resolve expected script input (edb.Data).
-	 * returns {edb.Input}
+	 * Return data for input of type.
+	 * @param {function} type
+	 * @returns {object}
 	 */
-	input : function () {
-		return this._script.input;
+	inputs : function ( type ) {
+		return this._script.input.get ( type );
 	},
 
 	/**

@@ -260,12 +260,11 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Get function for SRC.
-	 * @TODO pass document not window	
-	 * @param {String} src
 	 * @param {Window} win
+	 * @param {String} src
 	 * @returns {function}
 	 */
-	get : function ( src, win ) {
+	get : function ( win, src ) {
 		src = new gui.URL ( win.document, src ).href;
 		if ( !gui.Type.isFunction ( this._map [ src ])) {
 			return this._load ( src, win );
@@ -329,3 +328,11 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	useblob : true
 
 });
+
+/**
+ * Allow function get to be thrown around. 
+ * Might benefit some template readability.
+ */
+( function bind () {
+	edb.Function.get = edb.Function.get.bind ( edb.Function );
+}());

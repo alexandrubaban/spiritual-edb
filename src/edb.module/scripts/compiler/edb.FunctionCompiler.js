@@ -72,10 +72,10 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
-			result = this._convert ( context, this.source, this.params );
+			result = this._convert ( this.source, this.params );
 			this.source = this._source ( this.source, this.params );
 		} catch ( exception ) {
-			result = this._fail ( context, exception );
+			result = this._fail ( exception );
 		}
 		return result;
 	},
@@ -200,17 +200,41 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var funcs = [];
 		this.dependencies.forEach ( function ( dep ) {
 			head.declarations [ dep.name ] = true;
-			funcs.push ( dep.name + " = func.get ( '" + dep.href + "', window );\n" );
+			funcs.push ( dep.name + " = functions ( self, '" + dep.href + "' );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
 			head.functiondefs.push ( 
-				"( function lookup ( func ) {\n" +
+				"( function lookup ( functions ) {\n" +
 				funcs.join ( "" ) +
-				"}( edb.Function ));"
+				"}( edb.Function.get ));"
 			);
 		}
 		return script;
 	},
+
+	/**
+	 * Remove processing instrutions and translate collected inputs to variable declarations.
+	 * @param {String} script
+	 * @param {What?} head
+	 * @returns {String}
+	 *
+	_declare : function ( script, head ) {
+		var funcs = [];
+		this.dependencies.forEach ( function ( dep ) {
+			head.declarations [ dep.name ] = true;
+			funcs.push ( dep.name + " = functions ( '" + dep.href + "' );\n" );
+		}, this );
+		if ( funcs [ 0 ]) {
+			head.functiondefs.push ( 
+				"if (!this.script ) { alert(this);}\n" +
+				"( function lookup ( functions ) {\n" +
+				funcs.join ( "" ) +
+				"}( this.script.functions ));"
+			);
+		}
+		return script;
+	},
+	*/
 
 	/**
 	 * Define more stuff in head.
@@ -232,31 +256,30 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	
 	/**
 	 * Evaluate script to invocable function.
-	 * @param {Window} scope
 	 * @param {String} script
 	 * @param @optional (Array<String>} params
 	 * @returns {function}
 	 */
-	_convert : function ( scope, script, params ) {
-		var args = "";
+	_convert : function ( script, params ) {
+		var args = "", context = this._context;
 		if ( gui.Type.isArray ( params )) {
 			args = params.join ( "," );
 		}
-		return new scope.Function ( args, script );
+		return new context.Function ( args, script );
 	},
 
 	/**
 	 * Compilation failed. Output a fallback rendering.
-	 * @param {Window} scope
 	 * @param {Error} exception
 	 * @returns {function}
 	 */
-	_fail : function ( scope, exception ) {
+	_fail : function ( exception ) {
+		var context = this._context;
 		if ( !this._failed ) {
 			this._failed = true;
-			this._debug ( scope, edb.Result.format ( this.source ));
+			this._debug ( edb.Result.format ( this.source ));
 			this.source = "<p class=\"error\">" + exception.message + "</p>";
-			return this.compile ( scope, true );
+			return this.compile ( context, true );
 		} else {
 			throw ( exception );
 		}
@@ -267,15 +290,15 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 * Hopefully this will allow the developer console to aid in debugging.
 	 * TODO: Fallback for IE9 (see http://stackoverflow.com/questions/7405345/data-uri-scheme-and-internet-explorer-9-errors)
 	 * TODO: Migrate this stuff to the gui.BlobLoader
-	 * @param {Window} scope
 	 * @param {String} source
 	 */
-	_debug : function ( scope, source ) {
+	_debug : function ( source ) {
+		var context = this._context;
 		if ( window.btoa ) {
-			source = scope.btoa ( "function debug () {\n" + source + "\n}" );
-			var script = scope.document.createElement ( "script" );
+			source = context.btoa ( "function debug () {\n" + source + "\n}" );
+			var script = context.document.createElement ( "script" );
 			script.src = "data:text/javascript;base64," + source;
-			scope.document.querySelector ( "head" ).appendChild ( script );
+			context.document.querySelector ( "head" ).appendChild ( script );
 			script.onload = function () {
 				this.parentNode.removeChild ( this );
 			};

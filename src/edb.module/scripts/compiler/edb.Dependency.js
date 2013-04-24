@@ -36,7 +36,7 @@ edb.Dependency.prototype = {
 	 * @param {Window} context
 	 */
 	resolve : function () {
-		var res = edb.Function.get ( this.href, this._context );
+		var res = edb.Function.get ( this._context, this.href );
 		var then = this._then = new gui.Then ();
 		if ( res ) {
 			then.now ( res );
@@ -58,7 +58,7 @@ edb.Dependency.prototype = {
 		switch ( b.type ) {
 			case edb.BROADCAST_FUNCTION_LOADED :
 				if ( b.data === this.href ) {
-					this._then.now ( edb.Function.get ( this.href, this._context ));
+					this._then.now ( edb.Function.get ( this._context, this.href ));
 					gui.Broadcast.remove ( b.type, this, b.signature );
 					this._context = null;
 					this._then = null;

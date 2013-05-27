@@ -213,6 +213,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
 	 * Experimental.
+	 * @TODO sort of shadows edb.Function.get !!!!!!!!!!!!!!!!!!!!!!!!!
 	 * @param {String} key
 	 * @returns {edb.Script}
 	 */

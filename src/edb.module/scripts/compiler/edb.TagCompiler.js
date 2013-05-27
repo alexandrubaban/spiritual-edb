@@ -15,6 +15,7 @@ edb.TagCompiler = edb.FunctionCompiler.extend ( "edb.TagCompiler", {
 			var content = edb.TagCompiler._CONTENT;
 			this.params.push ( "content" );
 			this.params.push ( "attribs" );
+			this.params.push ( "COMPILED_AS_TAG" );
 			script = "att = new Att ( attribs );\n" + script;
 			script = script.replace ( content, "content ( out );" );
 

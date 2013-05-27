@@ -3,7 +3,7 @@
  * @param {object} data
  * @param {function} type
  */
-edb.Input = function SpiritInput ( type, data ) {
+edb.Input = function Input ( type, data ) {
 	this.type = type || null;
 	this.data = data || null;
 };

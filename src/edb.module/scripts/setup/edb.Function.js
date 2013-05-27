@@ -82,6 +82,10 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * Log script source to console.
 	 */
 	debug : function () {
+		if(this._debugt){
+			throw new Error ( "WHY TWICE?" );
+		}
+		this._debugt = true;
 		console.debug ( this._source );
 	},
 
@@ -91,7 +95,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	_dependencies : function ( compiler ) {
 		compiler.dependencies.filter ( function ( dep ) {
-			return dep.type === edb.Dependency.TYPE_FUNCTION;
+			return true; // return dep.type === edb.Dependency.TYPE_FUNCTION;
 		}).map ( function ( dep ) {
 			this.functions [ dep.name ] = null; // null all first
 			return dep;
@@ -265,6 +269,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {function}
 	 */
 	get : function ( win, src ) {
+		//alert ( this + " : Getting " + src )
 		src = new gui.URL ( win.document, src ).href;
 		if ( !gui.Type.isFunction ( this._map [ src ])) {
 			return this._load ( src, win );
@@ -295,6 +300,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {function} only if sync (otherwise we wait for broadcast)
 	 */
 	_load : function ( src, win ) {
+		//alert( this + " loading " + src );
 		var func = null, 
 			Implementation = this, 
 			cast = this._broadcast, 
@@ -306,6 +312,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 						if ( this.readyState === edb.Template.READY ) {
 							func = Implementation._map [ src ] = this._function;
 							if ( directives.debug ) {
+								//alert( this + " ready " + src);
 								this.debug ();
 							}
 							gui.Broadcast.dispatch ( null, cast, src, sig );

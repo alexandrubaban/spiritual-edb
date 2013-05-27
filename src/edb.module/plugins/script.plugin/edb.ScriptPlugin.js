@@ -120,19 +120,25 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 */
 	load : function ( src, type ) {
 		var context = this.spirit.window;
+		if (this.spirit.document.title==="Tagged"){
+			alert(this.spirit + " load!")
+		}
 		edb.Template.load ( context, src, type || this.type, function ( script ) {
 			this._compiled ( script );
 		}, this );
 	},
 
 	/**
-	 * Compile script from source text and run it when ready.
+	 * Compile script from source TEXT and run it when ready.
 	 * @param {String} source Script source code
 	 * @param @optional {String} type Script mimetype (eg "text/edbml")
 	 * @param @optional {HashMap<String,String>} directives Optional compiler directives
 	 */
 	compile : function ( source, type, directives ) {
 		var context = this.spirit.window;
+		if (this.spirit.document.title==="Tagged"){
+			alert(this.spirit + " compile!")
+		}
 		edb.Template.compile ( context, source,  type || this.type, directives, function ( script ) {
 			this._compiled ( script );
 		}, this );
@@ -206,9 +212,15 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	_compiled : function ( script ) {
 		this._script = script;
 		this.loaded = true;
+		if (this.spirit.document.title==="Tagged"){
+			alert(this.spirit + " compiled")
+		}
+		console.debug("debug supressed while debugging it happening twice...")
+		/*
 		if ( this.debug ) {
 			this._script.debug ();
 		}
+		*/
 		if ( this.autorun ) {
 			this.run ();
 		}
@@ -218,7 +230,8 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 }, { // STATICS .........................................................................
 
 	/**
-	 * Construct when spirit constructs.
+	 * Constructed immediately.
+	 * @overwrites (gui.Plugin#lazy)
 	 * @type {boolean}
 	 */
 	lazy : false

@@ -14,7 +14,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 * Map the attribute "gui.debug" to simply "debug".
 	 * @TODO Deprecate this silliness at some point...
 	 */
-	config : {
+	attconfig : {
 		map : {
 			"debug" : "debug"
 		}

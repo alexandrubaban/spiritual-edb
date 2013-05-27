@@ -379,7 +379,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	 * @returns {String}
 	 */
 	_inject : function ( body, spot, func, index ) {
-		var sig = this._signature ?  ( ", &quot;" + this._signature + "&quot;" ) : "";
+		var sig = this._$contextid ?  ( ", &quot;" + this._$contextid + "&quot;" ) : "";
 		return (
 			body.substring ( 0, spot ) + "\n" + 
 			"var __edb__" + index + " = edb.Script.assign ( function ( value, checked ) { \n" +

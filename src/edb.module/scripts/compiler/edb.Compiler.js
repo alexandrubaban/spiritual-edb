@@ -248,7 +248,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	 * Generate poke at marked spot.
 	 */
 	_poke : function ( status, result ) {
-		var sig = this._signature ? ( ", &quot;" + this._signature + "&quot;" ) : "";
+		var sig = this._$contextid ? ( ", &quot;" + this._$contextid + "&quot;" ) : "";
 		var body = result.body,
 			temp = result.temp,
 			spot = status.spot,

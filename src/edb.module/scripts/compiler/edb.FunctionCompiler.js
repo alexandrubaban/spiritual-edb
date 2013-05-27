@@ -82,13 +82,13 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	},
 
 	/**
-	 * Sign generated methods with a gui.signature key. This allows us to evaluate assigned 
+	 * Sign generated methods with a gui.$contextid key. This allows us to evaluate assigned 
 	 * functions in a context different to where the template HTML is used (sandbox scenario).
-	 * @param {String} signature
+	 * @param {String} $contextid
 	 * @returns {edb.ScriptCompiler}
 	 */
-	sign : function ( signature ) {
-		this._signature = signature;
+	sign : function ( $contextid ) {
+		this._$contextid = $contextid;
 		return this;
 	},
 	
@@ -102,10 +102,10 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	_context : null,
 
 	/**
-	 * (Optionally) stamp a signature into edb.ScriptCompiler.invoke() callbacks.
+	 * (Optionally) stamp a $contextid into edb.ScriptCompiler.invoke() callbacks.
 	 * @type {String} 
 	 */
-	_signature : null,
+	_$contextid : null,
 
 	/**
 	 * Script processing intstructions.

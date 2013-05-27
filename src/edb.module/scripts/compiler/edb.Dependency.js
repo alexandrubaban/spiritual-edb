@@ -1,6 +1,6 @@
 /**
  * Tracking a single function dependency.
- * @param {Window} context @TODO: use signature instead...
+ * @param {Window} context @TODO: use $contextid instead...
  * @param {String} type
  * @param {String} name
  * @param {String} href
@@ -43,7 +43,7 @@ edb.Dependency.prototype = {
 		} else {
 			gui.Broadcast.add ( 
 				edb.BROADCAST_FUNCTION_LOADED, 
-				this, this._context.gui.signature 
+				this, this._context.gui.$contextid 
 			);
 		}
 		return then;
@@ -59,7 +59,7 @@ edb.Dependency.prototype = {
 			case edb.BROADCAST_FUNCTION_LOADED :
 				if ( b.data === this.href ) {
 					this._then.now ( this._source ().get ( this._context, this.href ));
-					gui.Broadcast.remove ( b.type, this, b.signature );
+					gui.Broadcast.remove ( b.type, this, b.$contextid );
 					this._context = null;
 					this._then = null;
 				}
@@ -86,7 +86,7 @@ edb.Dependency.prototype = {
 	// Private .......................................
 
 	/**
-	 * @TODO: use signature instead...
+	 * @TODO: use $contextid instead...
 	 * @type {Window}
 	 */
 	_context : null,

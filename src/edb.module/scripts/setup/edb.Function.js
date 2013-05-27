@@ -65,8 +65,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	compile : function ( source, directives ) {
 		if ( this._function === null ) {
 			var compiler = this._compiler = new ( this._Compiler ) ( source, directives );
-			if ( this._signature ) { 
-				compiler.sign ( this._signature );
+			if ( this._$contextid ) { 
+				compiler.sign ( this._$contextid );
 			}
 			this._function = compiler.compile ( this.context );
 			this._source = compiler.source;
@@ -109,11 +109,11 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Sign generated methods for sandbox scenario.
-	 * @param {String} signature
+	 * @param {String} $contextid
 	 * @returns {edb.Function}
 	 */
-	sign : function ( signature ) {
-		this._signature = signature;
+	sign : function ( $contextid ) {
+		this._$contextid = $contextid;
 		return this;
 	},
 	
@@ -160,10 +160,10 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_function : null,
 	
 	/**
-	 * Optionally stamp a signature into generated edb.Script.invoke() callbacks.
+	 * Optionally stamp a $contextid into generated edb.Script.invoke() callbacks.
 	 * @type {String} 
 	 */
-	_signature : null,
+	_$contextid : null,
 
 	/**
 	 * Compiler implementation (subclass may overwrite it).
@@ -304,7 +304,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		var func = null, 
 			Implementation = this, 
 			cast = this._broadcast, 
-			sig = win.gui.signature;
+			sig = win.gui.$contextid;
 		new edb.TemplateLoader ( win.document ).load ( src,
 			function onload ( source, directives ) {
 				if ( source ) {

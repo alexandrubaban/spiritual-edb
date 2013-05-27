@@ -44,7 +44,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Template.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
-						var sig = this.context.gui.signature;
+						var sig = this.context.gui.$contextid;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );	
 						this._gostate ( edb.Template.WAITING );
 					}

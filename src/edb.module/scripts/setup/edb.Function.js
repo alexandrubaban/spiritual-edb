@@ -83,7 +83,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	debug : function () {
 		if(this._debugt){
-			throw new Error ( "WHY TWICE?" );
+			console.warn ( "WHY TWICE?" );
 		}
 		this._debugt = true;
 		console.debug ( this._source );

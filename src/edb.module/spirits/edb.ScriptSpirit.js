@@ -10,13 +10,19 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 */
 	debug : false,
 	
+	onconfigure : function () {
+		this._super.onconfigure ();
+		this.att.add ( "debug" );
+	},
+
 	/**
-	 * Map the attribute "gui.debug" to simply "debug".
-	 * @TODO Deprecate this silliness at some point...
+	 * Map "debug" attribute to this.debug
+	 * @param {gui.Att} att
 	 */
-	attconfig : {
-		map : {
-			"debug" : "debug"
+	onatt : function ( att ) {
+		this._super.onatt ( att );
+		if ( att.name === "debug" ) {
+			this.debug = att.value;
 		}
 	},
 	
@@ -38,6 +44,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	/**
 	 * Is plain JS?
 	 * TODO: regexp this not to break on vendor subsets (e4x etc)
+	 * TODO: forget about it, just require contains "edbml" ignorecase
 	 * @returns {boolean}
 	 */
 	_plainscript : function () {
@@ -56,8 +63,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 
 	/**
 	 * Init an {edb.ScriptPlugin} from source code. If this script is placed directly
-	 * inside a parent spirit, we target the parent spirits {edb.ScriptPlugin}. To avoid 
-	 * such a scenario, perhaps scripts might be placed in the document HEAD section.
+	 * inside a parent spirit, we target the parent spirits {edb.ScriptPlugin} (explain more)
 	 */
 	_initplugin : function () {
 		var src = this.att.get ( "src" ) || this.src,

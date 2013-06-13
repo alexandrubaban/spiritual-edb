@@ -158,7 +158,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 				)
 			);
 		} else {
-			console.warn ( "Running uncompiled script" );
+			console.error ( "Running uncompiled script" );
 		}
 	},
 	
@@ -215,12 +215,13 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		if (this.spirit.document.title==="Tagged"){
 			alert(this.spirit + " compiled")
 		}
-		console.debug("debug supressed while debugging it happening twice...")
-		/*
+		
+		console.warn("debug should be supressed while debugging it happening twice...")
+		
 		if ( this.debug ) {
 			this._script.debug ();
 		}
-		*/
+		
 		if ( this.autorun ) {
 			this.run ();
 		}

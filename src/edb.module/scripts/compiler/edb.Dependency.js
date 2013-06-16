@@ -51,8 +51,7 @@ edb.Dependency.prototype = {
 
 	/**
 	 * Handle broadcast.
-	 * @param  {[type]} b [description]
-	 * @return {[type]}   [description]
+	 * @param {gui.Broadcast} b
 	 */
 	onbroadcast : function ( b ) {
 		switch ( b.type ) {

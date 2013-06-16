@@ -64,8 +64,8 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 	},
 
 	/**
-	 * EDBML templates are loaded as HTML documents with one or more script 
-	 * tags. The requested script should have an @id to match the URL #hash.  
+	 * Templates are loaded as HTML documents with one or more script tags. 
+	 * The requested script should have an @id to match the URL #hash.  
 	 * If no hash was given, we return the source code of first script found.
 	 * @param {String} text HTML with one or more script tags
 	 * TODO: cache this stuff for repeated lookups!
@@ -73,9 +73,8 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 	 * @returns {String} Template source code
 	 */
 	_extract : function ( text, url ) {
-		var temp = this._document.createElement ( "div" );
-		temp.innerHTML = text;
-		var script = temp.querySelector ( url.hash || "script" );
+		var doc = gui.HTMLParser.parseToDocument ( text ); // @TODO: cache this
+		var script = doc.querySelector ( url.hash || "script" );
 		if ( script ) {	
 			this.directives = gui.AttPlugin.getmap ( script );
 			return script.textContent;

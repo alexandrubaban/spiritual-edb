@@ -5,20 +5,19 @@
 edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 
 	/**
-	 * Compiled script source.
+	 * Source of compiled function.
 	 * @type {String}
 	 */
 	source : null,
 	
 	/**
-	 * Arguments expected for compiled function. 
+	 * Compiled function arguments list. 
 	 * @type {Array<String>}
 	 */
 	params : null,
 
 	/**
-	 * Required functions and tags. Mapping 
-	 * variable name to dependency tracker.
+	 * Imported functions and tags.
 	 * @type {Array<edb.Dependency>}
 	 */
 	dependencies : null,
@@ -212,30 +211,6 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		}
 		return script;
 	},
-
-	/**
-	 * Remove processing instrutions and translate collected inputs to variable declarations.
-	 * @param {String} script
-	 * @param {What?} head
-	 * @returns {String}
-	 *
-	_declare : function ( script, head ) {
-		var funcs = [];
-		this.dependencies.forEach ( function ( dep ) {
-			head.declarations [ dep.name ] = true;
-			funcs.push ( dep.name + " = functions ( '" + dep.href + "' );\n" );
-		}, this );
-		if ( funcs [ 0 ]) {
-			head.functiondefs.push ( 
-				"if (!this.script ) { alert(this);}\n" +
-				"( function lookup ( functions ) {\n" +
-				funcs.join ( "" ) +
-				"}( this.script.functions ));"
-			);
-		}
-		return script;
-	},
-	*/
 
 	/**
 	 * Define more stuff in head.

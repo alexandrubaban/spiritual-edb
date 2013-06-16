@@ -101,14 +101,12 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 */
 	_update : function ( element ) {
 		var current = element.getAttribute ( this._name );
-		if ( current.contains ( this._key )) {
-			if ( element.spirit ) {
-				element.spirit.att.set ( this._name, this._value );
-			} else {
-				element.setAttribute ( this._name, this._value );
-			}
+		if ( current && current.contains ( this._key )) {
+			element.setAttribute ( this._name, this._value );
 		} else {
-			console.error ( "Target was moved: " + this._selector ); // TODO: test with soft update
+			console.warn ( "Softupdate dysfunction? " + this._key + " not found in " + current );
+			//console.log ( this._name, this._key );
+			//console.error ( "Target was moved: " + this._selector ); // TODO: test with soft update
 		}
 	},
 

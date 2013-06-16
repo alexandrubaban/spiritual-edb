@@ -93,16 +93,6 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	},
 
 	/**
-	 * Return function for URI.
-	 * @param {String} href
-	 * @returns {function}
-	 *
-	functions : function ( href ) {
-		return edb.Function.get ( this.context, href );
-	},
-	*/
-
-	/**
 	 * Return data for input of type.
 	 * @param {function} type
 	 * @returns {object}
@@ -123,9 +113,11 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		if (this.spirit.document.title==="Tagged"){
 			alert(this.spirit + " load!")
 		}
-		edb.Template.load ( context, src, type || this.type, function ( script ) {
-			this._compiled ( script );
-		}, this );
+		edb.Template.load ( context, src, type || this.type, 
+			function onready ( script ) {
+				this._onready ( script );
+			},
+		this );
 	},
 
 	/**
@@ -139,9 +131,11 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		if (this.spirit.document.title==="Tagged"){
 			alert(this.spirit + " compile!")
 		}
-		edb.Template.compile ( context, source,  type || this.type, directives, function ( script ) {
-			this._compiled ( script );
-		}, this );
+		edb.Template.compile ( context, source,  type || this.type, directives, 
+			function onready ( script ) {
+				this._onready ( script );
+			}, 
+		this );
 	},
 
 	/**
@@ -205,28 +199,23 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	_updater : null,
 
 	/**
-	 * Script compiled. Let's do this.
-	 * @TODO life-event should probably go here...
+	 * Handle script state change.
 	 * @param {edb.Script} script
 	 */
-	_compiled : function ( script ) {
-		this._script = script;
-		this.loaded = true;
-		if (this.spirit.document.title==="Tagged"){
-			alert(this.spirit + " compiled")
-		}
-		
-		console.warn("debug should be supressed while debugging it happening twice...")
-		
-		if ( this.debug ) {
-			this._script.debug ();
-		}
-		
-		if ( this.autorun ) {
-			this.run ();
+	_onready : function ( script ) {
+		if ( script.readyState === edb.Template.READY ) { // apparently the only one we get :/
+			if ( !this._loaded ) {
+				this.loaded = true;
+				this._script = script;
+				if ( this.debug ) {
+					script.debug ();
+				}
+			}
+			if ( this.autorun ) {
+				this.run ();
+			}
 		}
 	}
-
 
 }, { // STATICS .........................................................................
 

@@ -4,20 +4,6 @@
 edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 
 	/**
-	 * Compile EDBML source to function body.
-	 * @param {String} script
-	 * @returns {String}
-	 */
-	_compile : function ( script ) {
-		var runner = new edb.Runner (); 
-		var status = new edb.Status ();
-		var result = new edb.Result ( '"use strict";\n' );
-		runner.run ( this, script, status, result );
-		result.body += ( status.ishtml () ? "';" : "" ) + "\nreturn out.write ();";
-		return result.format ();
-	},
-
-	/**
 	 * Line begins.
 	 * @param {String} line
 	 * @param {edb.Runner} runner
@@ -38,16 +24,14 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	 * @param {edb.Result} result
 	 */
 	endline : function  ( line, runner, status, result ) {
-		//if ( !runner.firstline ) {
-			if ( status.ishtml ()) {
-				if ( !status.cont ) {
-					result.body += "';\n";
-					status.gojs ();
-				}
-			} else {
-				result.body += "\n";
+		if ( status.ishtml ()) {
+			if ( !status.cont ) {
+				result.body += "';\n";
+				status.gojs ();
 			}
-		//}
+		} else {
+			result.body += "\n";
+		}
 		status.cont = false;
 	},
 
@@ -81,6 +65,23 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 		}
 	},
 
+
+	// Private .....................................................
+	
+	/**
+	 * Compile EDBML source to function body.
+	 * @param {String} script
+	 * @returns {String}
+	 */
+	_compile : function ( script ) {
+		var runner = new edb.Runner (); 
+		var status = new edb.Status ();
+		var result = new edb.Result ( '"use strict";\n' );
+		runner.run ( this, script, status, result );
+		result.body += ( status.ishtml () ? "';" : "" ) + "\nreturn out.write ();";
+		return result.format ();
+	},
+
 	/**
 	 * Compile character as script.
 	 * @param {String} c
@@ -99,7 +100,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 						status.gotag ();
 						this._aaa ( status, line, i );
 					} else if ( false && ( tag = this._tagstop ( line ))) {
-						status.gotag (); // js ??????????????????????????????????
+						status.gotag (); // js?
 						this._bbb ( status );
 					} else {
 						status.gohtml ();

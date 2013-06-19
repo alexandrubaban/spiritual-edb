@@ -67,17 +67,15 @@ edb.Dependency.prototype = {
 	},
 
 	/**
-	 * Compute relevant function repository.
+	 * Compute relevant place to lookup compiled functions.
 	 * @returns {function}
 	 */
 	_source : function () {
 		switch ( this.type ) {
 			case edb.Dependency.TYPE_FUNCTION :
 				return edb.Function;
-				break;
 			case edb.Dependency.TYPE_TAG :
 				return edb.Tag;
-				break;
 		}
 	},
 

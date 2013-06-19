@@ -1,5 +1,5 @@
 /**
- * Tracking EDB input.
+ * Tracking EDB input. Note that the {edb.Script} is uisng this plugin (though it's not a spirit).
  * @extends {gui.Tracker}
  */
 edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
@@ -16,7 +16,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	onconstruct : function () {
 		this._super.onconstruct ();
-		gui.Broadcast.addGlobal ( edb.BROADCAST_OUTPUT, this );
 		this._watches = [];
 		this._matches = [];
 	},
@@ -32,6 +31,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._add ( arg, handler );
+		gui.Broadcast.add ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );
 	}),
 
 	/**
@@ -45,7 +45,9 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._remove ( arg, handler );
-		this.done = this._matches.length === this._watches.length;
+		if (( this.done = this._matches.length === this._watches.length )) { // right?
+			gui.Broadcast.remove ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );	
+		}
 	}),
 
 	/**
@@ -71,12 +73,20 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	onbroadcast : function ( b ) {
 		if ( b.type === edb.BROADCAST_OUTPUT ) {
-			this._maybeinput ( b.data );
+			this.match ( b.data );
 		}
+	},
+
+	/**
+	 * Collect matching input.
+	 * @param {edb.Input} input
+	 */
+	match : function ( input ) {
+		this._maybeinput ( input );
 	},
 	
 	
-	// PRIVATES .........................................................................................
+	// PRIVATES ...............................................................................
 	
 	/**
 	 * Expecting instances of these types (or best match).
@@ -125,10 +135,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	},
 
 	/*
-	 * Collect all types before evaluating this.done; make sure 
-	 * that all required types are served in a single array, 
-	 * otherwise script.run () may be invoked prematurely.
-	 * TODO: Update the above to reflect modern API
+	 * TODO: Comment goes here.
 	 */
 	_todoname : function () {
 		this._watches.forEach ( function ( type ) {
@@ -179,7 +186,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	_updatehandlers : function ( input ) {
 		var keys = gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
-			var list = this._xxx [ Type.$classid ];
+			var list = this._trackedtypes [ Type.$classid ];
 			if ( list ) {
 				list.forEach ( function ( checks ) {
 					var handler = checks [ 0 ];

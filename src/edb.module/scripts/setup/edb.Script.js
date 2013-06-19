@@ -5,7 +5,7 @@
 edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
-	 * Hijacking the edb.InputPlugin which has been 
+	 * Hijacking the {edb.InputPlugin} which has been 
 	 * designed to work without an associated spirit.
 	 * @type {edb.InputPlugin}
 	 */
@@ -67,11 +67,10 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
 	 * Handle input.
-	 * TODO: System for this!
 	 * @param {edb.Input} input
 	 */
 	oninput : function ( input ) {
-		this._maybeready ();
+		this._maybeready (); // see {edb.Function} superclass
 	},
 
 	/**

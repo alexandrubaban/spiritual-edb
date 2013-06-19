@@ -1,9 +1,9 @@
 /**
  * Collecting compiler result.
- * @param @optional {String} text
+ * @param @optional {String} body
  */
-edb.Result = function Result ( text ) {
-	this.body = text || "";
+edb.Result = function Result ( body ) {
+	this.body = body || "";
 };
 
 edb.Result.prototype = {
@@ -58,4 +58,4 @@ edb.Result.format = function ( body ) {
 		}
 	});
 	return result;
-}
+};

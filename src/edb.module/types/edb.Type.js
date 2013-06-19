@@ -105,3 +105,29 @@ edb.Type.isInstance = function ( o ) {
 	}
 	return false;
 };
+
+/**
+ * Lookup edb.Type constructor for argument (if not already an edb.Type).
+ * @TODO Confirm that it is actually an edb.Type thing...
+ * @param {Window|WebWorkerGlobalScope} arg
+ * @param {function|string} arg
+ * @returns {function} 
+ */
+edb.Type.lookup = function ( context, arg ) {	
+	var type = null;
+	switch ( gui.Type.of ( arg )) {
+		case "function" :
+			type = arg; // @TODO: confirm
+			break;
+		case "string" :
+			type = gui.Object.lookup ( arg, context );
+			break;
+		case "object" :
+			console.error ( this + ": expected edb.Type constructor (not an object)" );
+			break;
+	}
+	if ( !type ) {
+		throw new TypeError ( "The type \"" + arg + "\" does not exist" );
+	}
+	return type;
+};

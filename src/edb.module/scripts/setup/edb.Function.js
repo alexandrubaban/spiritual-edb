@@ -65,7 +65,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	compile : function ( source, directives ) {
 		if ( this._function === null ) {
 			var compiler = this._compiler = new ( this._Compiler ) ( source, directives );
-			if ( this._$contextid ) { 
+			if ( this._$contextid ) {
 				compiler.sign ( this._$contextid );
 			}
 			this._function = compiler.compile ( this.context );
@@ -83,7 +83,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	debug : function () {
 		if(this._debugt){
-			console.warn ( "WHY TWICE?" );
+			console.error ( "WHY TWICE?" );
 		}
 		this._debugt = true;
 		console.debug ( this._source );
@@ -178,8 +178,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_compiler : null,
 
 	/**
-	 * Called when compile is done, as expected. In development mode, 
-	 * load invokable function as a blob file; otherwise skip to init.
+	 * In development mode, load invokable function as a blob file; otherwise skip to init.
 	 */
 	_oncompiled : function () {
 		try {
@@ -269,7 +268,9 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {function}
 	 */
 	get : function ( win, src ) {
-		//alert ( this + " : Getting " + src )
+		if ( gui.Type.isWindow ( win )) {
+			console.debug ( "TODO: use $contextid" );
+		}
 		src = new gui.URL ( win.document, src ).href;
 		if ( !gui.Type.isFunction ( this._map [ src ])) {
 			return this._load ( src, win );
@@ -300,7 +301,6 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {function} only if sync (otherwise we wait for broadcast)
 	 */
 	_load : function ( src, win ) {
-		//alert( this + " loading " + src );
 		var func = null, 
 			Implementation = this, 
 			cast = this._broadcast, 
@@ -312,7 +312,6 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 						if ( this.readyState === edb.Template.READY ) {
 							func = Implementation._map [ src ] = this._function;
 							if ( directives.debug ) {
-								//alert( this + " ready " + src);
 								this.debug ();
 							}
 							gui.Broadcast.dispatch ( null, cast, src, sig );

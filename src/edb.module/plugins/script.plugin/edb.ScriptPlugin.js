@@ -12,7 +12,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	type : "text/edbml",
 
 	/**
-	 * The Script SRC must be set before spirit.onenter() 
+	 * The Script SRC must be set before 'spirit.onenter()' 
 	 * to automatically load when spirit enters the DOM.
 	 * @type {String}
 	 */
@@ -24,10 +24,11 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @TODO Should all this happen via life events?
 	 * @type {boolean}
 	 */
-	loaded : true,
+	loaded : false,
 
 	/**
 	 * Automatically run the script on spirit.onenter()? 
+	 * @TODO implement 'required' attribute on params instead...
 	 *
 	 * - any added <?param?> value will be undefined at this point
 	 * - adding <?input?> will delay run until all input is loaded
@@ -70,7 +71,6 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	onconstruct : function () {
 		this._super.onconstruct ();
 		var spirit = this.spirit;
-		//this.functions = this.functions.bind ( this );
 		this.inputs = this.inputs.bind ( this );
 		if ( spirit instanceof edb.ScriptSpirit ) {
 			this.autorun = false;
@@ -83,7 +83,9 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	},
 
 	/**
-	 * Waiting for onenter() to load the script. For some reason.
+	 * Waiting for onenter() to load the script (forgot why). This takes a
+	 * repaint hit if and when the script gets loaded externally. @TODO: 
+	 * all kinds of global preloading flags to render everything at once.
 	 * @param {gui.Life} life
 	 */
 	onlife : function ( life ) {
@@ -109,13 +111,10 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @param @optional {String} type Script mimetype (eg "text/edbml")
 	 */
 	load : function ( src, type ) {
-		var context = this.spirit.window;
-		if (this.spirit.document.title==="Tagged"){
-			alert(this.spirit + " load!")
-		}
-		edb.Template.load ( context, src, type || this.type, 
-			function onready ( script ) {
-				this._onready ( script );
+		edb.Template.load ( this.context, src, type || this.type, 
+			function onreadystatechange ( script ) {
+				this._onreadystatechange ( script );
+				//this._onready ( script );
 			},
 		this );
 	},
@@ -127,13 +126,10 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @param @optional {HashMap<String,String>} directives Optional compiler directives
 	 */
 	compile : function ( source, type, directives ) {
-		var context = this.spirit.window;
-		if (this.spirit.document.title==="Tagged"){
-			alert(this.spirit + " compile!")
-		}
-		edb.Template.compile ( context, source,  type || this.type, directives, 
-			function onready ( script ) {
-				this._onready ( script );
+		edb.Template.compile ( this.context, source,  type || this.type, directives, 
+			function onreadystatechange ( script ) {
+				this._onreadystatechange ( script );
+				//this._onready ( script );
 			}, 
 		this );
 	},
@@ -143,7 +139,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @see {gui.SandBoxView#render}
 	 */
 	run : function () {
-		if ( this._script ) {
+		if ( this.loaded ) {
 			this._script.pointer = this.spirit; // TODO!
 			this.write ( 
 				this._script.run.apply ( 
@@ -153,6 +149,21 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			);
 		} else {
 			console.error ( "Running uncompiled script" );
+		}
+	},
+
+	/**
+	 * Private input.
+	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
+	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
+	 */
+	input : function ( data, Type ) {
+		var input = edb.Input.format ( this.context, data, Type );
+		if ( this._script ) {
+			this._script.input.match ( input );
+		} else {
+			this._doinput = this._doinput || [];
+			this._doinput.push ( input );
 		}
 	},
 	
@@ -175,12 +186,26 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			( this._latest = html ) !== this._latest // @TODO Support this kind of arg...
 		);
 
-		/*
-		 * Time consume detected. Let's either not do this or 
-		 * refactor into combo of tick, broadcast and action. 
-		 * (no dom traversal should be involved in what it is)
+		/**
+		 * Fit any containing iframe in next tick.
+		 * @TODO: make sure IframeSpirit consumes this if not set to fit
 		 */
-		// this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes (?)
+		if ( this.context.gui.hosted ) {
+			var temptick = "temptick"; // @TODO
+			var sig = this.context.gui.$contextid;
+			gui.Tick.one ( temptick, this, sig ).dispatch ( temptick, 0, sig );
+		}
+	},
+
+	/**
+	 * If in an iframe, now is the time to fit the iframe 
+	 * to potential new content (emulating seamless iframes).
+	 * @param {gui.Tick} tick
+	 */
+	ontick : function ( tick ) {
+		if ( tick.type === "temptick" ) {
+			this.spirit.action.dispatchGlobal ( gui.ACTION_DOC_FIT );
+		}
 	},
 	
 
@@ -198,24 +223,41 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 */
 	_updater : null,
 
+	/*
+	 * Private input for script once loaded.
+	 * @type {edb.Input}
+	 */
+	_doinput : null,
+
 	/**
-	 * Handle script state change.
+	 * Handle script state.
 	 * @param {edb.Script} script
 	 */
-	_onready : function ( script ) {
-		if ( script.readyState === edb.Template.READY ) { // apparently the only one we get :/
-			if ( !this._loaded ) {
-				this.loaded = true;
-				this._script = script;
-				if ( this.debug ) {
-					script.debug ();
+	_onreadystatechange : function ( script ) {
+		this._script = this._script || script;
+		switch ( script.readyState ) {
+			case edb.Template.WAITING :
+				if ( this._doinput ) {
+					while ( this._doinput.length ) {
+						this.input ( this._doinput.shift ());
+					}
+					this._doinput = null;
 				}
-			}
-			if ( this.autorun ) {
-				this.run ();
-			}
+				break;
+			case edb.Template.READY :
+				if ( !this.loaded ) {
+					this.loaded = true;
+					if ( this.debug ) {
+						script.debug ();
+					}
+				}
+				if ( this.autorun ) {
+					this.run ();
+				}
+				break;
 		}
 	}
+
 
 }, { // STATICS .........................................................................
 

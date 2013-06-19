@@ -143,6 +143,32 @@ edb.Type.isInstance = function ( o ) {
 	return false;
 };
 
+/**
+ * Lookup edb.Type constructor for argument (if not already an edb.Type).
+ * @TODO Confirm that it is actually an edb.Type thing...
+ * @param {Window|WebWorkerGlobalScope} arg
+ * @param {function|string} arg
+ * @returns {function} 
+ */
+edb.Type.lookup = function ( context, arg ) {	
+	var type = null;
+	switch ( gui.Type.of ( arg )) {
+		case "function" :
+			type = arg; // @TODO: confirm
+			break;
+		case "string" :
+			type = gui.Object.lookup ( arg, context );
+			break;
+		case "object" :
+			console.error ( this + ": expected edb.Type constructor (not an object)" );
+			break;
+	}
+	if ( !type ) {
+		throw new TypeError ( "The type \"" + arg + "\" does not exist" );
+	}
+	return type;
+};
+
 
 /**
  * EDB object type. 
@@ -487,227 +513,39 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 
 
 /**
- * The ScriptPlugin shall render the spirits HTML.
- * @extends {gui.Plugin} (should perhaps extend some kind of genericscriptplugin)
+ * Output input.
+ * @TODO: Don't broadcast global!
  */
-edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
-	
-	/**
-	 * The {gui.BaseScript} is rigged up to support alternative 
-	 * template languages, but we default to EDBML around here.
-	 * @type {String}
-	 */
-	type : "text/edbml",
+edb.Output = {
 
 	/**
-	 * The Script SRC must be set before spirit.onenter() 
-	 * to automatically load when spirit enters the DOM.
-	 * @type {String}
+	 * Identification.
+	 * @returns {String}
 	 */
-	src : null,
-
-	/**
-	 * True when there's a script; and when it's loaded.
-	 * @TODO Should there also be a "loading" boolean?
-	 * @TODO Should all this happen via life events?
-	 * @type {boolean}
-	 */
-	loaded : true,
-
-	/**
-	 * Automatically run the script on spirit.onenter()? 
-	 *
-	 * - any added <?param?> value will be undefined at this point
-	 * - adding <?input?> will delay run until all input is loaded
-	 * @type {boolean}
-	 */
-	autorun : true,
-
-	/**
-	 * Script has been run? Flipped after first run.
-	 * @type {boolean}
-	 */
-	ran : false,
-
-	/**
-	 * Use minimal updates (let's explain exactly what this is)?
-	 * If false, we write the entire HTML subtree on all updates. 
-	 * @type {boolean}
-	 */
-	diff : true,
-
-	/**
-	 * Log development stuff to console?
-	 * @type {boolean}
-	 */
-	debug : false,
-
-	/**
-	 * Hm...
-	 * @type {Map<String,object>}
-	 */
-	extras : null,
-	
-	/**
-	 * Construction time.
-	 *
-	 * 1. don't autorun service scripts
-	 * 2. use minimal updating system?
-	 * 3. import script on startup 
-	 */
-	onconstruct : function () {
-		this._super.onconstruct ();
-		var spirit = this.spirit;
-		if ( spirit instanceof edb.ScriptSpirit ) {
-			this.autorun = false;
-		} else if ( this.diff ) {
-			this._updater = new edb.UpdateManager ( spirit );
-		}
-		if ( this.src ) {
-			spirit.life.add ( gui.LIFE_ENTER, this );
-		}
+	toString : function () {
+		return "[object edb.Output]";
 	},
 
 	/**
-	 * Waiting for onenter() to load the script. For some reason.
-	 * @param {gui.Life} life
+	 * Output data in context. @TODO: some complicated argument combos to explain here
+	 * @param {Window|WebWorkerGlobalScope} context
+	 * @param {object|array|edb.Type} data
+	 * @param @optional {function|string} Type
 	 */
-	onlife : function ( life ) {
-		if ( life.type === gui.LIFE_ENTER ) {
-			this.load ( this.src );
-		}
-	},
-
-	/**
-	 * Mapping imported functions to declared variable names.
-	 * @returns {Map<String,function>}
-	 */
-	functions : function () {
-		return this._script.functions;
-	},
-
-	/**
-	 * Returns something to resolve expected script input (edb.Data).
-	 * returns {edb.Input}
-	 */
-	input : function () {
-		return this._script.input;
-	},
-
-	/**
-	 * Load script from SRC. This happens async unless the SRC 
-	 * points to a script embedded in the spirits own document 
-	 * (and unless script has already been loaded into context).
-	 * @param {String} src 
-	 * @param @optional {String} type Script mimetype (eg "text/edbml")
-	 */
-	load : function ( src, type ) {
-		var context = this.spirit.window;
-		edb.Template.load ( context, src, type || this.type, function ( script ) {
-			this._compiled ( script );
-		}, this );
-	},
-
-	/**
-	 * Compile script from source text and run it when ready.
-	 * @param {String} source Script source code
-	 * @param @optional {String} type Script mimetype (eg "text/edbml")
-	 * @param @optional {HashMap<String,String>} directives Optional compiler directives
-	 */
-	compile : function ( source, type, directives ) {
-		var context = this.spirit.window;
-		edb.Template.compile ( context, source,  type || this.type, directives, function ( script ) {
-			this._compiled ( script );
-		}, this );
-	},
-
-	/**
-	 * Run script (with implicit arguments) and write result to DOM.
-	 * @see {gui.SandBoxView#render}
-	 */
-	run : function () {
-		if ( this._script ) {
-			this._script.pointer = this.spirit; // TODO!
-			this.write ( 
-				this._script.run.apply ( 
-					this._script, 
-					arguments 
-				)
-			);
+	dispatch : function ( context, data, Type ) {
+		var input = edb.Input.format ( context, data, Type );
+		if ( input instanceof edb.Input ) {
+			if ( input.type ) {
+				input.type.output = input; // TODO: RENAME this abomination
+				gui.Broadcast.dispatch ( null, edb.BROADCAST_OUTPUT, input, context.gui.$contextid );
+			} else {
+				throw new Error ( "edb.Input type is " + input.type );
+			}
 		} else {
-			console.warn ( "Running uncompiled script" );
-		}
-	},
-	
-	/**
-	 * Write the actual HTML to screen. You should probably only 
-	 * call this method if you are producing your own markup 
-	 * somehow, ie. not using EDBML templates out of the box. 
-	 * @TODO Only do something if string argument has diffed 
-	 * @param {String} html
-	 */
-	write : function ( html ) {
-		if ( this.diff ) {
-			this._updater.update ( html );
-		} else {
-			this.spirit.dom.html ( html ); // TODO: forms markup make valid!
-		}
-		this.ran = true;
-		this.spirit.life.dispatch ( 
-			edb.LIFE_SCRIPT_DID_RUN,  
-			( this._latest = html ) !== this._latest // @TODO Support this kind of arg...
-		);
-
-		/*
-		 * Time consume detected. Let's either not do this or 
-		 * refactor into combo of tick, broadcast and action. 
-		 * (no dom traversal should be involved in what it is)
-		 */
-		// this.spirit.action.dispatchGlobal ( gui.ACTION_DOCUMENT_FIT ); // emulate seamless iframes (?)
-	},
-	
-
-	// PRIVATES ...........................................................................
-
-	/**
-	 * Hello.
-	 * @type {edb.Script}
-	 */
-	_script : null,
-
-	/**
-	 * Update manager. 
-	 * @type {edb.UpdateManager}
-	 */
-	_updater : null,
-
-	/**
-	 * Script compiled. Let's do this.
-	 * @TODO life-event should probably go here...
-	 * @param {edb.Script} script
-	 */
-	_compiled : function ( script ) {
-		this._script = script;
-		this.loaded = true;
-		if ( this.debug ) {
-			this._script.debug ();
-		}
-		if ( this.autorun ) {
-			this.run ();
+			throw new TypeError ( "Not an instance of edb.Input: " + input );
 		}
 	}
-
-
-}, { // STATICS .........................................................................
-
-	/**
-	 * Construct when spirit constructs.
-	 * @type {boolean}
-	 */
-	lazy : false
-
-});
-
+};
 
 
 /**
@@ -718,11 +556,13 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
-	 * Dispatch data as type (eg. instantiate type with JSON and publish the instance on page).
-	 * @param {object} data
+	 * Output data as type.
+	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
 	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
 	 */
 	dispatch : function ( data, Type ) {
+		edb.Output.dispatch ( this.context, data, Type );
+		/*
 		var input = this._format ( data, Type );
 		if ( input instanceof edb.Input ) {
 			if ( input.type ) {
@@ -738,6 +578,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 		} else {
 			throw new TypeError ( "Not an instance of edb.Input: " + input );
 		}
+		*/
 	},
 	
 	
@@ -804,7 +645,74 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 
 /**
- * Tracking EDB input.
+ * EDB input.
+ * @param {object} data
+ * @param {function} type
+ */
+edb.Input = function Input ( type, data ) {
+	this.type = type || null;
+	this.data = data || null;
+};
+
+edb.Input.prototype = {
+	
+	/**
+	 * Input type (function constructor)
+	 * @type {function}
+	 */
+	type : null,
+	
+	/**
+	 * Input data (instance of this.type)
+	 * @type {object|edb.Type} data
+	 */
+	data : null,
+	
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		return "[object edb.Input]";
+	}
+};
+
+/**
+ * Format data as an {edb.Type} and wrap it in an {edb.Input}.
+ * TODO: Support non-automated casting to edb.Object and edb.Array (raw JSON)?
+ * @param {Window|WebWorkerGlobalScope} context
+ * @param {object|Array|edb.Input} data
+ * @param @optional {function|String} Type
+ * @returns {edb.Input}
+ */
+edb.Input.format = function ( context, data, Type ) {
+	if ( data instanceof edb.Input === false ) {
+		if ( Type ) {
+			Type = edb.Type.lookup ( context, Type );
+			if ( data instanceof Type === false ) {
+				data = new Type ( data );
+			}
+		} else if ( !data._instanceid ) { // TODO: THE WEAKNESS
+			switch ( gui.Type.of ( data )) {
+				case "object" :
+					Type = edb.Object.extend ();
+					break;
+				case "array" :
+					Type = edb.Array.extend ();
+					break;
+			}
+			data = this.format ( data, Type );
+		} else {
+			Type = data.constructor;
+		}
+		data = new edb.Input ( Type, data ); // data.constructor?
+	}
+	return data;
+};
+
+
+/**
+ * Tracking EDB input. Note that the {edb.Script} is uisng this plugin (though it's not a spirit).
  * @extends {gui.Tracker}
  */
 edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
@@ -821,7 +729,6 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	onconstruct : function () {
 		this._super.onconstruct ();
-		gui.Broadcast.addGlobal ( edb.BROADCAST_OUTPUT, this );
 		this._watches = [];
 		this._matches = [];
 	},
@@ -837,6 +744,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._add ( arg, handler );
+		gui.Broadcast.add ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );
 	}),
 
 	/**
@@ -850,7 +758,9 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._remove ( arg, handler );
-		this.done = this._matches.length === this._watches.length;
+		if (( this.done = this._matches.length === this._watches.length )) { // right?
+			gui.Broadcast.remove ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );	
+		}
 	}),
 
 	/**
@@ -876,12 +786,20 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	onbroadcast : function ( b ) {
 		if ( b.type === edb.BROADCAST_OUTPUT ) {
-			this._maybeinput ( b.data );
+			this.match ( b.data );
 		}
+	},
+
+	/**
+	 * Collect matching input.
+	 * @param {edb.Input} input
+	 */
+	match : function ( input ) {
+		this._maybeinput ( input );
 	},
 	
 	
-	// PRIVATES .........................................................................................
+	// PRIVATES ...............................................................................
 	
 	/**
 	 * Expecting instances of these types (or best match).
@@ -930,10 +848,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	},
 
 	/*
-	 * Collect all types before evaluating this.done; make sure 
-	 * that all required types are served in a single array, 
-	 * otherwise script.run () may be invoked prematurely.
-	 * TODO: Update the above to reflect modern API
+	 * TODO: Comment goes here.
 	 */
 	_todoname : function () {
 		this._watches.forEach ( function ( type ) {
@@ -984,7 +899,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	_updatehandlers : function ( input ) {
 		var keys = gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
-			var list = this._xxx [ Type.$classid ];
+			var list = this._trackedtypes [ Type.$classid ];
 			if ( list ) {
 				list.forEach ( function ( checks ) {
 					var handler = checks [ 0 ];
@@ -1100,59 +1015,277 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 
 
 /**
- * Spirit input.
- * @param {object} data
- * @param {function} type
+ * The ScriptPlugin shall render the spirits HTML.
+ * @extends {gui.Plugin} (should perhaps extend some kind of genericscriptplugin)
  */
-edb.Input = function SpiritInput ( type, data ) {
-	this.type = type || null;
-	this.data = data || null;
-};
+edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
+	
+	/**
+	 * The {gui.BaseScript} is rigged up to support alternative 
+	 * template languages, but we default to EDBML around here.
+	 * @type {String}
+	 */
+	type : "text/edbml",
 
-edb.Input.prototype = {
+	/**
+	 * The Script SRC must be set before 'spirit.onenter()' 
+	 * to automatically load when spirit enters the DOM.
+	 * @type {String}
+	 */
+	src : null,
+
+	/**
+	 * True when there's a script; and when it's loaded.
+	 * @TODO Should there also be a "loading" boolean?
+	 * @TODO Should all this happen via life events?
+	 * @type {boolean}
+	 */
+	loaded : false,
+
+	/**
+	 * Automatically run the script on spirit.onenter()? 
+	 * @TODO implement 'required' attribute on params instead...
+	 *
+	 * - any added <?param?> value will be undefined at this point
+	 * - adding <?input?> will delay run until all input is loaded
+	 * @type {boolean}
+	 */
+	autorun : true,
+
+	/**
+	 * Script has been run? Flipped after first run.
+	 * @type {boolean}
+	 */
+	ran : false,
+
+	/**
+	 * Use minimal updates (let's explain exactly what this is)?
+	 * If false, we write the entire HTML subtree on all updates. 
+	 * @type {boolean}
+	 */
+	diff : true,
+
+	/**
+	 * Log development stuff to console?
+	 * @type {boolean}
+	 */
+	debug : false,
+
+	/**
+	 * Hm...
+	 * @type {Map<String,object>}
+	 */
+	extras : null,
 	
 	/**
-	 * Input type (is a function constructor)
-	 * @type {function}
+	 * Construction time.
+	 *
+	 * 1. don't autorun service scripts
+	 * 2. use minimal updating system?
+	 * 3. import script on startup 
 	 */
-	type : null,
+	onconstruct : function () {
+		this._super.onconstruct ();
+		var spirit = this.spirit;
+		this.inputs = this.inputs.bind ( this );
+		if ( spirit instanceof edb.ScriptSpirit ) {
+			this.autorun = false;
+		} else if ( this.diff ) {
+			this._updater = new edb.UpdateManager ( spirit );
+		}
+		if ( this.src ) {
+			spirit.life.add ( gui.LIFE_ENTER, this );
+		}
+	},
+
+	/**
+	 * Waiting for onenter() to load the script (forgot why). This takes a
+	 * repaint hit if and when the script gets loaded externally. @TODO: 
+	 * all kinds of global preloading flags to render everything at once.
+	 * @param {gui.Life} life
+	 */
+	onlife : function ( life ) {
+		if ( life.type === gui.LIFE_ENTER ) {
+			this.load ( this.src );
+		}
+	},
+
+	/**
+	 * Return data for input of type.
+	 * @param {function} type
+	 * @returns {object}
+	 */
+	inputs : function ( type ) {
+		return this._script.input.get ( type );
+	},
+
+	/**
+	 * Load script from SRC. This happens async unless the SRC 
+	 * points to a script embedded in the spirits own document 
+	 * (and unless script has already been loaded into context).
+	 * @param {String} src 
+	 * @param @optional {String} type Script mimetype (eg "text/edbml")
+	 */
+	load : function ( src, type ) {
+		edb.Template.load ( this.context, src, type || this.type, 
+			function onreadystatechange ( script ) {
+				this._onreadystatechange ( script );
+				//this._onready ( script );
+			},
+		this );
+	},
+
+	/**
+	 * Compile script from source TEXT and run it when ready.
+	 * @param {String} source Script source code
+	 * @param @optional {String} type Script mimetype (eg "text/edbml")
+	 * @param @optional {HashMap<String,String>} directives Optional compiler directives
+	 */
+	compile : function ( source, type, directives ) {
+		edb.Template.compile ( this.context, source,  type || this.type, directives, 
+			function onreadystatechange ( script ) {
+				this._onreadystatechange ( script );
+				//this._onready ( script );
+			}, 
+		this );
+	},
+
+	/**
+	 * Run script (with implicit arguments) and write result to DOM.
+	 * @see {gui.SandBoxView#render}
+	 */
+	run : function () {
+		if ( this.loaded ) {
+			this._script.pointer = this.spirit; // TODO!
+			this.write ( 
+				this._script.run.apply ( 
+					this._script, 
+					arguments 
+				)
+			);
+		} else {
+			console.error ( "Running uncompiled script" );
+		}
+	},
+
+	/**
+	 * Private input.
+	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
+	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
+	 */
+	input : function ( data, Type ) {
+		var input = edb.Input.format ( this.context, data, Type );
+		if ( this._script ) {
+			this._script.input.match ( input );
+		} else {
+			this._doinput = this._doinput || [];
+			this._doinput.push ( input );
+		}
+	},
 	
 	/**
-	 * Input data (is an instance of this.type)
-	 * @type {object} data
+	 * Write the actual HTML to screen. You should probably only 
+	 * call this method if you are producing your own markup 
+	 * somehow, ie. not using EDBML templates out of the box. 
+	 * @TODO Only do something if string argument has diffed 
+	 * @param {String} html
 	 */
-	data : null,
-	
+	write : function ( html ) {
+		if ( this.diff ) {
+			this._updater.update ( html );
+		} else {
+			this.spirit.dom.html ( html ); // TODO: forms markup make valid!
+		}
+		this.ran = true;
+		this.spirit.life.dispatch ( 
+			edb.LIFE_SCRIPT_DID_RUN,  
+			( this._latest = html ) !== this._latest // @TODO Support this kind of arg...
+		);
+
+		/**
+		 * Fit any containing iframe in next tick.
+		 * @TODO: make sure IframeSpirit consumes this if not set to fit
+		 */
+		if ( this.context.gui.hosted ) {
+			var temptick = "temptick"; // @TODO
+			var sig = this.context.gui.$contextid;
+			gui.Tick.one ( temptick, this, sig ).dispatch ( temptick, 0, sig );
+		}
+	},
+
 	/**
-	 * Identification.
-	 * @returns {String}
+	 * If in an iframe, now is the time to fit the iframe 
+	 * to potential new content (emulating seamless iframes).
+	 * @param {gui.Tick} tick
 	 */
-	toString : function () {
-		return "[object edb.Input]";
+	ontick : function ( tick ) {
+		if ( tick.type === "temptick" ) {
+			this.spirit.action.dispatchGlobal ( gui.ACTION_DOC_FIT );
+		}
+	},
+	
+
+	// PRIVATES ...........................................................................
+
+	/**
+	 * Hello.
+	 * @type {edb.Script}
+	 */
+	_script : null,
+
+	/**
+	 * Update manager. 
+	 * @type {edb.UpdateManager}
+	 */
+	_updater : null,
+
+	/*
+	 * Private input for script once loaded.
+	 * @type {edb.Input}
+	 */
+	_doinput : null,
+
+	/**
+	 * Handle script state.
+	 * @param {edb.Script} script
+	 */
+	_onreadystatechange : function ( script ) {
+		this._script = this._script || script;
+		switch ( script.readyState ) {
+			case edb.Template.WAITING :
+				if ( this._doinput ) {
+					while ( this._doinput.length ) {
+						this.input ( this._doinput.shift ());
+					}
+					this._doinput = null;
+				}
+				break;
+			case edb.Template.READY :
+				if ( !this.loaded ) {
+					this.loaded = true;
+					if ( this.debug ) {
+						script.debug ();
+					}
+				}
+				if ( this.autorun ) {
+					this.run ();
+				}
+				break;
+		}
 	}
-};
 
-/**
- * @static
- * TODO: out of global
- * Subscribe handler to input.
- * @param {object} handler Implements InputListener
- */
-edb.Input.add = function ( handler ) {
-	console.log ( "deprecated" );
-	gui.Broadcast.addGlobal ( edb.BROADCAST_OUTPUT, handler );
-};
 
-/**
- * @static
- * TODO: out of global
- * Unsubscribe handler from input.
- * @param {object} handler Implements InputListener
- */
-edb.Input.remove = function ( handler ) {
-	console.log ( "deprecated" );
-	gui.Broadcast.removeGlobal ( edb.BROADCAST_OUTPUT, handler );
-};
+}, { // STATICS .........................................................................
+
+	/**
+	 * Constructed immediately.
+	 * @overwrites (gui.Plugin#lazy)
+	 * @type {boolean}
+	 */
+	lazy : false
+
+});
+
 
 
 /**
@@ -1167,13 +1300,19 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	 */
 	debug : false,
 	
+	onconfigure : function () {
+		this._super.onconfigure ();
+		this.att.add ( "debug" );
+	},
+
 	/**
-	 * Map the attribute "gui.debug" to simply "debug".
-	 * @TODO Deprecate this silliness at some point...
+	 * Map "debug" attribute to this.debug
+	 * @param {gui.Att} att
 	 */
-	config : {
-		map : {
-			"debug" : "debug"
+	onatt : function ( att ) {
+		this._super.onatt ( att );
+		if ( att.name === "debug" ) {
+			this.debug = att.value;
 		}
 	},
 	
@@ -1195,6 +1334,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	/**
 	 * Is plain JS?
 	 * TODO: regexp this not to break on vendor subsets (e4x etc)
+	 * TODO: forget about it, just require contains "edbml" ignorecase
 	 * @returns {boolean}
 	 */
 	_plainscript : function () {
@@ -1213,8 +1353,7 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 
 	/**
 	 * Init an {edb.ScriptPlugin} from source code. If this script is placed directly
-	 * inside a parent spirit, we target the parent spirits {edb.ScriptPlugin}. To avoid 
-	 * such a scenario, perhaps scripts might be placed in the document HEAD section.
+	 * inside a parent spirit, we target the parent spirits {edb.ScriptPlugin} (explain more)
 	 */
 	_initplugin : function () {
 		var src = this.att.get ( "src" ) || this.src,
@@ -1259,7 +1398,7 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 		} else {
 			throw new Error ( "TODO: formalize missing type somehow" );
 		}
-	},
+	}
 
 	// /**
 	//  * TODO: enable this pipeline stuff
@@ -1279,13 +1418,13 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 	 * input is recieved. Input data will be supplied as constructor argument to output function; if A and B is 
 	 * input types while C is output type, then input instance a and b will be output as new C ( a, b ) 
 	 * @TODO Implement support for this some day :)
-	 */
+	 *
 	_pipeline : function () {		
 		console.error ( "TODO: might this be outdated???" );
-		/*
+		 *
 		 * TODO: use method apply with array-like arguments substitute pending universal browser support.
 		 * https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/apply#Description
-		 */
+		 *
 		var data = new this.output._type (
 			this._arg ( 0 ),
 			this._arg ( 1 ),
@@ -1301,16 +1440,17 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 		this.output.dispatch ( data );
 	},
 	
-	/**
+	 *
 	 * Return data for index. Index follows the order of which the input handler was added, not in which data was recieved. 
 	 * Alright, so this implies that first index will return object of type MyData if handler for this type was added first.
 	 * @param {number} index
 	 * @returns {object}
-	 */
+	 *
 	_arg : function ( index ) {
 		var type = this.input._types [ index ]; // function type
 		return this.input.get ( type ); // instance of function
 	}
+	*/
 });
 
 
@@ -1597,10 +1737,10 @@ edb.Status.prototype = {
 
 /**
  * Collecting compiler result.
- * @param @optional {String} text
+ * @param @optional {String} body
  */
-edb.Result = function Result ( text ) {
-	this.body = text || "";
+edb.Result = function Result ( body ) {
+	this.body = body || "";
 };
 
 edb.Result.prototype = {
@@ -1619,33 +1759,42 @@ edb.Result.prototype = {
 
 	/**
 	 * Format result for readability.
-	 * @TODO Indent switch cases
-	 * @TODO Remove blank lines
 	 * @returns {String}
 	 */
 	format : function () {
-		var result = "",
-			tabs = "\t",
-			init = null,
-			last = null,
-			fixt = null,
-			hack = null;
-		this.body.split ( "\n" ).forEach ( function ( line ) {
-			line = line.trim ();
-			init = line.charAt ( 0 );
-			last = line.charAt ( line.length - 1 );
-			fixt = line.split ( "//" )[ 0 ].trim ();
-			hack = fixt.charAt ( fixt.length - 1 );
-			if (( init === "}" || init === "]" ) && tabs !== "" ) {				
-				tabs = tabs.slice ( 0, -1 );
-			}
-			result += tabs + line + "\n";
-			if ( last === "{" || last === "[" || hack === "{" || hack === "[" ) {
-				tabs += "\t";
-			}
-		});
-		return result;
+		return edb.Result.format ( this.body );
 	}
+};
+
+/**
+ * Format JS for readability.
+ * @TODO Indent switch cases
+ * @TODO Remove blank lines
+ * @param {String} body
+ * @returns {String}
+ */
+edb.Result.format = function ( body ) {
+	var result = "",
+		tabs = "\t",
+		init = null,
+		last = null,
+		fixt = null,
+		hack = null;
+	body.split ( "\n" ).forEach ( function ( line ) {
+		line = line.trim ();
+		init = line.charAt ( 0 );
+		last = line.charAt ( line.length - 1 );
+		fixt = line.split ( "//" )[ 0 ].trim ();
+		hack = fixt.charAt ( fixt.length - 1 );
+		if (( init === "}" || init === "]" ) && tabs !== "" ) {				
+			tabs = tabs.slice ( 0, -1 );
+		}
+		result += tabs + line + "\n";
+		if ( last === "{" || last === "[" || hack === "{" || hack === "[" ) {
+			tabs += "\t";
+		}
+	});
+	return result;
 };
 
 
@@ -1822,9 +1971,7 @@ edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	compile : function ( context, source, type, directives, callback, thisp ) {
 		var Script = this.getImplementation ( type );
 		var script = new Script ( null, context, function onreadystatechange () {
-			if ( this.readyState === edb.Template.READY ) {
-				callback.call ( thisp, this );
-			}
+			callback.call ( thisp, this );
 		});
 		script.compile ( source, directives );
 	},
@@ -1867,8 +2014,10 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 			this._cached ( url, callback, thisp );
 		} else if ( url.external ) {				
 			this._request ( url, callback, thisp );
-		} else {
+		} else if ( url.hash ) {
 			this._lookup ( url, callback, thisp );
+		} else {
+			console.error ( "Now what?" );
 		}
 	},
 
@@ -1888,7 +2037,8 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 		this.directives = null;
 	},
 	
-	// PRIVATES ........................................................
+
+	// PRIVATES ........................................................................
 	
 	/**
 	 * Lookup script in document DOM (as opposed to HTTP request).
@@ -1904,8 +2054,8 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 	},
 
 	/**
-	 * EDBML templates are loaded as HTML documents with one or more script 
-	 * tags. The requested script should have an @id to match the URL #hash.  
+	 * Templates are loaded as HTML documents with one or more script tags. 
+	 * The requested script should have an @id to match the URL #hash.  
 	 * If no hash was given, we return the source code of first script found.
 	 * @param {String} text HTML with one or more script tags
 	 * TODO: cache this stuff for repeated lookups!
@@ -1913,14 +2063,13 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 	 * @returns {String} Template source code
 	 */
 	_extract : function ( text, url ) {
-		var temp = this._document.createElement ( "div" );
-		temp.innerHTML = text;
-		var script = temp.querySelector ( url.hash || "script" );
-		if ( script ) {
+		var doc = gui.HTMLParser.parseToDocument ( text ); // @TODO: cache this
+		var script = doc.querySelector ( url.hash || "script" );
+		if ( script ) {	
 			this.directives = gui.AttPlugin.getmap ( script );
 			return script.textContent;
 		} else {
-			console.error ( "No script found: " + url.location );
+			console.error ( "No such script: " + url.location + url.hash || "" );
 		}
 	}
 
@@ -1974,20 +2123,6 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 
 	/**
-	 * Compile EDBML source to function body.
-	 * @param {String} script
-	 * @returns {String}
-	 */
-	_compile : function ( script ) {
-		var runner = new edb.Runner (); 
-		var status = new edb.Status ();
-		var result = new edb.Result ( '"use strict";\n' );
-		runner.run ( this, script, status, result );
-		result.body += ( status.ishtml () ? "';" : "" ) + "\nreturn out.write ();";
-		return result.format ();
-	},
-
-	/**
 	 * Line begins.
 	 * @param {String} line
 	 * @param {edb.Runner} runner
@@ -2008,15 +2143,13 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	 * @param {edb.Result} result
 	 */
 	endline : function  ( line, runner, status, result ) {
-		if ( !runner.firstline ) {
-			if ( status.ishtml ()) {
-				if ( !status.cont ) {
-					result.body += "';\n";
-					status.gojs ();
-				}
-			} else {
-				result.body += "\n";
+		if ( status.ishtml ()) {
+			if ( !status.cont ) {
+				result.body += "';\n";
+				status.gojs ();
 			}
+		} else {
+			result.body += "\n";
 		}
 		status.cont = false;
 	},
@@ -2051,6 +2184,23 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 		}
 	},
 
+
+	// Private .....................................................
+	
+	/**
+	 * Compile EDBML source to function body.
+	 * @param {String} script
+	 * @returns {String}
+	 */
+	_compile : function ( script ) {
+		var runner = new edb.Runner (); 
+		var status = new edb.Status ();
+		var result = new edb.Result ( '"use strict";\n' );
+		runner.run ( this, script, status, result );
+		result.body += ( status.ishtml () ? "';" : "" ) + "\nreturn out.write ();";
+		return result.format ();
+	},
+
 	/**
 	 * Compile character as script.
 	 * @param {String} c
@@ -2069,7 +2219,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 						status.gotag ();
 						this._aaa ( status, line, i );
 					} else if ( false && ( tag = this._tagstop ( line ))) {
-						status.gotag (); // js ??????????????????????????????????
+						status.gotag (); // js?
 						this._bbb ( status );
 					} else {
 						status.gohtml ();
@@ -2218,7 +2368,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	 * Generate poke at marked spot.
 	 */
 	_poke : function ( status, result ) {
-		var sig = this._signature ? ( ", &quot;" + this._signature + "&quot;" ) : "";
+		var sig = this._$contextid ? ( ", &quot;" + this._$contextid + "&quot;" ) : "";
 		var body = result.body,
 			temp = result.temp,
 			spot = status.spot,
@@ -2333,32 +2483,27 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 
 /**
  * Compile EDB function.
+ * @TODO precompiler to strip out both JS comments and HTML comments.
  */
 edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 
 	/**
-	 * Compiled script source.
+	 * Source of compiled function.
 	 * @type {String}
 	 */
 	source : null,
 	
 	/**
-	 * Arguments expected for compiled function. 
+	 * Compiled function arguments list. 
 	 * @type {Array<String>}
 	 */
 	params : null,
 
 	/**
-	 * Required functions. Mapping src to variable name.
-	 * @type {Map<String,String>}
+	 * Imported functions and tags.
+	 * @type {Array<edb.Dependency>}
 	 */
-	functions : null,
-
-	/**
-	 * Required tags. Mapping src to variable name.
-	 * @type {Map<String,String>}
-	 */
-	tags : null,
+	dependencies : null,
 
 	/**
 	 * Mapping script tag attributes.
@@ -2392,40 +2537,40 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		
 	/**
 	 * Compile EDBML to invocable function.
-	 * @param {Window} scope Function to be declared in scope of this window (or worker context).
+	 * @param {Window} context
 	 * @param @optional {boolean} fallback
 	 * @returns {function}
 	 */
-	compile : function ( scope ) {
+	compile : function ( context ) {
 		var result = null;
+		this.dependencies = [];
 		this.params = [];
-		this.tags = Object.create ( null );
-		this.functions = Object.create ( null );
+		this._context = context;
 		this._vars = [];
 		var head = {
 			declarations : Object.create ( null ), // Map<String,boolean>
-			definitions : [] // Array<String>
+			functiondefs : [] // Array<String>
 		};
 		this.sequence.forEach ( function ( step ) {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
-			result = this._convert ( scope, this.source, this.params );
+			result = this._convert ( this.source, this.params );
 			this.source = this._source ( this.source, this.params );
 		} catch ( exception ) {
-			result = this._fail ( scope, exception );
+			result = this._fail ( exception );
 		}
 		return result;
 	},
 
 	/**
-	 * Sign generated methods with a gui.signature key. This allows us to evaluate assigned 
+	 * Sign generated methods with a gui.$contextid key. This allows us to evaluate assigned 
 	 * functions in a context different to where the template HTML is used (sandbox scenario).
-	 * @param {String} signature
+	 * @param {String} $contextid
 	 * @returns {edb.ScriptCompiler}
 	 */
-	sign : function ( signature ) {
-		this._signature = signature;
+	sign : function ( $contextid ) {
+		this._$contextid = $contextid;
 		return this;
 	},
 	
@@ -2433,10 +2578,16 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	// PRIVATE ..............................................................................
 	
 	/**
-	 * (Optionally) stamp a signature into edb.ScriptCompiler.invoke() callbacks.
+	 * Function to be declared in this window (or worker scope).
+	 * @type {Window}
+	 */
+	_context : null,
+
+	/**
+	 * (Optionally) stamp a $contextid into edb.ScriptCompiler.invoke() callbacks.
 	 * @type {String} 
 	 */
-	_signature : null,
+	_$contextid : null,
 
 	/**
 	 * Script processing intstructions.
@@ -2492,21 +2643,32 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 * @param {edb.Instruction} pi
 	 */
 	_instruct : function ( pi ) {
+		var type = pi.type;
 		var atts = pi.atts;
-		switch ( pi.type ) {
+		var href = atts.src;
+		var name = atts.name;
+		var cont = this._context;
+		switch ( type ) {
 			case "param" :
-				this.params.push ( atts.name );
+				this.params.push ( name );
 				break;
 			case "function" :
-				this.functions [ atts.name ] = atts.src;
-				break;
 			case "tag" :
-				var name = atts.src.split ( "#" )[ 1 ];
-				if ( name ) {
-					this.tags [ name ] = atts.src;
-				} else {
-					throw new Error ( "Missing #identifier: " + atts.src );
+				if ( type === edb.Dependency.TYPE_TAG ) {
+					if ( href.contains ( "#" )) {
+						name = href.split ( "#" )[ 1 ];
+					} else {
+						throw new Error ( "Missing tag #identifier: " + href );
+					}
 				}
+				this.dependencies.push ( 
+					new edb.Dependency ( 
+						cont,
+						type,
+						name,
+						href
+					)
+				);
 				break;
 		}
 	},
@@ -2519,15 +2681,15 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 */
 	_declare : function ( script, head ) {
 		var funcs = [];
-		gui.Object.each ( this.functions, function ( name, src ) {
-			head.declarations [ name ] = true;
-			funcs.push ( name + " = f.get ( '" + src + "', window );\n" );
+		this.dependencies.forEach ( function ( dep ) {
+			head.declarations [ dep.name ] = true;
+			funcs.push ( dep.name + " = functions ( self, '" + dep.href + "' );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
-			head.definitions.push ( 
-				"( function lookup ( f ) {\n" +
+			head.functiondefs.push ( 
+				"( function lookup ( functions ) {\n" +
 				funcs.join ( "" ) +
-				"}( edb.Function ));"
+				"}( edb.Function.get ));"
 			);
 		}
 		return script;
@@ -2545,8 +2707,7 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 			vars += ", " + name;
 		});
 		var html = "var Out = edb.Out, Att = edb.Att, Tag = edb.Tag, out = new Out (), att = new Att ()" + vars +";\n";
-		//html += "console.debug('this function is: '+this);\n"
-		head.definitions.forEach ( function ( def ) {
+		head.functiondefs.forEach ( function ( def ) {
 			html += def +"\n";
 		});
 		return html + script;
@@ -2554,81 +2715,49 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	
 	/**
 	 * Evaluate script to invocable function.
-	 * @param {Window} scope
 	 * @param {String} script
 	 * @param @optional (Array<String>} params
 	 * @returns {function}
 	 */
-	_convert : function ( scope, script, params ) {
-		var args = "";
+	_convert : function ( script, params ) {
+		var args = "", context = this._context;
 		if ( gui.Type.isArray ( params )) {
 			args = params.join ( "," );
 		}
-		return new scope.Function ( args, script );
+		return new context.Function ( args, script );
 	},
 
 	/**
 	 * Compilation failed. Output a fallback rendering.
-	 * @param {Window} scope
 	 * @param {Error} exception
 	 * @returns {function}
 	 */
-	_fail : function ( scope, exception ) {
+	_fail : function ( exception ) {
+		var context = this._context;
 		if ( !this._failed ) {
 			this._failed = true;
-			this._debug ( scope, this._format ( this.source ));
+			this._debug ( edb.Result.format ( this.source ));
 			this.source = "<p class=\"error\">" + exception.message + "</p>";
-			return this.compile ( scope, true );
+			return this.compile ( context, true );
 		} else {
 			throw ( exception );
 		}
 	},
-
-	/**
-	 * Format script output. DEPRECATED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	 * @TODO Indent switch cases
-	 * @TODO Remove blank lines
-	 * @param {String} body
-	 * @returns {String}
-	 */
-	_format : function ( body ) {
-		var result = "",
-			tabs = "\t",
-			first = null,
-			last = null,
-			fixt = null,
-			flast = null;
-		body.split ( "\n" ).forEach ( function ( line ) {
-			line = line.trim ();
-			first = line.charAt ( 0 );
-			last = line.charAt ( line.length - 1 );
-			fixt = line.split ( "//" )[ 0 ].trim ();
-			flast = fixt.charAt ( fixt.length - 1 );
-			if (( first === "}" || first === "]" ) && tabs !== "" ) {				
-				tabs = tabs.slice ( 0, -1 );
-			}
-			result += tabs + line + "\n";
-			if ( last === "{" || last === "[" || flast === "{" || flast === "[" ) {
-				tabs += "\t";
-			}
-		});
-		return result;
-	},
-
+	
 	/**
 	 * Transfer broken script source to script element and import on page.
 	 * Hopefully this will allow the developer console to aid in debugging.
 	 * TODO: Fallback for IE9 (see http://stackoverflow.com/questions/7405345/data-uri-scheme-and-internet-explorer-9-errors)
 	 * TODO: Migrate this stuff to the gui.BlobLoader
-	 * @param {Window} scope
 	 * @param {String} source
 	 */
-	_debug : function ( scope, source ) {
+	_debug : function ( source ) {
+		var context = this._context;
 		if ( window.btoa ) {
-			source = scope.btoa ( "function debug () {\n" + source + "\n}" );
-			var script = scope.document.createElement ( "script" );
+			source = context.btoa ( "function debug () {\n" + source + "\n}" );
+			var script = context.document.createElement ( "script" );
 			script.src = "data:text/javascript;base64," + source;
-			scope.document.querySelector ( "head" ).appendChild ( script );
+			context.document.querySelector ( "head" ).appendChild ( script );
 			script.onload = function () {
 				this.parentNode.removeChild ( this );
 			};
@@ -2700,22 +2829,32 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 	},
 
 	/**
-	 * 
+	 * Declare.
+	 * @overloads {edb.FunctionCompiler} declare
 	 * @param {String} script
 	 * @returns {String}
 	 */
 	_declare : function ( script, head ) {
 		this._super._declare ( script, head );
+		return this._declareinputs ( script, head );
+	},
+
+	/**
+	 * Declare inputs.
+	 * @param {String} script
+	 * @returns {String}
+	 */
+	_declareinputs : function ( script, head ) {
 		var defs = [];
 		gui.Object.each ( this.inputs, function ( name, type ) {
 			head.declarations [ name ] = true;
-			defs.push ( name + " = __input__.get ( " + type + " );\n" );
+			defs.push ( name + " = inputs ( " + type + " );\n" );
 		}, this );
 		if ( defs [ 0 ]) {
-			head.definitions.push ( 
-				"( function lookup ( __input__ ) {\n" +
+			head.functiondefs.push ( 
+				"( function lookup ( inputs ) {\n" +
 				defs.join ( "" ) +
-				"})( this.script.input ());" 
+				"})( this.script.inputs );" 
 			);
 		}
 		return script;
@@ -2725,7 +2864,7 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 
 
 /**
- * Tags are functions with boilerplate code.
+ * Compile function as tag. Tags are functions with boilerplate code.
  * @extends {edb.FunctionCompiler}
  */
 edb.TagCompiler = edb.FunctionCompiler.extend ( "edb.TagCompiler", {
@@ -2741,6 +2880,7 @@ edb.TagCompiler = edb.FunctionCompiler.extend ( "edb.TagCompiler", {
 			var content = edb.TagCompiler._CONTENT;
 			this.params.push ( "content" );
 			this.params.push ( "attribs" );
+			this.params.push ( "COMPILED_AS_TAG" );
 			script = "att = new Att ( attribs );\n" + script;
 			script = script.replace ( content, "content ( out );" );
 
@@ -2758,6 +2898,115 @@ edb.TagCompiler = edb.FunctionCompiler.extend ( "edb.TagCompiler", {
 	_CONTENT : /<content(.*)>(.*)<\/content>|<content(.*)(\/?)>/
 
 });
+
+
+/**
+ * Tracking a single function dependency.
+ * @param {Window} context @TODO: use $contextid instead...
+ * @param {String} type
+ * @param {String} name
+ * @param {String} href
+ */
+edb.Dependency = function ( context, type, name, href ) {
+	this.href = gui.URL.absolute ( context.document, href );
+	this.type = type;
+	this.name = name;
+	this._context = context;
+};
+
+edb.Dependency.prototype = {
+
+	/**
+	 * Matches function|tag
+	 * @type {String}
+	 */
+	type : null,
+
+	/**
+	 * Runtime name (variable name).
+	 * @type {String}
+	 */
+	name : null,
+
+	/**
+	 * Dependency URL location.
+	 * @type {String}
+	 */
+	href : null,
+
+	/**
+	 * @param {Window} context
+	 */
+	resolve : function () {
+		var res = this._source ().get ( this._context, this.href );
+		var then = this._then = new gui.Then ();
+		if ( res ) {
+			then.now ( res );
+		} else {
+			gui.Broadcast.add ( 
+				edb.BROADCAST_FUNCTION_LOADED, 
+				this, this._context.gui.$contextid 
+			);
+		}
+		return then;
+	},
+
+	/**
+	 * Handle broadcast.
+	 * @param {gui.Broadcast} b
+	 */
+	onbroadcast : function ( b ) {
+		switch ( b.type ) {
+			case edb.BROADCAST_FUNCTION_LOADED :
+				if ( b.data === this.href ) {
+					this._then.now ( this._source ().get ( this._context, this.href ));
+					gui.Broadcast.remove ( b.type, this, b.$contextid );
+					this._context = null;
+					this._then = null;
+				}
+				break;
+		}
+	},
+
+	/**
+	 * Compute relevant place to lookup compiled functions.
+	 * @returns {function}
+	 */
+	_source : function () {
+		switch ( this.type ) {
+			case edb.Dependency.TYPE_FUNCTION :
+				return edb.Function;
+			case edb.Dependency.TYPE_TAG :
+				return edb.Tag;
+		}
+	},
+
+
+	// Private .......................................
+
+	/**
+	 * @TODO: use $contextid instead...
+	 * @type {Window}
+	 */
+	_context : null,
+
+	/**
+	 * @type {gui.Then}
+	 */
+	_then : null
+};
+
+/**
+ * Function dependency.
+ * @type {String}
+ */
+edb.Dependency.TYPE_FUNCTION = "function";
+
+/**
+ * Tag dependency.
+ * @type {String}
+ */
+edb.Dependency.TYPE_TAG = "tag";
 
 
 /**
@@ -2786,17 +3035,10 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	params : null,
 
 	/**
-	 * Note to self: While loading the function we 
-	 * are mapping variable name to function src...
-	 * @type {Map<String,String|function>}
+	 * Mapping dependencies while booting, converted to functions once resolved.
+	 * @type {Map<String,edb.Dependency|function>}
 	 */
 	functions : null,
-
-	/**
-	 * Experiomental...
-	 * @type {Map<String,String|function>} ???????
-	 */
-	tags : null,
 	
 	/**
 	 * Construct.
@@ -2806,6 +3048,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	onconstruct : function ( pointer, context, handler ) {
 		this._super.onconstruct ( pointer, context, handler );
+		this.functions = Object.create ( null );
 		/*
 		 * Redefine these terms into concepts that makes more 
 		 * sense when runinng script inside a worker context. 
@@ -2813,11 +3056,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		 */
 		this.pointer = this.spirit;
 		this.context = context;
-		//alert (this.context.document.location)
 		this.spirit = null;
-
-		this.tags = Object.create ( null );
-		this.functions = Object.create ( null );
 	},
 	
 	/**
@@ -2827,7 +3066,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * 2. Compile source to invokable function 
 	 * 3. Preserve source for debugging
 	 * 4. Copy expected params
-	 * 5. Load required functions and tags.
+	 * 5. Load required functions.
 	 * 6. Report done whan all is loaded.
 	 * @overwrites {edb.Template#compile}
 	 * @param {String} source
@@ -2837,18 +3076,13 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	compile : function ( source, directives ) {
 		if ( this._function === null ) {
 			var compiler = this._compiler = new ( this._Compiler ) ( source, directives );
-			if ( this._signature ) { 
-				compiler.sign ( this._signature );
+			if ( this._$contextid ) {
+				compiler.sign ( this._$contextid );
 			}
 			this._function = compiler.compile ( this.context );
 			this._source = compiler.source;
 			this.params = compiler.params;
-			gui.Object.each ( compiler.tags, function ( name, src ) {
-				this._tagload ( name, src );
-			}, this );
-			gui.Object.each ( compiler.functions, function ( name, src ) {
-				this._functionload ( name, src );
-			}, this );
+			this._dependencies ( compiler );
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
 		}
@@ -2859,16 +3093,38 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * Log script source to console.
 	 */
 	debug : function () {
+		if(this._debugt){
+			console.error ( "WHY TWICE?" );
+		}
+		this._debugt = true;
 		console.debug ( this._source );
 	},
 
 	/**
+	 * Resolve dependencies.
+	 * @param {edb.Compiler} compiler
+	 */
+	_dependencies : function ( compiler ) {
+		compiler.dependencies.filter ( function ( dep ) {
+			return true; // return dep.type === edb.Dependency.TYPE_FUNCTION;
+		}).map ( function ( dep ) {
+			this.functions [ dep.name ] = null; // null all first
+			return dep;
+		}, this ).forEach ( function ( dep ) {
+			dep.resolve ().then ( function ( resolved ) {
+				this.functions [ dep.name ] = resolved;
+				this._maybeready ();
+			}, this );
+		}, this );
+	},
+
+	/**
 	 * Sign generated methods for sandbox scenario.
-	 * @param {String} signature
+	 * @param {String} $contextid
 	 * @returns {edb.Function}
 	 */
-	sign : function ( signature ) {
-		this._signature = signature;
+	sign : function ( $contextid ) {
+		this._$contextid = $contextid;
 		return this;
 	},
 	
@@ -2901,9 +3157,6 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 			case edb.BROADCAST_FUNCTION_LOADED :
 				this._functionloaded ( b.data );
 				break;
-			case edb.BROADCAST_TAG_LOADED :
-				this._tagloaded ( b.data );
-				break;
 		}
 	},
 	
@@ -2918,10 +3171,10 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_function : null,
 	
 	/**
-	 * Optionally stamp a signature into generated edb.Script.invoke() callbacks.
+	 * Optionally stamp a $contextid into generated edb.Script.invoke() callbacks.
 	 * @type {String} 
 	 */
-	_signature : null,
+	_$contextid : null,
 
 	/**
 	 * Compiler implementation (subclass may overwrite it).
@@ -2936,8 +3189,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_compiler : null,
 
 	/**
-	 * Called when compile is done, as expected. In development mode, 
-	 * load invokable function as a blob file; otherwise skip to init.
+	 * In development mode, load invokable function as a blob file; otherwise skip to init.
 	 */
 	_oncompiled : function () {
 		try {
@@ -2984,83 +3236,6 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	},
 
 	/**
-	 * Load function from src.
-	 * @param {String} name
-	 * @param {String} src
-	 */
-	_tagload : function ( name, src ) {
-		src = gui.URL.absolute ( this.context.document, src );
-		var tag = edb.Tag.get ( src, this.context );
-		if ( tag ) {
-			this.tags [ name ] = tag;
-		} else {
-			this._await ( edb.BROADCAST_TAG_LOADED, true );
-			this.tags [ name ] = src;
-		}
-	},
-
-	/**
-	 * Load function from src.
-	 * @param {String} name
-	 * @param {String} src
-	 */
-	_functionload : function ( name, src ) {
-		src = gui.URL.absolute ( this.context.document, src );
-		if ( !gui.Type.isDefined ( this.functions [ name ])) {
-			this.functions [ name ] = src;
-			if ( !edb.Function.get ( src, this.context )) {
-				this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
-			}
-		} else {
-			throw new Error ( "var \"" + name +  "\" already used" );
-		}
-	},
-
-	/**
-	 * Funtion loaded from src.
-	 * @param {String} src
-	 */
-	_functionloaded : function ( src ) {
-		/*
-		gui.Object.each ( this.functions, function ( name, value ) {
-			if ( value === src ) {
-				this.functions [ name ] = edb.Function.get ( src, this.context );
-			}
-		}, this );
-		*/
-		this._maybeready ();
-	},
-
-	/**
-	 * Funtion loaded from src.
-	 * @param {String} src
-	 */
-	_tagloaded : function ( src ) {
-		gui.Object.each ( this.tags, function ( name, value ) {
-			if ( value === src ) {
-				this.tags [ name ] = edb.Tag.get ( src, this.context );
-			}
-		}, this );
-		this._maybeready ();
-	},
-
-	/**
-	 * Watch for incoming functions and tags.
-	 * @param {boolean} add
-	 */
-	_await : function ( msg, add ) {
-		var act = add ? "add" : "remove";
-		var sig = this.context.gui.signature;
-		gui.Broadcast [ act ] ( msg, this, sig );
-	},
-
-	/*
-	_arrive : function () {
-		TODO!
-	},
-	*/
-
-	/**
 	 * Report ready? Otherwise waiting 
 	 * for data types to initialize...
 	 */
@@ -3068,8 +3243,6 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		if ( this.readyState !== edb.Template.LOADING ) {
 			this._gostate ( edb.Template.WORKING );
 			if ( this._done ()) {
-				this._await ( edb.BROADCAST_TAG_LOADED, false );
-				this._await ( edb.BROADCAST_FUNCTION_LOADED, false );
 				this._gostate ( edb.Template.READY );
 			} else {
 				this._gostate ( edb.Template.WAITING );
@@ -3082,11 +3255,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {boolean}
 	 */
 	_done : function () {
-		return [ "functions", "tags" ].every ( function ( map ) {
-			return Object.keys ( this [ map ] ).every ( function ( name ) {
-				//return gui.Type.isFunction ( this [ map ][ name ]);
-				return edb.Function.get ( this [ map ][ name ], this.context ) !== null; // tag may be undefined...
-			}, this );
+		return Object.keys ( this.functions ).every ( function ( name ) {
+			return this.functions [ name ] !== null;
 		}, this );
 	},
 	
@@ -3104,20 +3274,16 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Get function for SRC.
-	 * @TODO pass document not window	
-	 * @param {String} src
 	 * @param {Window} win
+	 * @param {String} src
 	 * @returns {function}
 	 */
-	get : function ( src, win ) {
-		/*
+	get : function ( win, src ) {
 		if ( gui.Type.isWindow ( win )) {
-			console.warn ( "deprecated" );
+			console.debug ( "TODO: use $contextid" );
 		}
-		*/
 		src = new gui.URL ( win.document, src ).href;
-		var has = gui.Type.isFunction ( this._map [ src ]);
-		if ( !has ) {
+		if ( !gui.Type.isFunction ( this._map [ src ])) {
 			return this._load ( src, win );
 		}
 		return this._map [ src ] || null;
@@ -3149,18 +3315,20 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		var func = null, 
 			Implementation = this, 
 			cast = this._broadcast, 
-			sig = win.gui.signature;
+			sig = win.gui.$contextid;
 		new edb.TemplateLoader ( win.document ).load ( src,
 			function onload ( source, directives ) {
-				new Implementation ( null, win, function onreadystatechange () {
-					if ( this.readyState === edb.Template.READY ) {
-						func = Implementation._map [ src ] = this._function;
-						if ( directives.debug ) {
-							this.debug ();
+				if ( source ) {
+					new Implementation ( null, win, function onreadystatechange () {
+						if ( this.readyState === edb.Template.READY ) {
+							func = Implementation._map [ src ] = this._function;
+							if ( directives.debug ) {
+								this.debug ();
+							}
+							gui.Broadcast.dispatch ( null, cast, src, sig );
 						}
-						gui.Broadcast.dispatch ( null, cast, src, sig );
-					}
-				}).compile ( source, directives );
+					}).compile ( source, directives );
+				}
 			}
 		);
 		return func;
@@ -3178,6 +3346,14 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 });
 
+/**
+ * Allow function get to be thrown around. 
+ * Might benefit some template readability.
+ */
+( function bind () {
+	edb.Function.get = edb.Function.get.bind ( edb.Function );
+}());
+
 
 /**
  * EDB script.
@@ -3186,7 +3362,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
-	 * Hijacking the edb.InputPlugin which has been 
+	 * Hijacking the {edb.InputPlugin} which has been 
 	 * designed to work without an associated spirit.
 	 * @type {edb.InputPlugin}
 	 */
@@ -3221,12 +3397,11 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 			case edb.BROADCAST_GETTER :
 				this._keys.add ( b.data );
 				break;
-			// one tick allows for multiple updates before we rerun the script
 			case edb.BROADCAST_SETTER :
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Template.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
-						var sig = this.context.gui.signature;
+						var sig = this.context.gui.$contextid;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );	
 						this._gostate ( edb.Template.WAITING );
 					}
@@ -3249,11 +3424,10 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
 	 * Handle input.
-	 * TODO: System for this!
 	 * @param {edb.Input} input
 	 */
 	oninput : function ( input ) {
-		this._maybeready ();
+		this._maybeready (); // see {edb.Function} superclass
 	},
 
 	/**
@@ -3395,6 +3569,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
 	 * Experimental.
+	 * @TODO sort of shadows edb.Function.get !!!!!!!!!!!!!!!!!!!!!!!!!
 	 * @param {String} key
 	 * @returns {edb.Script}
 	 */
@@ -3453,16 +3628,9 @@ edb.Tag = edb.Function.extend ( "edb.Tag", {
 	 * @TODO Do we need to do this?
 	 * @overwrites {edb.Function#_map}
 	 * @type {Map<String,function>}
-	 */
-	_map : Object.create ( null ),
-
-	/**
-	 * Message to dispatch when function is loaded. 
-	 * The function src appears as broadcast data.
-	 * @overwrites {edb.Function#_broadcast}
-	 * @type {String}
-	 */
-	_broadcast : edb.BROADCAST_TAG_LOADED
+	 *
+	_map : Object.create ( null )
+	*/
 
 });
 
@@ -4861,14 +5029,12 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 */
 	_update : function ( element ) {
 		var current = element.getAttribute ( this._name );
-		if ( current.contains ( this._key )) {
-			if ( element.spirit ) {
-				element.spirit.att.set ( this._name, this._value );
-			} else {
-				element.setAttribute ( this._name, this._value );
-			}
+		if ( current && current.contains ( this._key )) {
+			element.setAttribute ( this._name, this._value );
 		} else {
-			console.error ( "Target was moved: " + this._selector ); // TODO: test with soft update
+			console.warn ( "Softupdate dysfunction? " + this._key + " not found in " + current );
+			//console.log ( this._name, this._key );
+			//console.error ( "Target was moved: " + this._selector ); // TODO: test with soft update
 		}
 	},
 

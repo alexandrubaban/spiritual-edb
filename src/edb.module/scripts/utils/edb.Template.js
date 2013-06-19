@@ -171,9 +171,7 @@ edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	compile : function ( context, source, type, directives, callback, thisp ) {
 		var Script = this.getImplementation ( type );
 		var script = new Script ( null, context, function onreadystatechange () {
-			if ( this.readyState === edb.Template.READY ) {
-				callback.call ( thisp, this );
-			}
+			callback.call ( thisp, this );
 		});
 		script.compile ( source, directives );
 	},

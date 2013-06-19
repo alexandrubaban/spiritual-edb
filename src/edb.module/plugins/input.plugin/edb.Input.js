@@ -1,5 +1,5 @@
 /**
- * Spirit input.
+ * EDB input.
  * @param {object} data
  * @param {function} type
  */
@@ -11,14 +11,14 @@ edb.Input = function Input ( type, data ) {
 edb.Input.prototype = {
 	
 	/**
-	 * Input type (is a function constructor)
+	 * Input type (function constructor)
 	 * @type {function}
 	 */
 	type : null,
 	
 	/**
-	 * Input data (is an instance of this.type)
-	 * @type {object} data
+	 * Input data (instance of this.type)
+	 * @type {object|edb.Type} data
 	 */
 	data : null,
 	
@@ -32,23 +32,34 @@ edb.Input.prototype = {
 };
 
 /**
- * @static
- * TODO: out of global
- * Subscribe handler to input.
- * @param {object} handler Implements InputListener
+ * Format data as an {edb.Type} and wrap it in an {edb.Input}.
+ * TODO: Support non-automated casting to edb.Object and edb.Array (raw JSON)?
+ * @param {Window|WebWorkerGlobalScope} context
+ * @param {object|Array|edb.Input} data
+ * @param @optional {function|String} Type
+ * @returns {edb.Input}
  */
-edb.Input.add = function ( handler ) {
-	console.log ( "deprecated" );
-	gui.Broadcast.addGlobal ( edb.BROADCAST_OUTPUT, handler );
-};
-
-/**
- * @static
- * TODO: out of global
- * Unsubscribe handler from input.
- * @param {object} handler Implements InputListener
- */
-edb.Input.remove = function ( handler ) {
-	console.log ( "deprecated" );
-	gui.Broadcast.removeGlobal ( edb.BROADCAST_OUTPUT, handler );
+edb.Input.format = function ( context, data, Type ) {
+	if ( data instanceof edb.Input === false ) {
+		if ( Type ) {
+			Type = edb.Type.lookup ( context, Type );
+			if ( data instanceof Type === false ) {
+				data = new Type ( data );
+			}
+		} else if ( !data._instanceid ) { // TODO: THE WEAKNESS
+			switch ( gui.Type.of ( data )) {
+				case "object" :
+					Type = edb.Object.extend ();
+					break;
+				case "array" :
+					Type = edb.Array.extend ();
+					break;
+			}
+			data = this.format ( data, Type );
+		} else {
+			Type = data.constructor;
+		}
+		data = new edb.Input ( Type, data ); // data.constructor?
+	}
+	return data;
 };

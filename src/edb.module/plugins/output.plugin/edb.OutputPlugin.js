@@ -6,11 +6,13 @@
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
 	/**
-	 * Dispatch data as type (eg. instantiate type with JSON and publish the instance on page).
-	 * @param {object} data
+	 * Output data as type.
+	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
 	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
 	 */
 	dispatch : function ( data, Type ) {
+		edb.Output.dispatch ( this.context, data, Type );
+		/*
 		var input = this._format ( data, Type );
 		if ( input instanceof edb.Input ) {
 			if ( input.type ) {
@@ -26,6 +28,7 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 		} else {
 			throw new TypeError ( "Not an instance of edb.Input: " + input );
 		}
+		*/
 	},
 	
 	

@@ -36,7 +36,7 @@ gui.module ( "edb", {
 	 * @TODO this may be a bit silly...
 	 * @TODO detect sandbox...
 	 * @param {Window} context
-	 */
+	 *
 	oncontextinitialize : function ( context ) {
 		if ( context === gui.context ) { // TODO: better detect top context
 			if ( edb.Template && edb.TemplateLoader ) { // hack to bypass the sandbox (future project)
@@ -50,4 +50,6 @@ gui.module ( "edb", {
 			}
 		}
 	}
+	*/
+
 });

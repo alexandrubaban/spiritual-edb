@@ -104,9 +104,8 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 		if ( current && current.contains ( this._key )) {
 			element.setAttribute ( this._name, this._value );
 		} else {
-			console.warn ( "Softupdate dysfunction? " + this._key + " not found in " + current );
-			//console.log ( this._name, this._key );
-			//console.error ( "Target was moved: " + this._selector ); // TODO: test with soft update
+			// perhaps there's an ID and we already performed an attribute update, could that be it?
+			console.warn ( "Softupdate dysfunction or what? " + this._key + " not found in " + current );
 		}
 	},
 

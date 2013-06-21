@@ -6,6 +6,18 @@
 edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	
 	/**
+	 * Compiled into this context.
+	 * @type {Window|WebWorkerGlobalScope}
+	 */
+	context : null,
+
+	/**
+	 * Experimental...
+	 * @type {Document}
+	 */
+	document : null,
+
+	/**
 	 * Script may be run when this switches to "ready".
 	 * @type {String}
 	 */
@@ -18,18 +30,6 @@ edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	onreadystatechange : null,
 	
 	/**
-	 * The window context (or any kind of global context).
-	 * @type {Window}
-	 */
-	context : null,
-	
-	/**
-	 * Spirit (or potentital other entity) running the script.
-	 * @type {object}
-	 */
-	spirit : null,
-	
-	/**
 	 * Identification.
 	 * @returns {String}
 	 */
@@ -40,13 +40,12 @@ edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	/**
 	 * Construct.
 	 * TODO: destruct?
-	 * @param {gui.Spirit} spirit
-	 * @param {Window} window
+	 * @param {Window} context
 	 * @param {function} handler
 	 */
-	onconstruct : function ( spirit, window, handler ) {
-		this.spirit = spirit || null;
-		this.context = window || null;
+	onconstruct : function ( context, basedoc, handler ) {
+		this.context = context || null;
+		this.document = basedoc || null;
 		this.onreadystatechange = handler || null;
 	},
 	
@@ -108,81 +107,6 @@ edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	 * Script is ready to run.
 	 * @type {String}
 	 */
-	READY : "ready",
-		
-	/**
-	 * Register implementation for one or more mimetypes. 
-	 * @param {function} implementation
-	 * @param {String} mimeype (accepts multiple mimetype args)
-	 */
-	setImplementation : function () { // implementation, ...mimetypes
-		var args = gui.Object.toArray ( arguments );
-		var impl = args.shift ();
-		args.forEach ( function ( type ) {
-			this._implementations.set ( type, impl );
-		}, this );
-	},
+	READY : "ready"
 	
-	/**
-	 * Get implementation for mimetype.
-	 * TODO: rename
-	 * @returns {edb.Template}
-	 */
-	getImplementation : function ( type ) {
-		var impl = this._implementations.get ( type );
-		if ( !impl ) {
-			throw new Error ( "No implementation for: " + type );
-		}
-		return impl;
-	},
-
-	/**
-	 * Load and compile script from SRC.
-	 * @param {Window} context
-	 * @param {String} src
-	 * @param {String} type
-	 * @param {function} callback
-	 * @param {object} thisp
-	 */
-	load : function ( context, src, type, callback, thisp ) {
-		new edb.TemplateLoader ( context.document ).load ( src, function ( source ) {
-			var url = new gui.URL ( context.document, src );
-			var script = edb.Script.get ( url.href ); // todo - localize!
-			if ( !script ) {
-				this.compile ( context, source, type, null, function ( script ) {
-					edb.Script.set ( url.href, script );
-					callback.call ( thisp, script );
-				}, this );
-			} else {
-				callback.call ( thisp, script );
-			}
-		}, this );
-	},
-
-	/**
-	 * Compile script from source text.
-	 * @param {Window} context
-	 * @param {String} src
-	 * @param {String} type
-	 * @param {Mao<String,object>} directives
-	 * @param {function} callback
-	 * @param {object} thisp
-	 */
-	compile : function ( context, source, type, directives, callback, thisp ) {
-		var Script = this.getImplementation ( type );
-		var script = new Script ( null, context, function onreadystatechange () {
-			callback.call ( thisp, this );
-		});
-		script.compile ( source, directives );
-	},
-
-
-	// Private static .........................................................
-
-	/**
-	 * Mapping implementations to mimetypes.
-	 * @type {Map<String,edb.Template>}
-	 */
-	_implementations : new Map ()
-
 });

@@ -24,15 +24,4 @@ edb.Tag = edb.Function.extend ( "edb.Tag", {
 	_Compiler : edb.TagCompiler
 
 
-}, { // Recurring static ......................................
-
-	/**
-	 * Mapping src to compiled tags.
-	 * @TODO Do we need to do this?
-	 * @overwrites {edb.Function#_map}
-	 * @type {Map<String,function>}
-	 *
-	_map : Object.create ( null )
-	*/
-
 });

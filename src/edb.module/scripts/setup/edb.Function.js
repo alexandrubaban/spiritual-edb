@@ -3,12 +3,6 @@
  * @extends {edb.Template}
  */
 edb.Function = edb.Template.extend ( "edb.Function", {
-
-	/**
-	 * The window context; where to lookup data types.
-	 * @type {Global}
-	 */
-	context : null,
 	
 	/**
 	 * Target for the "this" keyword in compiled function. For sandboxes, this  
@@ -24,28 +18,20 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	params : null,
 
 	/**
-	 * Mapping dependencies while booting, converted to functions once resolved.
+	 * Mapping edb.Dependencies while booting, converted to functions once resolved.
 	 * @type {Map<String,edb.Dependency|function>}
 	 */
 	functions : null,
 	
 	/**
 	 * Construct.
-	 * @param {object} pointer
+	 * @param {Document} basedoc
 	 * @param {Global} context
 	 * @param {function} handler
 	 */
-	onconstruct : function ( pointer, context, handler ) {
-		this._super.onconstruct ( pointer, context, handler );
+	onconstruct : function ( context, basedoc, handler ) {
+		this._super.onconstruct ( context, basedoc, handler );
 		this.functions = Object.create ( null );
-		/*
-		 * Redefine these terms into concepts that makes more 
-		 * sense when runinng script inside a worker context. 
-		 * (related to a future "sandbox" project of some kind)
-		 */
-		this.pointer = this.spirit;
-		this.context = context;
-		this.spirit = null;
 	},
 	
 	/**
@@ -62,7 +48,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {HashMap<String,String>} directives
 	 * @returns {edb.Function}
 	 */
-	compile : function ( source, directives ) {
+	compile : function ( source, directives ) { // @TODO gui.Combo.chained
 		if ( this._function === null ) {
 			var compiler = this._compiler = new ( this._Compiler ) ( source, directives );
 			if ( this._$contextid ) {
@@ -139,6 +125,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	
 	/**
 	 * Handle broadcast.
+	 * TODO: What is this doing?
 	 * @param {gui.Broadcast} broadcast
 	 */
 	onbroadcast : function ( b ) {
@@ -262,66 +249,67 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 }, { // Recurring static ................................................
 
 	/**
-	 * Get function for SRC.
-	 * @param {Window} win
+	 * Get function loaded from given SRC and compiled into given context.
+	 * @param {Window} context
 	 * @param {String} src
 	 * @returns {function}
 	 */
-	get : function ( win, src ) {
-		if ( gui.Type.isWindow ( win )) {
-			console.debug ( "TODO: use $contextid" );
+	get : function ( context, src ) {
+		//src = new gui.URL ( context.document, src ).href;
+		if ( true || gui.URL.absolute ( src )) {
+			return this._functions [ src ] || null;
+		} else {
+			throw new Error ( "Absolute URL expected" );
 		}
-		src = new gui.URL ( win.document, src ).href;
-		if ( !gui.Type.isFunction ( this._map [ src ])) {
-			return this._load ( src, win );
-		}
-		return this._map [ src ] || null;
+	},
+
+	/**
+	 * Loaded and compile function for SRC. When compiled, you can 
+	 * get the invokable function using 'edb.Function.get()' method. 
+	 * @param {Window} context Compiler target context
+	 * @param {Document} basedoc Relative URLs resolved
+	 * @param {String} src Document URL to load and parse (use #hash to target a SCRIPT id)
+	 */
+	load : function ( context, basedoc, src, callback, thisp ) {
+		var functions = this._functions;
+		new edb.TemplateLoader ( basedoc ).load ( src, function onload ( source, directives ) {
+			this.compile ( context, basedoc, source, directives, function onreadystatechange ( script ) {
+				if ( !functions [ src ] && script.readyState === edb.Template.READY ) {
+					functions [ src ] = script._function; // now avilable using edb.Function.get()
+				}
+				callback.call ( thisp, script );
+			});
+		}, this );
+	},
+
+	/**
+	 * Compile source text to {edb.Function} instance.
+	 * @param {Window} context
+	 * @param {Document} basedoc
+	 * @param {String} src
+	 * @param {Mao<String,object>} directives
+	 * @param {function} callback
+	 * @param {object} thisp
+	 */
+	compile : function ( context, basedoc, source, directives, callback, thisp ) {
+		if ( gui.Type.isString ( basedoc )) {
+			console.error ( "Deprecated API :)" );
+		} 
+		new ( this ) ( context, basedoc, function onreadystatechange () {
+			callback.call ( thisp, this );
+		}).compile ( source, directives );
 	},
 
 
 	// Private recurring static ...........................................
 
 	/**
-	 * Message to dispatch when function is loaded. 
-	 * The function src appears as broadcast data.
-	 * @type {String}
-	 */
-	_broadcast : edb.BROADCAST_FUNCTION_LOADED,
-
-	/**
-	 * Mapping src to (loaded and compiled) function.
+	 * Mapping SRC to invokable function.
+	 * TODO: rename 'invokabels' or 'executabeles' or something (since it's not edb.Functions)
+	 * TODO: Get $contextid in here, othewise windows will overwrite eachother!!!
 	 * @type {Map<String,function>}
 	 */
-	_map : Object.create ( null ),
-
-	/**
-	 * Load function from SRC (async) or lookup in local document (sync).
-	 * @param {String} src
-	 * @param {Window} win
-	 * @returns {function} only if sync (otherwise we wait for broadcast)
-	 */
-	_load : function ( src, win ) {
-		var func = null, 
-			Implementation = this, 
-			cast = this._broadcast, 
-			sig = win.gui.$contextid;
-		new edb.TemplateLoader ( win.document ).load ( src,
-			function onload ( source, directives ) {
-				if ( source ) {
-					new Implementation ( null, win, function onreadystatechange () {
-						if ( this.readyState === edb.Template.READY ) {
-							func = Implementation._map [ src ] = this._function;
-							if ( directives.debug ) {
-								this.debug ();
-							}
-							gui.Broadcast.dispatch ( null, cast, src, sig );
-						}
-					}).compile ( source, directives );
-				}
-			}
-		);
-		return func;
-	}
+	_functions : Object.create ( null )
 
 
 }, { // Static ...................................................

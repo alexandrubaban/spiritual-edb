@@ -354,6 +354,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	/**
 	 * Matches a qualified attribute name (class,id,src,href) allowing 
 	 * underscores, dashes and dots while not starting with a number. 
+	 * @TODO class and id may start with a number nowadays
 	 * @TODO https://github.com/jshint/jshint/issues/383
 	 * @type {RegExp}
 	 */

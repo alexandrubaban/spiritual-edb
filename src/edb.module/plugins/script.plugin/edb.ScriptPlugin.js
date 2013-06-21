@@ -3,25 +3,9 @@
  * @extends {gui.Plugin} (should perhaps extend some kind of genericscriptplugin)
  */
 edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
-	
-	/**
-	 * The {gui.BaseScript} is rigged up to support alternative 
-	 * template languages, but we default to EDBML around here.
-	 * @type {String}
-	 */
-	type : "text/edbml",
 
 	/**
-	 * The Script SRC must be set before 'spirit.onenter()' 
-	 * to automatically load when spirit enters the DOM.
-	 * @type {String}
-	 */
-	src : null,
-
-	/**
-	 * True when there's a script; and when it's loaded.
-	 * @TODO Should there also be a "loading" boolean?
-	 * @TODO Should all this happen via life events?
+	 * Script has been loaded and compiled?
 	 * @type {boolean}
 	 */
 	loaded : false,
@@ -60,6 +44,19 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @type {Map<String,object>}
 	 */
 	extras : null,
+
+	/**
+	 * Script SRC. Perhaps this should be implemented as a method.
+	 * @type {String}
+	 */
+	src : {
+		getter : function () {
+			return this._src;
+		},
+		setter : function ( src ) {
+			this.load ( src );
+		}
+	},
 	
 	/**
 	 * Construction time.
@@ -77,68 +74,84 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		} else if ( this.diff ) {
 			this._updater = new edb.UpdateManager ( spirit );
 		}
-		if ( this.src ) {
-			spirit.life.add ( gui.LIFE_ENTER, this );
+	},
+
+	/**
+	 * Handle attribute update.
+	 * @param {gui.Att} att
+	 */
+	onatt : function ( att ) {
+		if ( att.name === "src" ) {
+			this.src = att.value;
 		}
 	},
 
 	/**
-	 * Waiting for onenter() to load the script (forgot why). This takes a
-	 * repaint hit if and when the script gets loaded externally. @TODO: 
-	 * all kinds of global preloading flags to render everything at once.
+	 * If in an iframe, now is the time to fit the iframe 
+	 * to potential new content (emulating seamless iframes).
+	 * @TODO: at least make sure IframeSpirit consumes this if not set to fit
+	 * @param {gui.Tick} tick
+	 */
+	ontick : function ( tick ) {
+		if ( tick.type === gui.TICK_DOC_FIT ) {
+			this.spirit.action.dispatchGlobal ( gui.ACTION_DOC_FIT );
+		}
+	},
+	
+	/**
+	 * The issue here is that the {ui.UpdateManager} 
+	 * can't diff propertly unless we wait for enter. 
+	 * @TODO: Think about fixing this some day
 	 * @param {gui.Life} life
 	 */
 	onlife : function ( life ) {
-		if ( life.type === gui.LIFE_ENTER ) {
-			this.load ( this.src );
+		if ( life.type === gui.LIFE_ENTER && this._dosrc ) {
+			this.spirit.life.remove ( life.type, this );
+			this.load ( this._dosrc );
 		}
-	},
-
-	/**
-	 * Return data for input of type.
-	 * @param {function} type
-	 * @returns {object}
-	 */
-	inputs : function ( type ) {
-		return this._script.input.get ( type );
 	},
 
 	/**
 	 * Load script from SRC. This happens async unless the SRC 
 	 * points to a script embedded in the spirits own document 
 	 * (and unless script has already been loaded into context).
-	 * @param {String} src 
-	 * @param @optional {String} type Script mimetype (eg "text/edbml")
+	 * @param {String} src (directives resolved on target SCRIPT)
 	 */
-	load : function ( src, type ) {
-		edb.Template.load ( this.context, src, type || this.type, 
-			function onreadystatechange ( script ) {
-				this._onreadystatechange ( script );
-				//this._onready ( script );
-			},
-		this );
+	load : function ( src ) {
+		var win = this.context;
+		var doc = win.document;
+		var abs = gui.URL.absolute ( doc, src );
+		if ( this.spirit.life.entered ) {
+			if ( abs !== this._src ) {
+				edb.Script.load ( win, doc, src, function onreadystatechange ( script ) {
+					this._onreadystatechange ( script );
+				}, this );
+				this._src = abs;
+				this._dosrc = null;
+			}
+		} else {
+			this.spirit.life.add ( gui.LIFE_ENTER, this );
+			this._dosrc = src;
+		}
 	},
 
 	/**
 	 * Compile script from source TEXT and run it when ready.
 	 * @param {String} source Script source code
-	 * @param @optional {String} type Script mimetype (eg "text/edbml")
-	 * @param @optional {HashMap<String,String>} directives Optional compiler directives
+	 * @param @optional {HashMap<String,object>} directives Optional compiler directives
 	 */
-	compile : function ( source, type, directives ) {
-		edb.Template.compile ( this.context, source,  type || this.type, directives, 
-			function onreadystatechange ( script ) {
-				this._onreadystatechange ( script );
-				//this._onready ( script );
-			}, 
-		this );
+	compile : function ( source, directives ) {
+		var win = this.context, doc = win.document;
+		edb.Script.compile ( win, doc, source, directives, function onreadystatechange ( script ) {
+			this._onreadystatechange ( script );
+		}, this );
 	},
 
 	/**
 	 * Run script (with implicit arguments) and write result to DOM.
 	 * @see {gui.SandBoxView#render}
 	 */
-	run : function () {
+	run : function ( /* arguments */ ) {
 		if ( this.loaded ) {
 			this._script.pointer = this.spirit; // TODO!
 			this.write ( 
@@ -149,6 +162,33 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			);
 		} else {
 			console.error ( "Running uncompiled script" );
+		}
+	},
+	
+	/**
+	 * Write the actual HTML to screen. You should probably only 
+	 * call this method if you are producing your own markup 
+	 * somehow, ie. not using EDBML templates out of the box. 
+	 * @param {String} html
+	 */
+	write : function ( html ) {
+		var changed = this._html !== html;
+		if ( changed ) {
+			this._html = html;
+			if ( this.diff ) {
+				this._updater.update ( html );
+			} else {
+				this.spirit.dom.html ( html ); // TODO: forms markup make valid!
+			}
+			this.ran = true;
+			this.spirit.life.dispatch ( 
+				edb.LIFE_SCRIPT_DID_RUN, changed // @TODO Support this kind of arg...
+			);
+			if ( this.context.gui.hosted ) { // fit any containing iframe in next tick.
+				var tick = gui.TICK_DOC_FIT;
+				var id = this.context.gui.$contextid;
+				gui.Tick.one ( tick, this, id ).dispatch ( tick, 0, id );
+			}
 		}
 	},
 
@@ -166,53 +206,27 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			this._doinput.push ( input );
 		}
 	},
-	
-	/**
-	 * Write the actual HTML to screen. You should probably only 
-	 * call this method if you are producing your own markup 
-	 * somehow, ie. not using EDBML templates out of the box. 
-	 * @TODO Only do something if string argument has diffed 
-	 * @param {String} html
-	 */
-	write : function ( html ) {
-		if ( this.diff ) {
-			this._updater.update ( html );
-		} else {
-			this.spirit.dom.html ( html ); // TODO: forms markup make valid!
-		}
-		this.ran = true;
-		this.spirit.life.dispatch ( 
-			edb.LIFE_SCRIPT_DID_RUN,  
-			( this._latest = html ) !== this._latest // @TODO Support this kind of arg...
-		);
-
-		/**
-		 * Fit any containing iframe in next tick.
-		 * @TODO: make sure IframeSpirit consumes this if not set to fit
-		 */
-		if ( this.context.gui.hosted ) {
-			var temptick = "temptick"; // @TODO
-			var sig = this.context.gui.$contextid;
-			gui.Tick.one ( temptick, this, sig ).dispatch ( temptick, 0, sig );
-		}
-	},
 
 	/**
-	 * If in an iframe, now is the time to fit the iframe 
-	 * to potential new content (emulating seamless iframes).
-	 * @param {gui.Tick} tick
+	 * Return data for input of type.
+	 * @param {function} type
+	 * @returns {object}
 	 */
-	ontick : function ( tick ) {
-		if ( tick.type === "temptick" ) {
-			this.spirit.action.dispatchGlobal ( gui.ACTION_DOC_FIT );
-		}
+	inputs : function ( type ) {
+		return this._script.input.get ( type );
 	},
-	
+
 
 	// PRIVATES ...........................................................................
 
 	/**
-	 * Hello.
+	 * Script SRC.
+	 * @type {String}
+	 */
+	_src : null,
+
+	/**
+	 * Script thing.
 	 * @type {edb.Script}
 	 */
 	_script : null,
@@ -224,10 +238,21 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	_updater : null,
 
 	/*
-	 * Private input for script once loaded.
-	 * @type {edb.Input}
+	 * Listing private input to be injected into script once loaded.
+	 * @type {Array<edb.Input>}
 	 */
 	_doinput : null,
+
+	/**
+	 * @type {String}
+	 */
+	_dosrc : null,
+
+	/**
+	 * Snapshot latest HTML to avoid duplicates.
+	 * @type {String}
+	 */
+	_html : null,
 
 	/**
 	 * Handle script state.
@@ -252,20 +277,10 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 					}
 				}
 				if ( this.autorun ) {
-					this.run ();
+					this.run (); // @TODO: only if an when entered!
 				}
 				break;
 		}
 	}
-
-
-}, { // STATICS .........................................................................
-
-	/**
-	 * Constructed immediately.
-	 * @overwrites (gui.Plugin#lazy)
-	 * @type {boolean}
-	 */
-	lazy : false
 
 });

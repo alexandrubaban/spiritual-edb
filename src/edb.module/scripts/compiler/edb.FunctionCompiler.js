@@ -59,6 +59,9 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 * @returns {function}
 	 */
 	compile : function ( context ) {
+		if ( !context ) {
+			throw new Error ("NO!")
+		}
 		var result = null;
 		this.dependencies = [];
 		this.params = [];
@@ -200,11 +203,11 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var funcs = [];
 		this.dependencies.forEach ( function ( dep ) {
 			head.declarations [ dep.name ] = true;
-			funcs.push ( dep.name + " = functions ( self, '" + dep.href + "' );\n" );
+			funcs.push ( dep.name + " = get ( self, '" + dep.href + "' );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
 			head.functiondefs.push ( 
-				"( function lookup ( functions ) {\n" +
+				"( function lookup ( get ) {\n" +
 				funcs.join ( "" ) +
 				"}( edb.Function.get ));"
 			);

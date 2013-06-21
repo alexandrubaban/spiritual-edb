@@ -1,6 +1,6 @@
 /**
  * Tracking a single function dependency.
- * @param {Window} context @TODO: use $contextid instead...
+ * @param {Window} context
  * @param {String} type
  * @param {String} name
  * @param {String} href
@@ -10,6 +10,7 @@ edb.Dependency = function ( context, type, name, href ) {
 	this.type = type;
 	this.name = name;
 	this._context = context;
+	this._document = context.document;
 };
 
 edb.Dependency.prototype = {
@@ -27,50 +28,35 @@ edb.Dependency.prototype = {
 	name : null,
 
 	/**
-	 * Dependency URL location.
+	 * Dependency address.
 	 * @type {String}
 	 */
 	href : null,
 
 	/**
-	 * @param {Window} context
+	 * Resolve dependency.
 	 */
 	resolve : function () {
-		var res = this._source ().get ( this._context, this.href );
-		var then = this._then = new gui.Then ();
-		if ( res ) {
-			then.now ( res );
+		var pool = this._functionpool ();
+		var func = pool.get ( this._context, this.href );
+		var then = new gui.Then ();
+		if ( func ) {
+			then.now ( func );
 		} else {
-			gui.Broadcast.add ( 
-				edb.BROADCAST_FUNCTION_LOADED, 
-				this, this._context.gui.$contextid 
-			);
+			pool.load ( this._context, this._document, this.href, function onreadystatechange ( func ) {
+				if ( func.readyState === edb.Template.READY ) {
+					then.now ( func );
+				}
+			});
 		}
 		return then;
 	},
 
 	/**
-	 * Handle broadcast.
-	 * @param {gui.Broadcast} b
-	 */
-	onbroadcast : function ( b ) {
-		switch ( b.type ) {
-			case edb.BROADCAST_FUNCTION_LOADED :
-				if ( b.data === this.href ) {
-					this._then.now ( this._source ().get ( this._context, this.href ));
-					gui.Broadcast.remove ( b.type, this, b.$contextid );
-					this._context = null;
-					this._then = null;
-				}
-				break;
-		}
-	},
-
-	/**
-	 * Compute relevant place to lookup compiled functions.
+	 * Where to lookup compiled functions?
 	 * @returns {function}
 	 */
-	_source : function () {
+	_functionpool : function () {
 		switch ( this.type ) {
 			case edb.Dependency.TYPE_FUNCTION :
 				return edb.Function;
@@ -83,15 +69,11 @@ edb.Dependency.prototype = {
 	// Private .......................................
 
 	/**
-	 * @TODO: use $contextid instead...
-	 * @type {Window}
+	 * Context to compile into.
+	 * @type {Window|WebWorkerGlobalScope}
 	 */
-	_context : null,
+	_context : null
 
-	/**
-	 * @type {gui.Then}
-	 */
-	_then : null
 };
 
 /**

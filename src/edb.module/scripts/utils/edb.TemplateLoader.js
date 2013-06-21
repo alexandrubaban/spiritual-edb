@@ -74,6 +74,7 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 	 */
 	_extract : function ( text, url ) {
 		var doc = gui.HTMLParser.parseToDocument ( text ); // @TODO: cache this
+		//alert ( doc.baseURI || doc.URL );
 		var script = doc.querySelector ( url.hash || "script" );
 		if ( script ) {	
 			this.directives = gui.AttPlugin.getmap ( script );

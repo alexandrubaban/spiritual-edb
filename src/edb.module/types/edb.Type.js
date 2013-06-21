@@ -101,7 +101,7 @@ edb.Type.underscoreinstanceid = function ( instance ) {
  */
 edb.Type.isInstance = function ( o ) {
 	if ( gui.Type.isComplex ( o )) {
-		return o instanceof edb.Object || o instanceof edb.Array;
+		return ( o instanceof edb.Object ) || ( o instanceof edb.Array );
 	}
 	return false;
 };

@@ -14,12 +14,11 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	/**
 	 * Construct.
 	 * @poverloads {edb.Function#onconstruct}
-	 * @param {object} pointer
 	 * @param {Global} context
 	 * @param {function} handler
 	 */
-	onconstruct : function ( pointer, context, handler ) {
-		this._super.onconstruct ( pointer, context, handler );
+	onconstruct : function ( context, basedoc, handler ) {
+		this._super.onconstruct ( context, basedoc, handler );
 		this.input = new edb.InputPlugin ();
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
@@ -129,7 +128,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	}
 
 
-}, { // STATICS .....................................................................................
+}, { // Recurring static .......................................................................
 	
 	/**
 	 * @static
@@ -143,7 +142,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @type {Map<String,object>}
 	 */
 	_log : null,
-
+	
 	/**
 	 * @static
 	 * Map function to generated key and return the key.
@@ -181,7 +180,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		} else {
 			/*
 			 * Timeout is a cosmetic stunt to unfreeze a pressed 
-			 * button case the function takes a while to complete. 
+			 * button in case the function takes a while to complete. 
 			 */
 			if (( func = this._invokables.get ( key ))) {
 				if ( log.type === "click" ) {
@@ -215,7 +214,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @TODO sort of shadows edb.Function.get !!!!!!!!!!!!!!!!!!!!!!!!!
 	 * @param {String} key
 	 * @returns {edb.Script}
-	 */
+	 *
 	get : function ( key ) {
 		return this._scripts [ key ];
 	},
@@ -224,7 +223,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Experimental.
 	 * @param {String} key
 	 * @param {edb.Script} script
-	 */
+	 *
 	set : function ( key, script ) {
 		this._scripts [ key ] = script;
 	},
@@ -232,7 +231,45 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	/**
 	 * Mapping scripts to keys.
 	 * @type {Map<String,edb.Script>}
-	 */
-	_scripts : Object.create ( null )
+	 *
+	_scripts : Object.create ( null ),
+
+	/**
+	 * Load and compile script from SRC.
+	 * @param {Window} context
+	 * @param {String} src
+	 * @param {function} callback
+	 * @param {object} thisp
+	 *
+	loadXXX : function ( context, src, callback, thisp ) {
+		new edb.TemplateLoader ( context.document ).load ( src, function ( source ) {
+			var url = new gui.URL ( context.document, src );
+			var script = edb.Script.get ( url.href ); // todo - localize!
+			if ( !script ) {
+				this.compileXXX ( context, source, null, function ( script ) {
+					edb.Script.set ( url.href, script );
+					callback.call ( thisp, script );
+				}, this );
+			} else {
+				callback.call ( thisp, script );
+			}
+		}, this );
+	},
+
+	/**
+	 * Compile script from source text.
+	 * @param {Window} context
+	 * @param {String} src
+	 * @param {Mao<String,object>} directives
+	 * @param {function} callback
+	 * @param {object} thisp
+	 *
+	compileXXX : function ( context, source, directives, callback, thisp ) {
+		var script = new edb.Script ( context, function onreadystatechange () {
+			callback.call ( thisp, this );
+		});
+		script.compile ( source, directives );
+	}
+	*/
 
 });

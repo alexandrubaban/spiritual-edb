@@ -29,9 +29,9 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 	 * @param @optional {boolean} fallback
 	 * @returns {function}
 	 */
-	compile : function ( scope, fallback ) {
+	compile : function ( context, url ) {
 		this.inputs = Object.create ( null );
-		return this._super.compile ( scope, fallback );
+		return this._super.compile ( context, url );
 	},
 
 	/**

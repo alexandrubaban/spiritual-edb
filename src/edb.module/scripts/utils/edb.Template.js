@@ -13,9 +13,9 @@ edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 
 	/**
 	 * Experimental...
-	 * @type {Document}
+	 * @type {gui.URL}
 	 */
-	document : null,
+	url : null,
 
 	/**
 	 * Script may be run when this switches to "ready".
@@ -43,9 +43,9 @@ edb.Template = gui.Class.create ( "edb.Template", Object.prototype, {
 	 * @param {Window} context
 	 * @param {function} handler
 	 */
-	onconstruct : function ( context, basedoc, handler ) {
+	onconstruct : function ( context, url, handler ) {
 		this.context = context || null;
-		this.document = basedoc || null;
+		this.url = url || null;
 		this.onreadystatechange = handler || null;
 	},
 	

@@ -1,8 +1,5 @@
 /**
- * Mixin methods and properties common 
- * to both {edb.Object} and {edb.Array}
- * @see {edb.Object}
- * @see {edb.Array}
+ * Mixin methods and properties common to both {edb.Object} and {edb.Array}
  */
 edb.Type = function () {};
 edb.Type.prototype = {

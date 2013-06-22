@@ -5,6 +5,14 @@
 edb.Tag = edb.Function.extend ( "edb.Tag", {
 
 	/**
+	 * Get compiler implementation.
+	 * @returns {function}
+	 */
+	_compiler : function () {
+		return edb.TagCompiler;
+	},
+
+	/**
 	 * Adding the "tag" directive.
 	 * @overloads {edb.Template#compile}
 	 * @param {String} source

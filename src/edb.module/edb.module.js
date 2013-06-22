@@ -39,7 +39,7 @@ gui.module ( "edb", {
 	 *
 	oncontextinitialize : function ( context ) {
 		if ( context === gui.context ) { // TODO: better detect top context
-			if ( edb.Template && edb.TemplateLoader ) { // hack to bypass the sandbox (future project)
+			if ( edb.Template && edb.Loader ) { // hack to bypass the sandbox (future project)
 				edb.Template.setImplementation ( 
 					edb.Script, 
 					"application/x-edbml",

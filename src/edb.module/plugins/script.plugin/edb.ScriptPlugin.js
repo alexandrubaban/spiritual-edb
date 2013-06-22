@@ -129,7 +129,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 				this._src = abs;
 				this._dosrc = null;
 			}
-		} else {
+		} else { // {edb.UpdateManager} needs to diff
 			this.spirit.life.add ( gui.LIFE_ENTER, this );
 			this._dosrc = src;
 		}
@@ -141,8 +141,8 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @param @optional {HashMap<String,object>} directives Optional compiler directives
 	 */
 	compile : function ( source, directives ) {
-		var win = this.context, doc = win.document;
-		edb.Script.compile ( win, doc, source, directives, function onreadystatechange ( script ) {
+		var win = this.context, url = new gui.URL ( this.context.document );
+		edb.Script.compile ( win, url, source, directives, function onreadystatechange ( script ) {
 			this._onreadystatechange ( script );
 		}, this );
 	},

@@ -18,7 +18,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	params : null,
 
 	/**
-	 * Mapping edb.Dependencies while booting, converted to functions once resolved.
+	 * Mapping edb.Dependencies while booting - mapping functions once resolved.
 	 * @type {Map<String,edb.Dependency|function>}
 	 */
 	functions : null,
@@ -29,8 +29,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {Global} context
 	 * @param {function} handler
 	 */
-	onconstruct : function ( context, basedoc, handler ) {
-		this._super.onconstruct ( context, basedoc, handler );
+	onconstruct : function ( context, url, handler ) {
+		this._super.onconstruct ( context, url, handler );
 		this.functions = Object.create ( null );
 	},
 	
@@ -50,28 +50,24 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	compile : function ( source, directives ) { // @TODO gui.Combo.chained
 		if ( this._function === null ) {
-			var compiler = this._compiler = new ( this._Compiler ) ( source, directives );
+			var compiler = new ( this._compiler ()) ( source, directives );
 			if ( this._$contextid ) {
 				compiler.sign ( this._$contextid );
 			}
-			this._function = compiler.compile ( this.context );
+			this._function = compiler.compile ( this.context, this.url );
 			this._source = compiler.source;
 			this.params = compiler.params;
 			this._dependencies ( compiler );
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
 		}
-		return this._oncompiled ();
+		return this._oncompiled ( compiler );
 	},
 
 	/**
-	 * Log script source to console.
+	 * Log function source to console.
 	 */
 	debug : function () {
-		if(this._debugt){
-			console.error ( "WHY TWICE?" );
-		}
-		this._debugt = true;
 		console.debug ( this._source );
 	},
 
@@ -153,24 +149,22 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_$contextid : null,
 
 	/**
-	 * Compiler implementation (subclass may overwrite it).
-	 * @type {function}
+	 * Get compiler implementation (subclass may overwrite this method).
+	 * @returns {function}
 	 */
-	_Compiler : edb.FunctionCompiler,
+	_compiler : function () {
+		return edb.FunctionCompiler;
+	},
 
 	/**
-	 * Compiler instance.
-	 * @type {edb.FunctionCompiler}
+	 * If supported, load invokable function 
+	 * as blob file. Otherwise skip to init.
+	 * @param {edb.FunctionCompiler} compiler
 	 */
-	_compiler : null,
-
-	/**
-	 * In development mode, load invokable function as a blob file; otherwise skip to init.
-	 */
-	_oncompiled : function () {
+	_oncompiled : function ( compiler ) {
 		try {
 			if ( this._useblob ()) {
-				this._loadblob ();
+				this._loadblob ( compiler );
 			} else {
 				this._maybeready ();
 			}
@@ -182,27 +176,24 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Use blob files?
-	 * @returns {boolean} Always false if not development mode
+	 * @TODO: Investigate potential overheads and asyncness
 	 */
 	_useblob : function () {
 		return edb.Function.useblob && 
-			this.context.gui.debug && 
 			gui.Client.hasBlob && 
 			!gui.Client.isExplorer && 
 			!gui.Client.isOpera;
 	},
 	
 	/**
-	 * In development mode, load compiled script source as a file. 
-	 * This allows browser developer tools to assist in debugging. 
-	 * Note that this introduces an async step of some kind...
-	 * @param {edb.FunctionCompiler} compiler
+	 * Mount compiled function as file. 
+	 * @param {edb.Compiler} compiler
 	 */
-	_loadblob : function () {
+	_loadblob : function ( compiler ) {
 		var win = this.context;
 		var doc = win.document;
-		var key = gui.KeyMaster.generateKey ( "function" );
-		var src = this._compiler.source.replace ( "function", "function " + key );
+		var key = gui.KeyMaster.generateKey ();
+		var src = compiler.source.replace ( "function", "function " + key );
 		this._gostate ( edb.Template.LOADING );
 		gui.BlobLoader.loadScript ( doc, src, function onload () {
 			this._gostate ( edb.Template.WORKING );
@@ -255,11 +246,11 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {function}
 	 */
 	get : function ( context, src ) {
-		//src = new gui.URL ( context.document, src ).href;
-		if ( true || gui.URL.absolute ( src )) {
+		//src = new gui.URL ( context.document, src );
+		if ( gui.URL.absolute ( src )) {
 			return this._functions [ src ] || null;
 		} else {
-			throw new Error ( "Absolute URL expected" );
+			throw new Error ( "Expected absolute URL, got " + src );
 		}
 	},
 
@@ -272,8 +263,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 */
 	load : function ( context, basedoc, src, callback, thisp ) {
 		var functions = this._functions;
-		new edb.TemplateLoader ( basedoc ).load ( src, function onload ( source, directives ) {
-			this.compile ( context, basedoc, source, directives, function onreadystatechange ( script ) {
+		new edb.Loader ( basedoc ).load ( src, function onload ( source, directives, url ) {
+			this.compile ( context, url, source, directives, function onreadystatechange ( script ) {
 				if ( !functions [ src ] && script.readyState === edb.Template.READY ) {
 					functions [ src ] = script._function; // now avilable using edb.Function.get()
 				}
@@ -291,11 +282,8 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {function} callback
 	 * @param {object} thisp
 	 */
-	compile : function ( context, basedoc, source, directives, callback, thisp ) {
-		if ( gui.Type.isString ( basedoc )) {
-			console.error ( "Deprecated API :)" );
-		} 
-		new ( this ) ( context, basedoc, function onreadystatechange () {
+	compile : function ( context, url, source, directives, callback, thisp ) {
+		new ( this ) ( context, url, function onreadystatechange () {
 			callback.call ( thisp, this );
 		}).compile ( source, directives );
 	},

@@ -53,19 +53,17 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	},
 		
 	/**
-	 * Compile EDBML to invocable function.
+	 * Compile source to invocable function.
 	 * @param {Window} context
-	 * @param @optional {boolean} fallback
+	 * @param {Document} basedoc
 	 * @returns {function}
 	 */
-	compile : function ( context ) {
-		if ( !context ) {
-			throw new Error ("NO!")
-		}
+	compile : function ( context, url ) {
 		var result = null;
 		this.dependencies = [];
 		this.params = [];
 		this._context = context;
+		this._url = url;
 		this._vars = [];
 		var head = {
 			declarations : Object.create ( null ), // Map<String,boolean>
@@ -86,11 +84,11 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	/**
 	 * Sign generated methods with a gui.$contextid key. This allows us to evaluate assigned 
 	 * functions in a context different to where the template HTML is used (sandbox scenario).
-	 * @param {String} $contextid
+	 * @param {String} contextid
 	 * @returns {edb.ScriptCompiler}
 	 */
-	sign : function ( $contextid ) {
-		this._$contextid = $contextid;
+	sign : function ( contextid ) {
+		this._$contextid = contextid;
 		return this;
 	},
 	
@@ -168,6 +166,7 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var href = atts.src;
 		var name = atts.name;
 		var cont = this._context;
+		var base = this._document;
 		switch ( type ) {
 			case "param" :
 				this.params.push ( name );
@@ -181,13 +180,9 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 						throw new Error ( "Missing tag #identifier: " + href );
 					}
 				}
+				var base = this._basedocument ();
 				this.dependencies.push ( 
-					new edb.Dependency ( 
-						cont,
-						type,
-						name,
-						href
-					)
+					new edb.Dependency ( cont, base, type, href, name )
 				);
 				break;
 		}
@@ -294,6 +289,21 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var lines = source.split ( "\n" ); lines.pop (); // empty line :/
 		var args = params.length ? "( " + params.join ( ", " ) + " )" : "()";
 		return "function " + args + " {\n" + lines.join ( "\n" ) + "\n}";
+	},
+
+	/**
+	 * Temp mechanism to resolve relative URLs in templates. 
+	 * This must all be replaced with tedious string parsing.
+	 * @returns {Document} Not compute in worker or on server
+	 */
+	_basedocument : function () {
+		return this._document || ( this._document = ( function ( basehref ) {
+			var doc = document.implementation.createHTMLDocument ( "temp" );
+	    var base = doc.createElement ( "base" );
+			base.href = basehref;
+			doc.querySelector ( "head" ).appendChild ( base );
+			return doc;
+		}( this._url.pathbase )));
 	}
 	
 

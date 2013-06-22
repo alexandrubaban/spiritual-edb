@@ -17,8 +17,8 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param {Global} context
 	 * @param {function} handler
 	 */
-	onconstruct : function ( context, basedoc, handler ) {
-		this._super.onconstruct ( context, basedoc, handler );
+	onconstruct : function ( context, url, handler ) {
+		this._super.onconstruct ( context, url, handler );
 		this.input = new edb.InputPlugin ();
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
@@ -109,13 +109,22 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	_resolved : false,
 
 	/**
-	 * Hello.
+	 * Get compiler implementation.
+	 * @returns {function}
 	 */
-	_oncompiled : function () {
-		gui.Object.each ( this._compiler.inputs, function ( name, type ) {
+	_compiler : function () {
+		return edb.ScriptCompiler;
+	},
+
+	/**
+	 * Setup input listeners.
+	 * @param {edb.ScriptCompiler} compiler
+	 */
+	_oncompiled : function ( compiler ) {
+		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
-		return this._super._oncompiled ();
+		return this._super._oncompiled ( compiler );
 	},
 
 	/**
@@ -242,7 +251,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param {object} thisp
 	 *
 	loadXXX : function ( context, src, callback, thisp ) {
-		new edb.TemplateLoader ( context.document ).load ( src, function ( source ) {
+		new edb.Loader ( context.document ).load ( src, function ( source ) {
 			var url = new gui.URL ( context.document, src );
 			var script = edb.Script.get ( url.href ); // todo - localize!
 			if ( !script ) {

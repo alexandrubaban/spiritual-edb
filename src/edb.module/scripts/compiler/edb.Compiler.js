@@ -1,5 +1,5 @@
 /**
- * Core EDBML compiler business logic.
+ * Core compiler business logic. This is where we parse the strings.
  */
 edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 

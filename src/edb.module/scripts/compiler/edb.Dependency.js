@@ -1,16 +1,17 @@
 /**
  * Tracking a single function dependency.
- * @param {Window} context
+ * @param {Window} context Compiler target context
+ * @param {Document} basedoc Resolving relative URLs
  * @param {String} type
- * @param {String} name
  * @param {String} href
+ * @param {String} name
  */
-edb.Dependency = function ( context, type, name, href ) {
-	this.href = gui.URL.absolute ( context.document, href );
+edb.Dependency = function ( context, basedoc, type, href, name ) {
+	this._context = context;
+	this._document = basedoc;
 	this.type = type;
 	this.name = name;
-	this._context = context;
-	this._document = context.document;
+	this.href = href;
 };
 
 edb.Dependency.prototype = {
@@ -32,6 +33,14 @@ edb.Dependency.prototype = {
 	 * @type {String}
 	 */
 	href : null,
+
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		return "[object edb.Dependency]";
+	},
 
 	/**
 	 * Resolve dependency.

@@ -1,9 +1,9 @@
 /**
- * The template loader will fetch a template string from an external 
- * document or scan the local document for templates in SCRIPT tags.
+ * The function loader will fetch a function string from an external 
+ * document or scan the local document for functions in SCRIPT tags.
  * @extends {gui.FileLoader}
  */
-edb.TemplateLoader = gui.FileLoader.extend ({
+edb.Loader = gui.FileLoader.extend ({
 
 	/**
 	 * Mapping script element attributes to be used as compiler directives. 
@@ -32,7 +32,7 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 	},
 
 	/**
-	 * Handle loaded script source; externally loaded file may contain multiple scripts.
+	 * Handle loaded script source. Externally loaded file may contain multiple scripts.
 	 * @overwrites {gui.FileLoader#onload}
 	 * @param {String} text
 	 * @param {gui.URL} url
@@ -43,7 +43,7 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 		if ( url.external ) {
 			text = this._extract ( text, url );
 		}
-		callback.call ( thisp, text, this.directives );
+		callback.call ( thisp, text, this.directives, url );
 		this.directives = null;
 	},
 	
@@ -85,44 +85,4 @@ edb.TemplateLoader = gui.FileLoader.extend ({
 	}
 
 
-}, {}, { // STATICS ....................................................
-	
-	/**
-	 * @static
-	 * Mapping scriptloaders to mimetypes.
-	 * @type {Map<String,edb.BaseLoader>}
-	 */
-	_loaders : new Map (),
-
-	/**
-	 * @static
-	 * Register scriptloader for one or more mimetypes. 
-	 * TODO: rename!
-	 */
-	set : function () { // implementation, ...mimetypes
-		var args = gui.Object.toArray ( arguments );
-		var impl = args.shift ();
-		args.forEach ( function ( type ) {
-			this._loaders.set ( type, impl );
-		}, this );
-	},
-		
-	/**
-	 * @static
-	 * Get loader for mimetype (what corresponds 
-	 * to the "type" attribute of a script tag),
-	 * TODO: rename!
-	 * @param {String} type
-	 * @returns {edb.BaseLoader}
-	 */
-	get : function ( type ) {
-		var impl = edb.BaseLoader;
-		if ( type ) {
-			impl = this._loaders.get ( type );
-			if ( !impl ) {
-				throw new Error ( "No script loader registered for type: " + type );
-			}
-		}
-		return impl;
-	}
 });

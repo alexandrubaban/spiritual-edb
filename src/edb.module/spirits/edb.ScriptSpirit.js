@@ -13,8 +13,8 @@ edb.ScriptSpirit = gui.Spirit.infuse ( "edb.ScriptSpirit", {
 	/**
 	 * Hello.
 	 */
-	onenter : function () {
-		this._super.onenter ();
+	onconfigure : function () {
+		this._super.onconfigure ();
 		var parent = this.dom.parent ( gui.Spirit );
 		if ( parent ) {
 			this._initparentplugin ( parent );

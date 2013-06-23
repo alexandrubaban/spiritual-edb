@@ -47,18 +47,26 @@ edb.Dependency.prototype = {
 	 */
 	resolve : function () {
 		var pool = this._functionpool ();
-		var func = pool.get ( this._context, this.href );
+		var func = pool.get ( this._context, this.tempname ());
 		var then = new gui.Then ();
 		if ( func ) {
 			then.now ( func );
 		} else {
 			pool.load ( this._context, this._document, this.href, function onreadystatechange ( func ) {
-				if ( func.readyState === edb.Template.READY ) {
+				if ( func.readyState === edb.Function.READY ) {
 					then.now ( func );
 				}
 			});
 		}
 		return then;
+	},
+
+	/**
+	 * Hm.
+	 * @returns {String}
+	 */
+	tempname : function () {
+		return new gui.URL ( this._document, this.href ).href;
 	},
 
 	/**

@@ -10,6 +10,13 @@ window.edb = gui.namespace ( "edb", {
 	toString : function () { return "[namespace edb]"; },
 
 	/**
+	 * Mount compiled functions as blob files 
+	 * (if at all supported) to aid debugging?
+	 * @type {boolean}
+	 */
+	useblobs : true, // @TODO: somehow map to local gui.debug
+
+	/**
 	 * Constants.
 	 */
 	BROADCAST_GETTER : "edb-broadcast-getter",

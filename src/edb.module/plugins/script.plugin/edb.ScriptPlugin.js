@@ -99,15 +99,17 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	},
 	
 	/**
-	 * The issue here is that the {ui.UpdateManager} 
-	 * can't diff propertly unless we wait for enter. 
-	 * @TODO: Think about fixing this some day
+	 * @TODO: The issue here is that the {ui.UpdateManager} can't diff propertly unless we 
+	 * wait for enter because it looks up the spirit via {gui.Spiritual#_spirits.inside}...
 	 * @param {gui.Life} life
 	 */
 	onlife : function ( life ) {
-		if ( life.type === gui.LIFE_ENTER && this._dosrc ) {
+		if ( life.type === gui.LIFE_ENTER ) {
 			this.spirit.life.remove ( life.type, this );
-			this.load ( this._dosrc );
+			if ( this._dosrc ) {
+				this.load ( this._dosrc );
+				this._dosrc = null;
+			}
 		}
 	},
 
@@ -127,7 +129,6 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 					this._onreadystatechange ( script );
 				}, this );
 				this._src = abs;
-				this._dosrc = null;
 			}
 		} else { // {edb.UpdateManager} needs to diff
 			this.spirit.life.add ( gui.LIFE_ENTER, this );
@@ -158,10 +159,10 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 				this._script.run.apply ( 
 					this._script, 
 					arguments 
-				)
+				)	
 			);
 		} else {
-			console.error ( "Running uncompiled script" );
+			this._dorun = arguments;
 		}
 	},
 	
@@ -249,19 +250,25 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	_dosrc : null,
 
 	/**
+	 * Run arguments on script loaded.
+	 * @type {Arguments}
+	 */
+	_dorun : null,
+
+	/**
 	 * Snapshot latest HTML to avoid duplicates.
 	 * @type {String}
 	 */
 	_html : null,
 
 	/**
-	 * Handle script state.
+	 * Handle script state change.
 	 * @param {edb.Script} script
 	 */
 	_onreadystatechange : function ( script ) {
 		this._script = this._script || script;
 		switch ( script.readyState ) {
-			case edb.Template.WAITING :
+			case edb.Function.WAITING :
 				if ( this._doinput ) {
 					while ( this._doinput.length ) {
 						this.input ( this._doinput.shift ());
@@ -269,14 +276,17 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 					this._doinput = null;
 				}
 				break;
-			case edb.Template.READY :
+			case edb.Function.READY :
 				if ( !this.loaded ) {
 					this.loaded = true;
 					if ( this.debug ) {
 						script.debug ();
 					}
 				}
-				if ( this.autorun ) {
+				if ( this._dorun ) {
+					this.run.apply ( this, this._dorun );
+					this._dorun = null;
+				} else if ( this.autorun ) {
 					this.run (); // @TODO: only if an when entered!
 				}
 				break;

@@ -14,7 +14,6 @@
 	"src/edb.module/scripts/utils/edb.Runner.js",
 	"src/edb.module/scripts/utils/edb.Status.js",
 	"src/edb.module/scripts/utils/edb.Result.js",
-	"src/edb.module/scripts/utils/edb.Template.js",
 	"src/edb.module/scripts/compiler/edb.Compiler.js",
 	"src/edb.module/scripts/compiler/edb.FunctionCompiler.js",
 	"src/edb.module/scripts/compiler/edb.ScriptCompiler.js",

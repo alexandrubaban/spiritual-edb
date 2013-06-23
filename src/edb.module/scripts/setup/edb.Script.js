@@ -12,6 +12,12 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	input : null,
 
 	/**
+	 * Target for the "this" keyword in compiled script.
+	 * @type {object}
+	 */
+	pointer : null,
+
+	/**
 	 * Construct.
 	 * @poverloads {edb.Function#onconstruct}
 	 * @param {Global} context
@@ -41,11 +47,11 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 				break;
 			case edb.BROADCAST_SETTER :
 				if ( this._keys.has ( b.data )) {
-					if ( this.readyState !== edb.Template.WAITING ) {
+					if ( this.readyState !== edb.Function.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
 						var sig = this.context.gui.$contextid;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );	
-						this._gostate ( edb.Template.WAITING );
+						this._gostate ( edb.Function.WAITING );
 					}
 				}
 				break;
@@ -59,7 +65,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	ontick : function ( tick ) {
 		switch ( tick.type ) {
 			case edb.TICK_SCRIPT_UPDATE :
-				this._gostate ( edb.Template.READY );
+				this._gostate ( edb.Function.READY );
 				break;
 		}
 	},

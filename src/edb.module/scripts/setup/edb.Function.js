@@ -2,14 +2,31 @@
  * EDB function.
  * @extends {edb.Template}
  */
-edb.Function = edb.Template.extend ( "edb.Function", {
+edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	
 	/**
-	 * Target for the "this" keyword in compiled function. For sandboxes, this  
-	 * refers to the worker global context; otherwise it's a spirit instance.
-	 * @type {object}
+	 * Compiled into this context.
+	 * @type {Window|WebWorkerGlobalScope}
 	 */
-	pointer : null,
+	context : null,
+
+	/**
+	 * Experimental...
+	 * @type {gui.URL}
+	 */
+	url : null,
+
+	/**
+	 * Script may be run when this switches to "ready".
+	 * @type {String}
+	 */
+	readyState : null,
+	
+	/**
+	 * Method is for script users to implement.
+	 * @type {function}
+	 */
+	onreadystatechange : null,
 	
 	/**
 	 * Expected script params. Must know how many.
@@ -30,7 +47,9 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @param {function} handler
 	 */
 	onconstruct : function ( context, url, handler ) {
-		this._super.onconstruct ( context, url, handler );
+		this.context = context || null;
+		this.url = url || null;
+		this.onreadystatechange = handler || null;
 		this.functions = Object.create ( null );
 	},
 	
@@ -61,6 +80,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
 		}
+		console.debug ( "TEMP\n"+this._source );
 		return this._oncompiled ( compiler );
 	},
 
@@ -179,7 +199,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @TODO: Investigate potential overheads and asyncness
 	 */
 	_useblob : function () {
-		return edb.Function.useblob && 
+		return this.context.edb.useblobs && 
 			gui.Client.hasBlob && 
 			!gui.Client.isExplorer && 
 			!gui.Client.isOpera;
@@ -194,12 +214,25 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 		var doc = win.document;
 		var key = gui.KeyMaster.generateKey ();
 		var src = compiler.source.replace ( "function", "function " + key );
-		this._gostate ( edb.Template.LOADING );
+		this._gostate ( edb.Function.LOADING );
 		gui.BlobLoader.loadScript ( doc, src, function onload () {
-			this._gostate ( edb.Template.WORKING );
+			this._gostate ( edb.Function.WORKING );
 			this._function = win [ key ];
 			this._maybeready ();
 		}, this );
+	},
+
+	/**
+	 * Update readystate and poke the statechange handler.
+	 * @param {String} state
+	 */
+	_gostate : function ( state ) {
+		if ( state !== this.readyState ) {
+			this.readyState = state;
+			if ( gui.Type.isFunction ( this.onreadystatechange )) {
+				this.onreadystatechange ();
+			}
+		}
 	},
 
 	/**
@@ -207,12 +240,12 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * for data types to initialize...
 	 */
 	_maybeready : function () {
-		if ( this.readyState !== edb.Template.LOADING ) {
-			this._gostate ( edb.Template.WORKING );
+		if ( this.readyState !== edb.Function.LOADING ) {
+			this._gostate ( edb.Function.WORKING );
 			if ( this._done ()) {
-				this._gostate ( edb.Template.READY );
+				this._gostate ( edb.Function.READY );
 			} else {
-				this._gostate ( edb.Template.WAITING );
+				this._gostate ( edb.Function.WAITING );
 			}
 		}
 	},
@@ -241,16 +274,16 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 
 	/**
 	 * Get function loaded from given SRC and compiled into given context.
+	 * @TODO: Actually use the context to support multiple contexts!!!!!!! 
 	 * @param {Window} context
 	 * @param {String} src
 	 * @returns {function}
 	 */
 	get : function ( context, src ) {
-		//src = new gui.URL ( context.document, src );
 		if ( gui.URL.absolute ( src )) {
 			return this._functions [ src ] || null;
 		} else {
-			throw new Error ( "Expected absolute URL, got " + src );
+			throw new Error ( "Absolute URL expected" );
 		}
 	},
 
@@ -258,15 +291,17 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * Loaded and compile function for SRC. When compiled, you can 
 	 * get the invokable function using 'edb.Function.get()' method. 
 	 * @param {Window} context Compiler target context
-	 * @param {Document} basedoc Relative URLs resolved
+	 * @param {Document} basedoc Used to resolve relative URLs
 	 * @param {String} src Document URL to load and parse (use #hash to target a SCRIPT id)
+	 * @param {function} callback
+	 * @param {object} thisp
 	 */
 	load : function ( context, basedoc, src, callback, thisp ) {
 		var functions = this._functions;
 		new edb.Loader ( basedoc ).load ( src, function onload ( source, directives, url ) {
 			this.compile ( context, url, source, directives, function onreadystatechange ( script ) {
-				if ( !functions [ src ] && script.readyState === edb.Template.READY ) {
-					functions [ src ] = script._function; // now avilable using edb.Function.get()
+				if ( !functions [ url.href ] && script.readyState === edb.Function.READY ) {
+					functions [ url.href ] = script._function; // now avilable using edb.Function.get()
 				}
 				callback.call ( thisp, script );
 			});
@@ -289,7 +324,7 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	},
 
 
-	// Private recurring static ...........................................
+	// Private recurring static ..............................................................
 
 	/**
 	 * Mapping SRC to invokable function.
@@ -300,14 +335,31 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	_functions : Object.create ( null )
 
 
-}, { // Static ...................................................
+}, { // Static .............................................................................
 
 	/**
-	 * Mount compiled scripts as blob files in development mode?
-	 * @TODO map to gui.Client.hasBlob somehow...
-	 * @type {boolean}
+	 * Function is loading.
+	 * @type {String}
 	 */
-	useblob : true
+	LOADING : "loading",
+
+	/**
+	 * Function is waiting for something.
+	 * @type {String}
+	 */
+	WAITING : "waiting",
+
+	/**
+	 * Function is processing something.
+	 * @type {String}
+	 */
+	WORKING : "working",
+
+	/**
+	 * Function is ready to run.
+	 * @type {String}
+	 */
+	READY : "ready"
 
 });
 

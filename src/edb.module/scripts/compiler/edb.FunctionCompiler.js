@@ -198,11 +198,11 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var funcs = [];
 		this.dependencies.forEach ( function ( dep ) {
 			head.declarations [ dep.name ] = true;
-			funcs.push ( dep.name + " = get ( self, '" + dep.href + "' );\n" );
+			funcs.push ( dep.name + " = functions ( self, '" + dep.tempname () + "' );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
 			head.functiondefs.push ( 
-				"( function lookup ( get ) {\n" +
+				"( function lookup ( functions ) {\n" +
 				funcs.join ( "" ) +
 				"}( edb.Function.get ));"
 			);

@@ -156,7 +156,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		if ( this.loaded ) {
 			this._script.pointer = this.spirit; // TODO!
 			this.write ( 
-				this._script.run.apply ( 
+				this._script.execute.apply ( 
 					this._script, 
 					arguments 
 				)	

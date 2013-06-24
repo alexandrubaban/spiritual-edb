@@ -1,44 +1,41 @@
 /**
- * EDB function.
- * @extends {edb.Template}
+ * This fellow compiles an EDBML source string into an executable 
+ * JS function. The onreadystatechange method fires when ready. 
+ * The method "execute" may by then invoke the compiled function.
  */
 edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	
 	/**
-	 * Compiled into this context.
+	 * EDBML source compiled to executable JS function.
+	 * @type {function}
+	 */
+	executable : null,
+
+	/**
+	 * Executable JS function compiled into this context.
 	 * @type {Window|WebWorkerGlobalScope}
 	 */
 	context : null,
 
 	/**
-	 * Experimental...
+	 * Origin of the EDBML template. You're looking for 'url.href'
 	 * @type {gui.URL}
 	 */
 	url : null,
 
 	/**
-	 * Script may be run when this switches to "ready".
+	 * Function may be executed when this switches to 'ready'. 
+	 * You can overwrite the onreadystatechange method below.
 	 * @type {String}
 	 */
 	readyState : null,
 	
 	/**
-	 * Method is for script users to implement.
+	 * Overwrite this to get notified on readyState changes. 
+	 * The method recieves the {edb.Function} as an argument.
 	 * @type {function}
 	 */
 	onreadystatechange : null,
-	
-	/**
-	 * Expected script params. Must know how many.
-	 * @type {Array<String>}
-	 */
-	params : null,
-
-	/**
-	 * Mapping edb.Dependencies while booting - mapping functions once resolved.
-	 * @type {Map<String,edb.Dependency|function>}
-	 */
-	functions : null,
 	
 	/**
 	 * Construct.
@@ -50,7 +47,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 		this.context = context || null;
 		this.url = url || null;
 		this.onreadystatechange = handler || null;
-		this.functions = Object.create ( null );
+		this._imports = Object.create ( null );
 	},
 	
 	/**
@@ -68,14 +65,13 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * @returns {edb.Function}
 	 */
 	compile : function ( source, directives ) { // @TODO gui.Combo.chained
-		if ( this._function === null ) {
+		if ( this.executable === null ) {
 			var compiler = new ( this._compiler ()) ( source, directives );
 			if ( this._$contextid ) {
 				compiler.sign ( this._$contextid );
 			}
-			this._function = compiler.compile ( this.context, this.url );
+			this.executable = compiler.compile ( this.context, this.url );
 			this._source = compiler.source;
-			this.params = compiler.params;
 			this._dependencies ( compiler );
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
@@ -97,13 +93,13 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 */
 	_dependencies : function ( compiler ) {
 		compiler.dependencies.filter ( function ( dep ) {
-			return true; // return dep.type === edb.Dependency.TYPE_FUNCTION;
+			return true; // return dep.type === edb.Import.TYPE_FUNCTION;
 		}).map ( function ( dep ) {
-			this.functions [ dep.name ] = null; // null all first
+			this._imports [ dep.name ] = null; // null all first
 			return dep;
 		}, this ).forEach ( function ( dep ) {
 			dep.resolve ().then ( function ( resolved ) {
-				this.functions [ dep.name ] = resolved;
+				this._imports [ dep.name ] = resolved;
 				this._maybeready ();
 			}, this );
 		}, this );
@@ -120,53 +116,42 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	},
 	
 	/**
-	 * Run the script. Returns a string.
+	 * Execute compiled function, most likely returning a HTML string.
 	 * @returns {String} 
 	 */
-	run : function () { // arguments via apply()
+	execute : function ( /* arguments */ ) {
 		var result = null;
-		if ( this._function ) {
+		if ( this.executable ) {
 			try {
 				this._subscribe ( true );
-				result = this._function.apply ( this.pointer, arguments );
+				result = this.executable.apply ( this.pointer, arguments );
 				this._subscribe ( false );
 			} catch ( exception ) {
 				console.error ( exception.message + ":\n\n" + this._source );
 			}
 		} else {
-			throw new Error ( "Script not compiled" );
+			throw new Error ( "Function not compiled" );
 		}
 		return result;
 	},
 	
-	/**
-	 * Handle broadcast.
-	 * TODO: What is this doing?
-	 * @param {gui.Broadcast} broadcast
-	 */
-	onbroadcast : function ( b ) {
-		switch ( b.type ) {
-			case edb.BROADCAST_FUNCTION_LOADED :
-				this._functionloaded ( b.data );
-				break;
-		}
-	},
-	
-	
+
 	// PRIVATES ..........................................................................................
-	
-	/**
-	 * TODO: MAKE NOT PRIVATE (used by edb.Function).
-	 * Script source compiled to invocable function.
-	 * @type {function}
-	 */
-	_function : null,
 	
 	/**
 	 * Optionally stamp a $contextid into generated edb.Script.invoke() callbacks.
 	 * @type {String} 
 	 */
 	_$contextid : null,
+
+	/**
+	 * Tracking imported functions.
+	 * 
+	 * 1. Mapping {edb.Import} instances while booting
+	 * 2. Mapping {edb.Function} instances once resolved.
+	 * @type {Map<String,edb.Import|function>}
+	 */
+	_imports : null,
 
 	/**
 	 * Get compiler implementation (subclass may overwrite this method).
@@ -217,7 +202,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 		this._gostate ( edb.Function.LOADING );
 		gui.BlobLoader.loadScript ( doc, src, function onload () {
 			this._gostate ( edb.Function.WORKING );
-			this._function = win [ key ];
+			this.executable = win [ key ];
 			this._maybeready ();
 		}, this );
 	},
@@ -255,8 +240,8 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * @returns {boolean}
 	 */
 	_done : function () {
-		return Object.keys ( this.functions ).every ( function ( name ) {
-			return this.functions [ name ] !== null;
+		return Object.keys ( this._imports ).every ( function ( name ) {
+			return this._imports [ name ] !== null;
 		}, this );
 	},
 	
@@ -281,7 +266,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 */
 	get : function ( context, src ) {
 		if ( gui.URL.absolute ( src )) {
-			return this._functions [ src ] || null;
+			return this._executables [ src ] || null;
 		} else {
 			throw new Error ( "Absolute URL expected" );
 		}
@@ -297,11 +282,11 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * @param {object} thisp
 	 */
 	load : function ( context, basedoc, src, callback, thisp ) {
-		var functions = this._functions;
+		var executables = this._executables;
 		new edb.Loader ( basedoc ).load ( src, function onload ( source, directives, url ) {
 			this.compile ( context, url, source, directives, function onreadystatechange ( script ) {
-				if ( !functions [ url.href ] && script.readyState === edb.Function.READY ) {
-					functions [ url.href ] = script._function; // now avilable using edb.Function.get()
+				if ( !executables [ url.href ] && script.readyState === edb.Function.READY ) {
+					executables [ url.href ] = script.executable; // now avilable using edb.Function.get()
 				}
 				callback.call ( thisp, script );
 			});
@@ -332,7 +317,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * TODO: Get $contextid in here, othewise windows will overwrite eachother!!!
 	 * @type {Map<String,function>}
 	 */
-	_functions : Object.create ( null )
+	_executables : Object.create ( null )
 
 
 }, { // Static .............................................................................

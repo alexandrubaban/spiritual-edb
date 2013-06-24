@@ -30,26 +30,6 @@ gui.module ( "edb", {
 	channels : [
 		[ "script[type='text/edbml']", "edb.ScriptSpirit" ],
 		[ "link[rel='service']", "edb.ServiceSpirit" ]
-	],
-
-	/**
-	 * @TODO this may be a bit silly...
-	 * @TODO detect sandbox...
-	 * @param {Window} context
-	 *
-	oncontextinitialize : function ( context ) {
-		if ( context === gui.context ) { // TODO: better detect top context
-			if ( edb.Template && edb.Loader ) { // hack to bypass the sandbox (future project)
-				edb.Template.setImplementation ( 
-					edb.Script, 
-					"application/x-edbml",
-					"application/edbml",
-					"text/edbml",
-					"edbml"
-				);
-			}
-		}
-	}
-	*/
+	]
 
 });

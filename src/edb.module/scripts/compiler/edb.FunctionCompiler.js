@@ -9,16 +9,10 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 * @type {String}
 	 */
 	source : null,
-	
-	/**
-	 * Compiled function arguments list. 
-	 * @type {Array<String>}
-	 */
-	params : null,
 
 	/**
 	 * Imported functions and tags.
-	 * @type {Array<edb.Dependency>}
+	 * @type {Array<edb.Import>}
 	 */
 	dependencies : null,
 
@@ -61,7 +55,7 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	compile : function ( context, url ) {
 		var result = null;
 		this.dependencies = [];
-		this.params = [];
+		this._params = [];
 		this._context = context;
 		this._url = url;
 		this._vars = [];
@@ -73,8 +67,8 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
-			result = this._convert ( this.source, this.params );
-			this.source = this._source ( this.source, this.params );
+			result = this._convert ( this.source, this._params );
+			this.source = this._source ( this.source, this._params );
 		} catch ( exception ) {
 			result = this._fail ( exception );
 		}
@@ -112,6 +106,12 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 * @type {Array<edb.Instruction>}
 	 */
 	_instructions : null,
+
+	/**
+	 * Compiled function arguments list. 
+	 * @type {Array<String>}
+	 */
+	_params : null,
 
 	/**
 	 * Did compilation fail just yet?
@@ -169,11 +169,11 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var base = this._document;
 		switch ( type ) {
 			case "param" :
-				this.params.push ( name );
+				this._params.push ( name );
 				break;
 			case "function" :
 			case "tag" :
-				if ( type === edb.Dependency.TYPE_TAG ) {
+				if ( type === edb.Import.TYPE_TAG ) {
 					if ( href.contains ( "#" )) {
 						name = href.split ( "#" )[ 1 ];
 					} else {
@@ -182,7 +182,7 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 				}
 				var base = this._basedocument ();
 				this.dependencies.push ( 
-					new edb.Dependency ( cont, base, type, href, name )
+					new edb.Import ( cont, base, type, href, name )
 				);
 				break;
 		}

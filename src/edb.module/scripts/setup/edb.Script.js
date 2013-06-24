@@ -40,7 +40,6 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param {gui.Broadcast} broadcast
 	 */
 	onbroadcast : function ( b ) {
-		this._super.onbroadcast ( b );
 		switch ( b.type ) {
 			case edb.BROADCAST_GETTER :
 				this._keys.add ( b.data );
@@ -79,14 +78,14 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	},
 
 	/**
-	 * Run the script. Returns a string.
-	 * @overloads {edb.Function#run}
+	 * Execute the script, most likely returning a HTML string.
+	 * @overloads {edb.Function#execute}
 	 * @returns {String}
 	 */
-	run : function () {
+	execute : function () {
 		this._keys = new Set ();
 		if ( this.input.done ) {
-			return this._super.run.apply ( this, arguments ); 
+			return this._super.execute.apply ( this, arguments ); 
 		} else {
 			 throw new Error ( "Script awaits input" );
 		}

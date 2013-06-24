@@ -1,12 +1,12 @@
 /**
- * Tracking a single function dependency.
+ * Tracking a single function import (dependency).
  * @param {Window} context Compiler target context
  * @param {Document} basedoc Resolving relative URLs
  * @param {String} type
  * @param {String} href
  * @param {String} name
  */
-edb.Dependency = function ( context, basedoc, type, href, name ) {
+edb.Import = function ( context, basedoc, type, href, name ) {
 	this._context = context;
 	this._document = basedoc;
 	this.type = type;
@@ -14,7 +14,7 @@ edb.Dependency = function ( context, basedoc, type, href, name ) {
 	this.href = href;
 };
 
-edb.Dependency.prototype = {
+edb.Import.prototype = {
 
 	/**
 	 * Matches function|tag
@@ -39,7 +39,7 @@ edb.Dependency.prototype = {
 	 * @returns {String}
 	 */
 	toString : function () {
-		return "[object edb.Dependency]";
+		return "[object edb.Import]";
 	},
 
 	/**
@@ -75,9 +75,9 @@ edb.Dependency.prototype = {
 	 */
 	_functionpool : function () {
 		switch ( this.type ) {
-			case edb.Dependency.TYPE_FUNCTION :
+			case edb.Import.TYPE_FUNCTION :
 				return edb.Function;
-			case edb.Dependency.TYPE_TAG :
+			case edb.Import.TYPE_TAG :
 				return edb.Tag;
 		}
 	},
@@ -97,10 +97,10 @@ edb.Dependency.prototype = {
  * Function dependency.
  * @type {String}
  */
-edb.Dependency.TYPE_FUNCTION = "function";
+edb.Import.TYPE_FUNCTION = "function";
 
 /**
  * Tag dependency.
  * @type {String}
  */
-edb.Dependency.TYPE_TAG = "tag";
+edb.Import.TYPE_TAG = "tag";

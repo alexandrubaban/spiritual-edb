@@ -3,8 +3,10 @@
  * @param {Window} context Compiler target context
  * @param {Document} basedoc Resolving relative URLs
  * @param {String} type
- * @param {String} href
+ * @param {String} href Note: might be relative!
  * @param {String} name
+ *
+ * https://gist.github.com/johan/3915545
  */
 edb.Import = function ( context, basedoc, type, href, name ) {
 	this._context = context;
@@ -52,6 +54,7 @@ edb.Import.prototype = {
 		if ( func ) {
 			then.now ( func );
 		} else {
+			alert ( this.href )
 			pool.load ( this._context, this._document, this.href, function onreadystatechange ( func ) {
 				if ( func.readyState === edb.Function.READY ) {
 					then.now ( func );
@@ -89,7 +92,13 @@ edb.Import.prototype = {
 	 * Context to compile into.
 	 * @type {Window|WebWorkerGlobalScope}
 	 */
-	_context : null
+	_context : null,
+
+	/**
+	 * Base for relative URLs.
+	 * @type {Document}
+	 */
+	_document : null
 
 };
 

@@ -166,7 +166,6 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var href = atts.src;
 		var name = atts.name;
 		var cont = this._context;
-		var base = this._document;
 		switch ( type ) {
 			case "param" :
 				this._params.push ( name );
@@ -292,18 +291,17 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	},
 
 	/**
-	 * Temp mechanism to resolve relative URLs in templates. 
-	 * This must all be replaced with tedious string parsing.
-	 * @returns {Document} Not compute in worker or on server
+	 * Base document to resolve relative URLs in templates. 
+	 * @TODO: Works not in IE9, on the server or in workers.
 	 */
 	_basedocument : function () {
-		return this._document || ( this._document = ( function ( basehref ) {
+		return this._document || ( this._document = ( function ( href ) {
 			var doc = document.implementation.createHTMLDocument ( "temp" );
 	    var base = doc.createElement ( "base" );
-			base.href = basehref;
+			base.href = href;
 			doc.querySelector ( "head" ).appendChild ( base );
 			return doc;
-		}( this._url.pathbase )));
+		}( this._url.href )));
 	}
 	
 

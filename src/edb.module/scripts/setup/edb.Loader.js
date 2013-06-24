@@ -59,8 +59,12 @@ edb.Loader = gui.FileLoader.extend ({
 	 */
 	_lookup : function ( url, callback, thisp ) {
 		var script = this._document.querySelector ( url.hash );
-		this.directives = gui.AttPlugin.getmap ( script );
-		this.onload ( script.textContent, url, callback, thisp );
+		if ( script ) {
+			this.directives = gui.AttPlugin.getmap ( script );
+			this.onload ( script.textContent, url, callback, thisp );
+		} else {
+			console.error ( "No such script: " + url )
+		}
 	},
 
 	/**
@@ -73,8 +77,8 @@ edb.Loader = gui.FileLoader.extend ({
 	 * @returns {String} Template source code
 	 */
 	_extract : function ( text, url ) {
-		var doc = gui.HTMLParser.parseToDocument ( text ); // @TODO: cache this
 		//alert ( doc.baseURI || doc.URL );
+		var doc = gui.HTMLParser.parseToDocument ( text ); // @TODO: cache this
 		var script = doc.querySelector ( url.hash || "script" );
 		if ( script ) {	
 			this.directives = gui.AttPlugin.getmap ( script );

@@ -66,7 +66,8 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 */
 	compile : function ( source, directives ) { // @TODO gui.Combo.chained
 		if ( this.executable === null ) {
-			var compiler = new ( this._compiler ()) ( source, directives );
+			var Compiler = this._compiler ();
+			var compiler = new Compiler ( source, directives );
 			if ( this._$contextid ) {
 				compiler.sign ( this._$contextid );
 			}
@@ -259,14 +260,15 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 
 	/**
 	 * Get function loaded from given SRC and compiled into given context.
-	 * @TODO: Actually use the context to support multiple contexts!!!!!!! 
 	 * @param {Window} context
 	 * @param {String} src
 	 * @returns {function}
 	 */
 	get : function ( context, src ) {
+		var ex = this._executables;
+		var id = context.gui.$contextid;
 		if ( gui.URL.absolute ( src )) {
-			return this._executables [ src ] || null;
+			return ex [ id ] ? ex [ id ][ src ] || null : null;
 		} else {
 			throw new Error ( "Absolute URL expected" );
 		}
@@ -282,28 +284,29 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * @param {object} thisp
 	 */
 	load : function ( context, basedoc, src, callback, thisp ) {
-		var executables = this._executables;
+		var exe = this._executablecontext ( context );
 		new edb.Loader ( basedoc ).load ( src, function onload ( source, directives, url ) {
-			this.compile ( context, url, source, directives, function onreadystatechange ( script ) {
-				if ( !executables [ url.href ] && script.readyState === edb.Function.READY ) {
-					executables [ url.href ] = script.executable; // now avilable using edb.Function.get()
+			this.compile ( context, url, source, directives, function onreadystatechange ( fun ) {
+				if ( !exe [ url.href ] && fun.readyState === edb.Function.READY ) {
+					exe [ url.href ] = fun.executable; // now avilable using edb.Function.get()
 				}
-				callback.call ( thisp, script );
+				callback.call ( thisp, fun );
 			});
 		}, this );
 	},
 
 	/**
-	 * Compile source text to {edb.Function} instance.
+	 * Compile EDBML source to {edb.Function} instance in given context.
+	 * @TODO: If <SCRIPT> has an id, we can store this in _executables...
 	 * @param {Window} context
-	 * @param {Document} basedoc
+	 * @param {gui.URL} url
 	 * @param {String} src
 	 * @param {Mao<String,object>} directives
 	 * @param {function} callback
 	 * @param {object} thisp
 	 */
 	compile : function ( context, url, source, directives, callback, thisp ) {
-		new ( this ) ( context, url, function onreadystatechange () {
+		var fun = new ( this ) ( context, url, function onreadystatechange () {
 			callback.call ( thisp, this );
 		}).compile ( source, directives );
 	},
@@ -312,12 +315,20 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	// Private recurring static ..............................................................
 
 	/**
-	 * Mapping SRC to invokable function.
-	 * TODO: rename 'invokabels' or 'executabeles' or something (since it's not edb.Functions)
-	 * TODO: Get $contextid in here, othewise windows will overwrite eachother!!!
-	 * @type {Map<String,function>}
+	 * Mapping contextid to map that maps URIs to functions.
+	 * @type {Map<String,Map<String,function>>}
 	 */
-	_executables : Object.create ( null )
+	_executables : Object.create ( null ),
+
+	/**
+	 * Get (and possibly create) map for context.
+	 * @param {Window} context
+	 * @returns {Map<String,function>}
+	 */
+	_executablecontext : function ( context ) {
+		var exe = this._executables, id = context.gui.$contextid;
+		return exe [ id ] || ( exe [ id ] = Object.create ( null ));
+	}
 
 
 }, { // Static .............................................................................

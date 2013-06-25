@@ -1,5 +1,5 @@
 /**
- * Tracking a single import dependency.
+ * Tracking a single import (function dependency).
  * @param {Window} context Compiler target context
  * @param {Document} basedoc Resolving relative URLs
  * @param {String} type
@@ -70,7 +70,7 @@ edb.Import.prototype = {
 	},
 
 	/**
-	 * Where to lookup compiled functions?
+	 * Where to lookup functions that may already be compiled?
 	 * @returns {function}
 	 */
 	_functionpool : function () {

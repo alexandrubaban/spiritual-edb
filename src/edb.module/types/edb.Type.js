@@ -54,6 +54,46 @@ edb.Type.setter = gui.Combo.after ( function () {
 	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SETTER, this._instanceid );
 });
 
+/*
+ * Dispatch a setter broadcast after base function.
+ *
+edb.Type.setter = gui.Combo.before ( function ( value ) {
+		console.log ( value );
+	}) ( gui.Combo.after ( function () {
+		gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SETTER, this._instanceid );
+	}
+));
+*/
+
+edb.Type.xxxsetter = function ( key, base ) {
+	return ( function () {
+		var oldval = undefined;
+		return function ( newval ) {
+			base.apply ( this, arguments );
+			console.log ( this._instanceid, {
+				object: this,
+				name: key,
+				type: "updated",
+  			oldValue: oldval,
+  			newValue : newval
+			});
+			gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SETTER, this._instanceid );
+			oldval = newval;
+		};
+	}());
+};
+
+/*
+edb.Type.setbefore = gui.Combo.before ( function ( value ) {
+	console.log ( value );
+});
+
+edb.Type.setafter = gui.Combo.after ( function ( value ) {
+	console.log ( value );
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SETTER, this._instanceid );
+});
+*/
+
 /**
  * Decorate getter methods on prototype.
  * @param {object} proto Prototype to decorate

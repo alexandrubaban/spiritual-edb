@@ -12,7 +12,13 @@ gui.module ( "edb", {
 		 * Handle input.
 		 * @param {edb.Input} input
 		 */
-		oninput : function ( input ) {}
+		oninput : function ( input ) {},
+
+		/**
+		 * Handle changes.
+		 * @param {Array<edb.Change>}
+		 */
+		onchange : function ( changes ) {}
 	},
 	
 	/*

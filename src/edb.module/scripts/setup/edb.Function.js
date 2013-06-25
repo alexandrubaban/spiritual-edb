@@ -77,7 +77,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
 		}
-		console.debug ( "TEMP\n"+this._source );
+		// console.debug ( "TEMP\n"+this._source );
 		return this._oncompiled ( compiler );
 	},
 
@@ -131,7 +131,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 				console.error ( exception.message + ":\n\n" + this._source );
 			}
 		} else {
-			throw new Error ( "Function not compiled" );
+			throw new Error ( this + " not compiled" );
 		}
 		return result;
 	},
@@ -244,15 +244,6 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 		return Object.keys ( this._imports ).every ( function ( name ) {
 			return this._imports [ name ] !== null;
 		}, this );
-	},
-	
-	/**
-	 * Add-remove broadcast handlers.
-	 * @param {boolean} isBuilding
-	 */
-	_subscribe : function ( isBuilding ) {
-		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_GETTER, this );
-		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_SETTER, this );
 	}
 
 

@@ -308,8 +308,7 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 }, {}, { // Static ............................................................................
 
 	/**
-	 * @static
-	 * Test for nested scripts (because those are not parsable in the browser). 
+	 * RegExp used to validate no nested scripts (because those are not parsable in the browser). 
 	 * http://stackoverflow.com/questions/1441463/how-to-get-regex-to-match-multiple-script-tags
 	 * http://stackoverflow.com/questions/1750567/regex-to-get-attributes-and-body-of-script-tags
 	 * TODO: stress test for no SRC attribute!

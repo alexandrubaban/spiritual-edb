@@ -27,6 +27,7 @@ window.edb = gui.namespace ( "edb", {
 	LIFE_SCRIPT_WILL_RUN : "edb-life-script-will-run",
 	LIFE_SCRIPT_DID_RUN : "edb-life-script-did-run",
 	TICK_SCRIPT_UPDATE : "edb-tick-script-update",
-	TICK_COLLECT_INPUT : "edb-tick-collect-input"
+	TICK_COLLECT_INPUT : "edb-tick-collect-input",
+	TICK_PUBLISH_CHANGES : "edb-tick-update-changes"
 	
 });

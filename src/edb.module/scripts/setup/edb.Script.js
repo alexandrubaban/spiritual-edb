@@ -84,11 +84,15 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 */
 	execute : function () {
 		this._keys = new Set ();
+		var result = null;
 		if ( this.input.done ) {
-			return this._super.execute.apply ( this, arguments ); 
+			this._subscribe ( true );
+			result = this._super.execute.apply ( this, arguments );
+			this._subscribe ( false );
 		} else {
 			 throw new Error ( "Script awaits input" );
 		}
+		return result;
 	},
 
 
@@ -139,6 +143,15 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 */
 	_done : function () {
 		return this.input.done && this._super._done ();
+	},
+
+	/**
+	 * Add-remove broadcast handlers.
+	 * @param {boolean} isBuilding
+	 */
+	_subscribe : function ( isBuilding ) {
+		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_GETTER, this );
+		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_SETTER, this );
 	}
 
 

@@ -256,7 +256,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	_dorun : null,
 
 	/**
-	 * Snapshot latest HTML to avoid duplicates.
+	 * Snapshot latest HTML to avoid parsing duplicates.
 	 * @type {String}
 	 */
 	_html : null,

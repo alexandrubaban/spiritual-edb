@@ -54,7 +54,6 @@ edb.Import.prototype = {
 		if ( func ) {
 			then.now ( func );
 		} else {
-			alert ( this.href )
 			pool.load ( this._context, this._document, this.href, function onreadystatechange ( func ) {
 				if ( func.readyState === edb.Function.READY ) {
 					then.now ( func );

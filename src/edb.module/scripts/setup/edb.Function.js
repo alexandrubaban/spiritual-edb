@@ -74,11 +74,10 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 			this.executable = compiler.compile ( this.context, this.url );
 			this._source = compiler.source;
 			this._dependencies ( compiler );
+			return this._oncompiled ( compiler );
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
 		}
-		// console.debug ( "TEMP\n"+this._source );
-		return this._oncompiled ( compiler );
 	},
 
 	/**
@@ -297,7 +296,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * @param {object} thisp
 	 */
 	compile : function ( context, url, source, directives, callback, thisp ) {
-		var fun = new ( this ) ( context, url, function onreadystatechange () {
+		var Fun = this, fun = new Fun ( context, url, function onreadystatechange () {
 			callback.call ( thisp, this );
 		}).compile ( source, directives );
 	},

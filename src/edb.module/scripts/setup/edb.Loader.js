@@ -63,7 +63,7 @@ edb.Loader = gui.FileLoader.extend ({
 			this.directives = gui.AttPlugin.getmap ( script );
 			this.onload ( script.textContent, url, callback, thisp );
 		} else {
-			console.error ( "No such script: " + url )
+			console.error ( "No such script: " + url );
 		}
 	},
 

@@ -22,14 +22,6 @@ edb.Tag = edb.Function.extend ( "edb.Tag", {
 	compile : function ( source, directives ) {
 		directives.tag = true;
 		return this._super.compile ( source, directives );
-	},
-
-	/**
-	 * Compiler implementation.
-	 * @overwrites {edb.Function#_Compiler}
-	 * @type {function}
-	 */
-	_Compiler : edb.TagCompiler
-
+	}
 
 });

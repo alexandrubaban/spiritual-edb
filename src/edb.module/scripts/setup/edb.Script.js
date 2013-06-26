@@ -32,7 +32,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
-		gui.Broadcast.addGlobal ( edb.BROADCAST_SETTER, this );
+		gui.Broadcast.addGlobal ( edb.BROADCAST_CHANGE, this );
 	},
 
 	/**
@@ -41,10 +41,10 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 */
 	onbroadcast : function ( b ) {
 		switch ( b.type ) {
-			case edb.BROADCAST_GETTER :
+			case edb.BROADCAST_ACCESS :
 				this._keys.add ( b.data );
 				break;
-			case edb.BROADCAST_SETTER :
+			case edb.BROADCAST_CHANGE :
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Function.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
@@ -150,8 +150,8 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param {boolean} isBuilding
 	 */
 	_subscribe : function ( isBuilding ) {
-		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_GETTER, this );
-		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_SETTER, this );
+		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_ACCESS, this );
+		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_CHANGE, this );
 	}
 
 
@@ -177,7 +177,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param {object} thisp
 	 * @returns {String}
 	 */
-	assign : function ( func, thisp ) {
+	$assign : function ( func, thisp ) {
 		var key = gui.KeyMaster.generateKey ();
 		edb.Script._invokables.set ( key, function ( value, checked ) {
 			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
@@ -192,7 +192,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param @optional {String} sig
 	 * @param @optional {Map<String,object>} log
 	 */
-	invoke : function ( key, sig, log ) {
+	$invoke : function ( key, sig, log ) {
 		var func = null;
 		log = log || this._log;
 		/*
@@ -227,7 +227,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Keep a log on the latest DOM event.
 	 * @param {Event} e
 	 */
-	register : function ( e ) {
+	$register : function ( e ) {
 		this._log = {
 			type : e.type,
 			value : e.target.value,

@@ -95,7 +95,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 						handler.onchange ( changes );
 					});
 				}
-				gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_SETTER, instanceid ); // @TODO deprecate
+				gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
 			});
 		}
 	},
@@ -110,30 +110,56 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	_observers : Object.create ( null ),
 
 	/**
+	 * Create getter for key.
+	 * @param {String} key
+	 * @param {function} base
+	 * @returns {function}
+	 */
+	_getter : function ( key, base ) {
+		return function () {
+			var result = base.apply ( this );
+			edb.Object._onaccess ( this, key );
+			return result;
+		};
+	},
+
+	/**
 	 * Create setter for key.
 	 * @param {String} key
 	 * @param {function} base
+	 * @returns {function}
 	 */
 	_setter : function ( key, base ) {
 		return function ( newval ) {
 			var oldval = this [ key ]; // @TODO suspend something?
 			base.apply ( this, arguments );
-			edb.Object._onchange ( this._instanceid, new edb.Change ( 
-				this, key, "updated", oldval, newval 
-			));
+			edb.Object._onchange ( this, key, oldval, newval );
 			oldval = newval;
 		};
 	},
 
 	/**
-	 * Register change summary for publication in next tick.
+	 * Primarily for iternal use: Publish a notification on property 
+	 * accessors so that {edb.Script} may register change observers.
 	 * @param {String} instanceid
-	 * @param {edb.Change} change
+	 * @param {edb.Access} access
 	 */
-	_onchange : function ( instanceid, change ) {
-		var all = this._changes, id = instanceid;
+	_onaccess : function ( object, name ) {
+		var access = new edb.Access ( object, name );
+		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_ACCESS, access.instanceid );
+	},
+
+	/**
+	 * Register change summary for publication in next tick.
+	 * @param {edb.Object} object
+	 * @param {String} name
+	 * @param {object} oldval
+	 * @param {object} newval
+	 */
+	_onchange : function ( object, name, oldval, newval ) {
+		var all = this._changes, id = object._instanceid;
 		var set = all [ id ] = all [ id ] || ( all [ id ] = Object.create ( null ));
-		set [ change.name ] = change;
+		set [ name ] = new edb.Change ( object, name, edb.Change.TYPE_UPDATED, oldval, newval );
 		gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
 	},
 
@@ -183,7 +209,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 					break;
 				default :
 					gui.Property.accessor ( handler, key, {
-						getter : edb.Type.getter ( function () {
+						getter : edb.Object._getter ( key, function () {
 							return instances [ key ] || proxy [ key ];
 						}),
 						setter : edb.Object._setter ( key, function ( value ) {

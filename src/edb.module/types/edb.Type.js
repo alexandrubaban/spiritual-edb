@@ -44,14 +44,14 @@ edb.Type.prototype = {
  * Dispatch a getter broadcast before base function.
  */
 edb.Type.getter = gui.Combo.before ( function () {
-	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_GETTER, this._instanceid );
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_ACCESS, this._instanceid );
 });
 
 /*
  * Dispatch a setter broadcast after base function.
  */
 edb.Type.setter = gui.Combo.after ( function () {
-	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SETTER, this._instanceid );
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_CHANGE, this._instanceid );
 });
 
 /**

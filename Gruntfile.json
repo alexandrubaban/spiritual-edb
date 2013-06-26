@@ -3,6 +3,7 @@
 	"src/edb.module/types/edb.Type.js",
 	"src/edb.module/types/edb.Object.js",
 	"src/edb.module/types/edb.Array.js",
+	"src/edb.module/observers/edb.Access.js",
 	"src/edb.module/observers/edb.Change.js",
 	"src/edb.module/plugins/output.plugin/edb.Output.js",
 	"src/edb.module/plugins/output.plugin/edb.OutputPlugin.js",

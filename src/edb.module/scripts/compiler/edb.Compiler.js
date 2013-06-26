@@ -257,9 +257,10 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 			next = body.substring ( spot ),
 			name = gui.KeyMaster.generateKey ( "poke" );
 		result.body = prev + "\n" + 
-			"var " + name + " = edb.Script.assign ( function ( value, checked ) { \n" +
+			"var " + name + " = edb.set ( function ( value, checked ) { \n" +
 			temp + ";\n}, this );" + next +
-			"edb.Script.register ( event ).invoke ( &quot;\' + " + name + " + \'&quot;" + sig + " );";
+			//"edb.Script.register ( event ).invoke ( &quot;\' + " + name + " + \'&quot;" + sig + " );";
+			"edb.go(event,&quot;\' + " + name + " + \'&quot;" + sig + ");";
 	}
 	
 

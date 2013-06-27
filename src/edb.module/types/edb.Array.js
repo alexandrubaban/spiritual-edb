@@ -1,152 +1,239 @@
 /**
- * EDB array-like type.
- * @extends {edb.Type} (although not really)
+ * @using {Array.prototype}
  */
-edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
-	
-	/**
-	 * The content type can be declared as:
-	 *
-	 * 1. An edb.Type constructor function (my.ns.MyType)
-	 * 2. A filter function to accept JSON (for analysis) and return a constructor.
-	 * @type {function} Type constructor or filter function
-	 */
-	$of : null,
+( function using ( proto ) {
 
 	/**
-	 * Secret constructor.
+	 * edb.Array
+	 * @extends {edb.Type} ...although not really...
 	 */
-	$onconstruct : function () {
-		edb.Type.underscoreinstanceid ( this ); // iOS bug...
-		if ( arguments.length ) {
-			// accept one argument (an array) or use Arguments object as an array
-			var args = [];
-			if ( gui.Type.isArray ( arguments [ 0 ])) {
-				args = arguments [ 0 ];
-			} else {
-				Array.forEach ( arguments, function ( arg ) {
-					args.push ( arg );
-				});
-			}
-			var type = this.$of;
-			if ( gui.Type.isFunction ( type )) {
-				args = args.map ( function ( o, i ) {
-					if ( o !== undefined ) { // why can o be undefined in Firefox?
-						if ( !o._instanceid ) { // TODO: underscore depends on iPad glitch, does it still glitch?
-							var Type = type;//  type constructor or... 
-							if ( !gui.Type.isConstructor ( Type )) { // ... filter function?
-								Type = type ( o );
-							}
-							o = new Type ( o );
-						}
-					}
-					return o;
-				});
-			}
-			args.forEach ( function ( arg ) {
-				Array.prototype.push.call ( this, arg ); // bypassing broadcast mechanism
-			}, this );
-		}
+	edb.Array = gui.Class.create ( "edb.Array", proto, {
 
-		// proxy methods and invoke non-secret constructor
-		edb.Array.approximate ( this );
-		this.onconstruct.call ( this, arguments );
-	},
 
-	/**
-	 * Create true array without expando properties, recursively 
-	 * normalizing nested EDB types. This is the type of object 
-	 * you would typically transmit to the server. 
-	 * @returns {Array}
-	 */
-	$normalize : function () {
-		return Array.map ( this, function ( thing ) {
-			if ( edb.Type.isInstance ( thing )) {
-				return thing.$normalize ();
-			}
-			return thing;
-		});
-	}
-	
-	
-}, {}, { // Static .........................................................................
-
-	/**
-	 * Simplistic proxy mechanism. 
-	 * @param {object} handler The object that intercepts properties (the edb.Array)
-	 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
-	 */
-	approximate : function ( handler, proxy ) {
-		var def = null;
-		proxy = proxy || Object.create ( null );	
-		this._definitions ( handler ).forEach ( function ( key ) {
-			def = handler [ key ];
-			switch ( gui.Type.of ( def )) {
-				case "function" :
-					break;
-				case "object" :
-				case "array" :
-					console.warn ( "TODO: complex stuff on edb.Array :)" );
-					break;
-				default :
-					if ( !gui.Type.isDefined ( proxy [ key ])) {
-						proxy [ key ] = handler [ key ];
-					}
-					break;
-			}
-		});
+		// Native ...............................................................................
 		
-		/* 
-		 * Handler intercepts all accessors for simple properties.
+		/**
+		 * Push.
 		 */
-		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-			Object.defineProperty ( handler, key, {
-				enumerable : true,
-				configurable : true,
-				get : edb.Type.getter ( function () {
-					return proxy [ key ];
-				}),
-				set : edb.Type.setter ( function ( value ) {
-					proxy [ key ] = value;
-				})
-			});
-		});
-	},
+		push : function() {
+			var res = proto.push.apply ( this, arguments );
+			Array.forEach ( arguments, function ( arg ) {
+				edb.Array._onchange ( this, 1, arg );
+			}, this );
+			return res;
+		},
+		
+		/**
+		 * Pop.
+		 */
+		pop : function () {
+			var res = proto.pop.apply ( this, arguments );
+			edb.Array._onchange ( this, 0, res );
+			return res;
+		},
+		
+		/**
+		 * Shift.
+		 */
+		shift : function () {
+			var res = proto.shift.apply ( this, arguments );
+			edb.Array._onchange ( this, 0, res );
+			return res;
+		},
 
-	/**
-	 * Collect list of definitions to transfer from proxy to handler.
-	 * @param {object} handler
-	 * @returns {Array<String>}
-	 */
-	_definitions : function ( handler ) {
-		var keys = [];
-		for ( var key in handler ) {
-			if ( this._define ( key )) {
-				keys.push ( key );
+		/**
+		 * Unshift.
+		 */
+		unshift : function () {
+			var res = proto.unshift.apply ( this, arguments );
+			Array.forEach ( arguments, function ( arg ) {
+				edb.Array._onchange ( this, 1, arg );
+			}, this );
+			return res;
+		},
+
+		/**
+		 * Splice.
+		 */
+		splice : function () {
+			var res = proto.splice.apply ( this, arguments );
+			var add = [].slice.call ( arguments, 2 );
+			res.forEach ( function ( r ) {
+				edb.Array._onchange ( this, 0, r );
+			}, this );
+			add.forEach ( function ( a ) {
+				edb.Array._onchange ( this, 1, a );
+			}, this );
+			return res;
+		},
+
+
+		// Custom ...............................................................................
+
+		/**
+		 * The content type can be declared as:
+		 *
+		 * 1. An edb.Type constructor function (my.ns.MyType)
+		 * 2. A filter function to accept JSON (for analysis) and return an edb.Type constructor.
+		 * @type {function} Type constructor or filter function
+		 */
+		$of : null,
+
+		/**
+		 * Secret constructor.
+		 */
+		$onconstruct : function () {
+			edb.Type.underscoreinstanceid ( this ); // iOS bug...
+			if ( arguments.length ) {
+				// accept one argument (an array) or use Arguments object as an array
+				var args = [];
+				if ( gui.Type.isArray ( arguments [ 0 ])) {
+					args = arguments [ 0 ];
+				} else {
+					Array.forEach ( arguments, function ( arg ) {
+						args.push ( arg );
+					});
+				}
+				var type = this.$of;
+				if ( gui.Type.isFunction ( type )) {
+					args = args.map ( function ( o, i ) {
+						if ( o !== undefined ) { // why can o be undefined in Firefox?
+							if ( !o._instanceid ) { // TODO: underscore depends on iPad glitch, does it still glitch?
+								var Type = type;//	type constructor or... 
+								if ( !gui.Type.isConstructor ( Type )) { // ... filter function?
+									Type = type ( o );
+								}
+								o = new Type ( o );
+							}
+						}
+						return o;
+					});
+				}
+				args.forEach ( function ( arg ) {
+					Array.prototype.push.call ( this, arg ); // bypassing broadcast mechanism
+				}, this );
 			}
-		}
-		return keys;
-	},
 
-	/**
-	 * Should define given property?
-	 * @param {String} key
-	 * @returns {boolean}
-	 */
-	_define : function ( key ) {
-		if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
-			if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
-					if ( !key.startsWith ( "_" )) {
-						return true;
+			// proxy methods and invoke non-secret constructor
+			edb.Array.approximate ( this );
+			this.onconstruct.call ( this, arguments );
+		},
+
+		/**
+		 * Create true array without expando properties, recursively 
+		 * normalizing nested EDB types. This is the type of object 
+		 * you would typically transmit to the server. 
+		 * @returns {Array}
+		 */
+		$normalize : function () {
+			return Array.map ( this, function ( thing ) {
+				if ( edb.Type.isInstance ( thing )) {
+					return thing.$normalize ();
+				}
+				return thing;
+			});
+		}
+		
+		
+	}, {}, { // Static .........................................................................
+
+		/**
+		 * @param {edb.Array} array
+		 */
+		_onaccess : function ( array ) {},
+
+		/**
+		 * Register change summary for publication in next tick.
+		 * @param {edb.Array} array
+		 * @param {number} type
+		 * @param {object} item
+		 */
+		_onchange : function ( array, type, item ) {
+			type = {
+				0 : edb.ArrayChange.TYPE_REMOVED,
+				1 : edb.ArrayChange.TYPE_ADDED
+			}[ type ];
+			// console.log ( array, type, item ); TODO :)
+		},
+
+		/**
+		 * Simplistic proxy mechanism. 
+		 * @param {object} handler The object that intercepts properties (the edb.Array)
+		 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
+		 */
+		approximate : function ( handler, proxy ) {
+			var def = null;
+			proxy = proxy || Object.create ( null );	
+			this._definitions ( handler ).forEach ( function ( key ) {
+				def = handler [ key ];
+				switch ( gui.Type.of ( def )) {
+					case "function" :
+						break;
+					case "object" :
+					case "array" :
+						console.warn ( "TODO: complex stuff on edb.Array :)" );
+						break;
+					default :
+						if ( !gui.Type.isDefined ( proxy [ key ])) {
+							proxy [ key ] = handler [ key ];
+						}
+						break;
+				}
+			});
+			
+			/* 
+			 * Handler intercepts all accessors for simple properties.
+			 */
+			gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
+				Object.defineProperty ( handler, key, {
+					enumerable : true,
+					configurable : true,
+					get : edb.Type.getter ( function () {
+						return proxy [ key ];
+					}),
+					set : edb.Type.setter ( function ( value ) {
+						proxy [ key ] = value;
+					})
+				});
+			});
+		},
+
+		/**
+		 * Collect list of definitions to transfer from proxy to handler.
+		 * @param {object} handler
+		 * @returns {Array<String>}
+		 */
+		_definitions : function ( handler ) {
+			var keys = [];
+			for ( var key in handler ) {
+				if ( this._define ( key )) {
+					keys.push ( key );
+				}
+			}
+			return keys;
+		},
+
+		/**
+		 * Should define given property?
+		 * @param {String} key
+		 * @returns {boolean}
+		 */
+		_define : function ( key ) {
+			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
+				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
+					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
+						if ( !key.startsWith ( "_" )) {
+							return true;
+						}
 					}
 				}
 			}
+			return false;
 		}
-		return false;
-	}
 
-});
+	});
+
+}( Array.prototype ));
 
 /*
  * Overloading array methods.
@@ -179,12 +266,12 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 * Dispatch a broadcast whenever the list changes content or structure.
 	 */
 	edb.Type.decorateSetters ( proto, [
-		"push",
-		"pop", 
-		"shift", 
-		"unshift", 
-		"splice", 
-		"reverse" 
+		"push", // add
+		"unshift", // add
+		"splice", // add or remove
+		"pop", // remove
+		"shift", // remove
+		"reverse" // reversed (copies???????)
 	]);
 	
 	/*
@@ -201,5 +288,7 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		});
 		return clone;
 	};
+
+	// @TODO "sort", "reverse", "join"
 	
 }( edb.Array.prototype ));

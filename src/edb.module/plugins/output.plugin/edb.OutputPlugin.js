@@ -1,7 +1,7 @@
 /**
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
  * @TODO formalize how this is supposed to be clear
- * @TODO static interface for all this stuffel
+ * @TODO static interface for all this stuff
  */
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 

@@ -2,13 +2,13 @@
  * @param {edb.Type} type
  * @param {String} name
  */
-edb.Access = function ( object, name ) {
+edb.ObjectAccess = function ( object, name ) {
 	this.instanceid = object._instanceid;
 	this.object = object;
 	this.name = name;
 };
 
-edb.Access.prototype = {
+edb.ObjectAccess.prototype = {
 	instanceid : null,
 	object : null,
 	name : null

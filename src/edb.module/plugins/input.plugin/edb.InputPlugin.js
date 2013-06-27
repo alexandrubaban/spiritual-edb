@@ -1,5 +1,5 @@
 /**
- * Tracking EDB input. Note that the {edb.Script} is uisng this plugin (though it's not a spirit).
+ * Tracking EDB input. Note that the {edb.Script} is using this plugin: Don't assume a spirit around here.
  * @extends {gui.Tracker}
  */
 edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
@@ -206,11 +206,10 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {Array<function>}
 	 */
 	_breakdown : function ( arg, context ) {
-		switch ( gui.Type.of ( arg )) {
-			case "array" :
-				return this._breakarray ( arg, context );
-			default :
-				return this._breakother ( arg, context );
+		if ( gui.Type.isArray ( arg )) {
+			return this._breakarray ( arg, context );
+		} else {
+			return this._breakother ( arg, context );
 		}
 	},
 	

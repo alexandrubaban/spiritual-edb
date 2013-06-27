@@ -1,5 +1,5 @@
 /**
- * EDB object type. 
+ * edb.Object
  * @extends {edb.Type}
  */
 edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
@@ -82,6 +82,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 
 	/**
 	 * Publishing change summaries async.
+	 * @TODO: move to edb.Type (edb.Type.observe)
 	 * @param {gui.Tick} tick
 	 */
 	ontick : function ( tick ) {
@@ -142,10 +143,10 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * Primarily for iternal use: Publish a notification on property 
 	 * accessors so that {edb.Script} may register change observers.
 	 * @param {String} instanceid
-	 * @param {edb.Access} access
+	 * @param {edb.ObjectAccess} access
 	 */
 	_onaccess : function ( object, name ) {
-		var access = new edb.Access ( object, name );
+		var access = new edb.ObjectAccess ( object, name );
 		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_ACCESS, access.instanceid );
 	},
 
@@ -159,13 +160,13 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	_onchange : function ( object, name, oldval, newval ) {
 		var all = this._changes, id = object._instanceid;
 		var set = all [ id ] = all [ id ] || ( all [ id ] = Object.create ( null ));
-		set [ name ] = new edb.Change ( object, name, edb.Change.TYPE_UPDATED, oldval, newval );
+		set [ name ] = new edb.ObjectChange ( object, name, edb.ObjectChange.TYPE_UPDATED, oldval, newval );
 		gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
 	},
 
 	/**
 	 * Mapping instanceids to maps that map property names to change summaries.
-	 * @type {Map<String,Map<String,edb.Change>>}
+	 * @type {Map<String,Map<String,edb.ObjectChange>>}
 	 */
 	_changes : Object.create ( null ),
 

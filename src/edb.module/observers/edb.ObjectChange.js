@@ -6,7 +6,7 @@
  * @param {object} oldval
  * @param {object} newval
  */
-edb.Change = function ( object, name, type, oldval, newval ) {
+edb.ObjectChange = function ( object, name, type, oldval, newval ) {
 	this.instanceid = object._instanceid;
 	this.object = object;
 	this.name = name;
@@ -15,7 +15,7 @@ edb.Change = function ( object, name, type, oldval, newval ) {
 	this.newValue = newval;
 };
 
-edb.Change.prototype = {
+edb.ObjectChange.prototype = {
 	instanceid : null,
 	object: null,
 	name: null,
@@ -25,8 +25,8 @@ edb.Change.prototype = {
 };
 
 /**
- * We support type "updated" only until 
+ * We only support type "updated" until 
  * native 'Object.observe' comes along.
  * @type {String}
  */
-edb.Change.TYPE_UPDATED = "updated";
+edb.ObjectChange.TYPE_UPDATED = "updated";

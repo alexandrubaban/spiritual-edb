@@ -4,7 +4,7 @@
 gui.module ( "edb", {
 	
 	/*
-	 * Extending all spirits.
+	 * Extending {gui.Spirit}
 	 */
 	mixins : {
 		
@@ -16,7 +16,7 @@ gui.module ( "edb", {
 
 		/**
 		 * Handle changes.
-		 * @param {Array<edb.Change>}
+		 * @param {Array<edb.ObjectChange|edb.ArrayChange>}
 		 */
 		onchange : function ( changes ) {}
 	},

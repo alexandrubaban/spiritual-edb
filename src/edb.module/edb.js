@@ -49,6 +49,6 @@ window.edb = gui.namespace ( "edb", {
 	go : function ( e, key, sig ) {
 		edb.Script.$register ( e );
 		edb.Script.$invoke ( key, sig, this._log );
-	},
+	}
 	
 });

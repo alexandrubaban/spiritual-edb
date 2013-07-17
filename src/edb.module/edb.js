@@ -32,10 +32,11 @@ window.edb = gui.namespace ( "edb", {
 	/**
 	 * Register action to execute later.
 	 * @param {function} action
+	 * @param {object} thisp
 	 * @returns {function}
 	 */
-	set : function ( action ) {
-		return edb.Script.$assign ( action )
+	set : function ( action, thisp ) {
+		return edb.Script.$assign ( action, thisp );
 	},
 
 	/**

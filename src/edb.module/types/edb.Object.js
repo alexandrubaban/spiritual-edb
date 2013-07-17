@@ -203,10 +203,10 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
 			switch ( gui.Type.of ( def = proxy [ key ])) {
 				case "object" :
-					handler [ key ] = new edb.Object ( def );
+					handler [ key ] = instances [ key ] || new edb.Object ( def );
 					break;
 				case "array" :
-					handler [ key ] = new edb.Array ( def );
+					handler [ key ] = instances [ key ] || new edb.Array ( def );
 					break;
 				default :
 					gui.Property.accessor ( handler, key, {

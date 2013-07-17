@@ -35,7 +35,7 @@ window.edb = gui.namespace ( "edb", {
 	 * @returns {function}
 	 */
 	set : function ( action ) {
-		return edb.Script.$assign ( action )
+		return edb.Script.$assign ( action );
 	},
 
 	/**
@@ -48,6 +48,6 @@ window.edb = gui.namespace ( "edb", {
 	go : function ( e, key, sig ) {
 		edb.Script.$register ( e );
 		edb.Script.$invoke ( key, sig, this._log );
-	},
+	}
 	
 });

@@ -5,21 +5,26 @@
 edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
-	 * Hijacking the edb.InputPlugin which has been 
+	 * Hijacking the {edb.InputPlugin} which has been 
 	 * designed to work without an associated spirit.
 	 * @type {edb.InputPlugin}
 	 */
 	input : null,
 
 	/**
+	 * Target for the "this" keyword in compiled script.
+	 * @type {object}
+	 */
+	pointer : null,
+
+	/**
 	 * Construct.
 	 * @poverloads {edb.Function#onconstruct}
-	 * @param {object} pointer
 	 * @param {Global} context
 	 * @param {function} handler
 	 */
-	onconstruct : function ( pointer, context, handler ) {
-		this._super.onconstruct ( pointer, context, handler );
+	onconstruct : function ( context, url, handler ) {
+		this._super.onconstruct ( context, url, handler );
 		this.input = new edb.InputPlugin ();
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
@@ -27,7 +32,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
-		gui.Broadcast.addGlobal ( edb.BROADCAST_SETTER, this );
+		gui.Broadcast.addGlobal ( edb.BROADCAST_CHANGE, this );
 	},
 
 	/**
@@ -35,19 +40,17 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param {gui.Broadcast} broadcast
 	 */
 	onbroadcast : function ( b ) {
-		this._super.onbroadcast ( b );
 		switch ( b.type ) {
-			case edb.BROADCAST_GETTER :
+			case edb.BROADCAST_ACCESS :
 				this._keys.add ( b.data );
 				break;
-			// one tick allows for multiple updates before we rerun the script
-			case edb.BROADCAST_SETTER :
+			case edb.BROADCAST_CHANGE :
 				if ( this._keys.has ( b.data )) {
-					if ( this.readyState !== edb.Template.WAITING ) {
+					if ( this.readyState !== edb.Function.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
-						var sig = this.context.gui.signature;
+						var sig = this.context.gui.$contextid;
 						gui.Tick.one ( tick, this, sig ).dispatch ( tick, 0, sig );	
-						this._gostate ( edb.Template.WAITING );
+						this._gostate ( edb.Function.WAITING );
 					}
 				}
 				break;
@@ -61,32 +64,35 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	ontick : function ( tick ) {
 		switch ( tick.type ) {
 			case edb.TICK_SCRIPT_UPDATE :
-				this._gostate ( edb.Template.READY );
+				this._gostate ( edb.Function.READY );
 				break;
 		}
 	},
 
 	/**
 	 * Handle input.
-	 * TODO: System for this!
 	 * @param {edb.Input} input
 	 */
 	oninput : function ( input ) {
-		this._maybeready ();
+		this._maybeready (); // see {edb.Function} superclass
 	},
 
 	/**
-	 * Run the script. Returns a string.
-	 * @overloads {edb.Function#run}
+	 * Execute the script, most likely returning a HTML string.
+	 * @overloads {edb.Function#execute}
 	 * @returns {String}
 	 */
-	run : function () {
+	execute : function () {
 		this._keys = new Set ();
+		var result = null;
 		if ( this.input.done ) {
-			return this._super.run.apply ( this, arguments ); 
+			this._subscribe ( true );
+			result = this._super.execute.apply ( this, arguments );
+			this._subscribe ( false );
 		} else {
 			 throw new Error ( "Script awaits input" );
 		}
+		return result;
 	},
 
 
@@ -112,13 +118,24 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	_resolved : false,
 
 	/**
-	 * Hello.
+	 * Get compiler implementation.
+	 * @returns {function}
 	 */
-	_oncompiled : function () {
-		gui.Object.each ( this._compiler.inputs, function ( name, type ) {
+	_compiler : function () {
+		return edb.ScriptCompiler;
+	},
+
+	/**
+	 * Setup input listeners when compiled.
+	 * @param {edb.ScriptCompiler} compiler
+	 * @param {Map<String,String|number|boolean>} directives
+	 * @overloads {edb.Function#_oncompiled}
+	 */
+	_oncompiled : function ( compiler, directives ) {
+		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
-		return this._super._oncompiled ();
+		this._super._oncompiled ( compiler, directives );
 	},
 
 	/**
@@ -128,10 +145,19 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 */
 	_done : function () {
 		return this.input.done && this._super._done ();
+	},
+
+	/**
+	 * Add-remove broadcast handlers.
+	 * @param {boolean} isBuilding
+	 */
+	_subscribe : function ( isBuilding ) {
+		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_ACCESS, this );
+		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_CHANGE, this );
 	}
 
 
-}, { // STATICS .....................................................................................
+}, { // Recurring static .......................................................................
 	
 	/**
 	 * @static
@@ -145,7 +171,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @type {Map<String,object>}
 	 */
 	_log : null,
-
+	
 	/**
 	 * @static
 	 * Map function to generated key and return the key.
@@ -153,7 +179,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param {object} thisp
 	 * @returns {String}
 	 */
-	assign : function ( func, thisp ) {
+	$assign : function ( func, thisp ) {
 		var key = gui.KeyMaster.generateKey ();
 		edb.Script._invokables.set ( key, function ( value, checked ) {
 			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
@@ -168,7 +194,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param @optional {String} sig
 	 * @param @optional {Map<String,object>} log
 	 */
-	invoke : function ( key, sig, log ) {
+	$invoke : function ( key, sig, log ) {
 		var func = null;
 		log = log || this._log;
 		/*
@@ -183,7 +209,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		} else {
 			/*
 			 * Timeout is a cosmetic stunt to unfreeze a pressed 
-			 * button case the function takes a while to complete. 
+			 * button in case the function takes a while to complete. 
 			 */
 			if (( func = this._invokables.get ( key ))) {
 				if ( log.type === "click" ) {
@@ -203,37 +229,13 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Keep a log on the latest DOM event.
 	 * @param {Event} e
 	 */
-	register : function ( e ) {
+	$register : function ( e ) {
 		this._log = {
 			type : e.type,
 			value : e.target.value,
 			checked : e.target.checked
 		};
 		return this;
-	},
-
-	/**
-	 * Experimental.
-	 * @param {String} key
-	 * @returns {edb.Script}
-	 */
-	get : function ( key ) {
-		return this._scripts [ key ];
-	},
-
-	/**
-	 * Experimental.
-	 * @param {String} key
-	 * @param {edb.Script} script
-	 */
-	set : function ( key, script ) {
-		this._scripts [ key ] = script;
-	},
-
-	/**
-	 * Mapping scripts to keys.
-	 * @type {Map<String,edb.Script>}
-	 */
-	_scripts : Object.create ( null )
-
+	}
+	
 });

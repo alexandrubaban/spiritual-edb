@@ -22,7 +22,7 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 		} else {
 			throw new Error ( "TODO: formalize missing type somehow" );
 		}
-	},
+	}
 
 	// /**
 	//  * TODO: enable this pipeline stuff
@@ -42,13 +42,13 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 	 * input is recieved. Input data will be supplied as constructor argument to output function; if A and B is 
 	 * input types while C is output type, then input instance a and b will be output as new C ( a, b ) 
 	 * @TODO Implement support for this some day :)
-	 */
+	 *
 	_pipeline : function () {		
 		console.error ( "TODO: might this be outdated???" );
-		/*
+		 *
 		 * TODO: use method apply with array-like arguments substitute pending universal browser support.
 		 * https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/apply#Description
-		 */
+		 *
 		var data = new this.output._type (
 			this._arg ( 0 ),
 			this._arg ( 1 ),
@@ -64,14 +64,15 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 		this.output.dispatch ( data );
 	},
 	
-	/**
+	 *
 	 * Return data for index. Index follows the order of which the input handler was added, not in which data was recieved. 
 	 * Alright, so this implies that first index will return object of type MyData if handler for this type was added first.
 	 * @param {number} index
 	 * @returns {object}
-	 */
+	 *
 	_arg : function ( index ) {
 		var type = this.input._types [ index ]; // function type
 		return this.input.get ( type ); // instance of function
 	}
+	*/
 });

@@ -34,7 +34,7 @@ edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
 	update : function () {
 		this._super.update ();
 		var element = this.element ();
-		if ( this._beforeUpdate ( element )) {
+		if ( element && this._beforeUpdate ( element )) {
 			gui.DOMPlugin.html ( element, this._serialize ());
 			this._afterUpdate ( element );
 			this._report ();

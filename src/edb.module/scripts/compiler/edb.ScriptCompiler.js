@@ -29,28 +29,38 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 	 * @param @optional {boolean} fallback
 	 * @returns {function}
 	 */
-	compile : function ( scope, fallback ) {
+	compile : function ( context, url ) {
 		this.inputs = Object.create ( null );
-		return this._super.compile ( scope, fallback );
+		return this._super.compile ( context, url );
 	},
 
 	/**
-	 * 
+	 * Declare.
+	 * @overloads {edb.FunctionCompiler} declare
 	 * @param {String} script
 	 * @returns {String}
 	 */
 	_declare : function ( script, head ) {
 		this._super._declare ( script, head );
+		return this._declareinputs ( script, head );
+	},
+
+	/**
+	 * Declare inputs.
+	 * @param {String} script
+	 * @returns {String}
+	 */
+	_declareinputs : function ( script, head ) {
 		var defs = [];
 		gui.Object.each ( this.inputs, function ( name, type ) {
 			head.declarations [ name ] = true;
-			defs.push ( name + " = __input__.get ( " + type + " );\n" );
+			defs.push ( name + " = inputs ( " + type + " );\n" );
 		}, this );
 		if ( defs [ 0 ]) {
-			head.definitions.push ( 
-				"( function lookup ( __input__ ) {\n" +
+			head.functiondefs.push ( 
+				"( function lookup ( inputs ) {\n" +
 				defs.join ( "" ) +
-				"})( this.script.input ());" 
+				"})( this.script.inputs );" 
 			);
 		}
 		return script;

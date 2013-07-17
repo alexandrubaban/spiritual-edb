@@ -4,7 +4,7 @@
 gui.module ( "edb", {
 	
 	/*
-	 * Extending all spirits.
+	 * Extending {gui.Spirit}
 	 */
 	mixins : {
 		
@@ -12,7 +12,13 @@ gui.module ( "edb", {
 		 * Handle input.
 		 * @param {edb.Input} input
 		 */
-		oninput : function ( input ) {}
+		oninput : function ( input ) {},
+
+		/**
+		 * Handle changes.
+		 * @param {Array<edb.ObjectChange|edb.ArrayChange>}
+		 */
+		onchange : function ( changes ) {}
 	},
 	
 	/*
@@ -30,24 +36,6 @@ gui.module ( "edb", {
 	channels : [
 		[ "script[type='text/edbml']", "edb.ScriptSpirit" ],
 		[ "link[rel='service']", "edb.ServiceSpirit" ]
-	],
+	]
 
-	/**
-	 * Init module.
-	 * @TODO detect sandbox...
-	 * @param {Window} context
-	 */
-	init : function ( context ) {
-		if ( context === gui.context ) { // TODO: better detect top context
-			if ( edb.Template && edb.TemplateLoader ) { // hack to bypass the sandbox (future project)
-				edb.Template.setImplementation ( 
-					edb.Script, 
-					"application/x-edbml",
-					"application/edbml",
-					"text/edbml",
-					"edbml"
-				);
-			}
-		}
-	}
 });

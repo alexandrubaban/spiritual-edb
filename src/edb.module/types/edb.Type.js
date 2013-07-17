@@ -1,8 +1,5 @@
 /**
- * Mixin methods and properties common 
- * to both {edb.Object} and {edb.Array}
- * @see {edb.Object}
- * @see {edb.Array}
+ * Mixin methods and properties common to both {edb.Object} and {edb.Array}
  */
 edb.Type = function () {};
 edb.Type.prototype = {
@@ -24,31 +21,19 @@ edb.Type.prototype = {
 	
 	/**
 	 * Called after $onconstruct (by gui.Class convention).
-	 * @TODO instead use $onconstruct consistantly throughout types.
+	 * @TODO instead use $onconstruct consistantly throughout types?
 	 */
 	onconstruct : function () {},
 	
 	/**
-	 * Serialize to JSON string *without* private and expando 
-	 * properties as designated by underscore and dollar char.
-	 * @param {boolean} pretty
+	 * Serialize to JSON string without private and expando properties.
+	 * @todo Declare $normalize as a method stub here (and stull work in subclass)
+	 * @param {function} filter
+	 * @param {String|number} tabber
+	 * @returns {String}
 	 */
-	$serialize : function ( pretty ) {
-		
-		/*
-		 * Avoid reading properties during this operation 
-		 * because this may trigger endless $sub() invoke.
-		 */
-		var clone = JSON.parse ( JSON.stringify ( this ));
-		Object.keys ( clone ).forEach ( function ( key ) {
-			switch ( key [ 0 ]) {
-				case "$" :
-				case "_" :
-					delete clone [ key ];
-					break;
-			}
-		});
-		return JSON.stringify ( clone, null, pretty ? "\t" : "" );
+	$stringify : function ( filter, tabber ) {
+		return JSON.stringify ( this.$normalize (), filter, tabber );
 	}
 };
 
@@ -59,14 +44,14 @@ edb.Type.prototype = {
  * Dispatch a getter broadcast before base function.
  */
 edb.Type.getter = gui.Combo.before ( function () {
-	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_GETTER, this._instanceid );
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_ACCESS, this._instanceid );
 });
 
 /*
  * Dispatch a setter broadcast after base function.
  */
 edb.Type.setter = gui.Combo.after ( function () {
-	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SETTER, this._instanceid );
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_CHANGE, this._instanceid );
 });
 
 /**
@@ -93,4 +78,53 @@ edb.Type.decorateSetters = function ( proto, methods ) {
 		proto [ method ] = edb.Type.setter ( proto [ method ]);
 	});
 	return proto;
+};
+
+/**
+ * Redefine the $instanceid to start with an underscore 
+ * because of some iOS weirdness (does it still apply?)
+ * @param {edb.Type} instance
+ */
+edb.Type.underscoreinstanceid = function ( instance ) {
+	Object.defineProperty ( instance, "_instanceid", {
+		value: instance.$instanceid
+	});
+};
+
+/**
+ * Is type instance?
+ * @param {object} o
+ * @returns {boolean}
+ */
+edb.Type.isInstance = function ( o ) {
+	if ( gui.Type.isComplex ( o )) {
+		return ( o instanceof edb.Object ) || ( o instanceof edb.Array );
+	}
+	return false;
+};
+
+/**
+ * Lookup edb.Type constructor for argument (if not already an edb.Type).
+ * @TODO Confirm that it is actually an edb.Type thing...
+ * @param {Window|WebWorkerGlobalScope} arg
+ * @param {function|string} arg
+ * @returns {function} 
+ */
+edb.Type.lookup = function ( context, arg ) {	
+	var type = null;
+	switch ( gui.Type.of ( arg )) {
+		case "function" :
+			type = arg; // @TODO: confirm
+			break;
+		case "string" :
+			type = gui.Object.lookup ( arg, context );
+			break;
+		case "object" :
+			console.error ( this + ": expected edb.Type constructor (not an object)" );
+			break;
+	}
+	if ( !type ) {
+		throw new TypeError ( "The type \"" + arg + "\" does not exist" );
+	}
+	return type;
 };

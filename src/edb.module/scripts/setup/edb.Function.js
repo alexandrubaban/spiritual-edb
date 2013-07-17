@@ -1,60 +1,53 @@
 /**
- * EDB function.
- * @extends {edb.Template}
+ * This fellow compiles an EDBML source string into an executable 
+ * JS function. The onreadystatechange method fires when ready. 
+ * The method "execute" may by then invoke the compiled function.
  */
-edb.Function = edb.Template.extend ( "edb.Function", {
+edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
+	
+	/**
+	 * EDBML source compiled to executable JS function.
+	 * @type {function}
+	 */
+	executable : null,
 
 	/**
-	 * The window context; where to lookup data types.
-	 * @type {Global}
+	 * Executable JS function compiled into this context.
+	 * @type {Window|WebWorkerGlobalScope}
 	 */
 	context : null,
-	
-	/**
-	 * Target for the "this" keyword in compiled function. For sandboxes, this  
-	 * refers to the worker global context; otherwise it's a spirit instance.
-	 * @type {object}
-	 */
-	pointer : null,
-	
-	/**
-	 * Expected script params. Must know how many.
-	 * @type {Array<String>}
-	 */
-	params : null,
 
 	/**
-	 * Note to self: While loading the function we 
-	 * are mapping variable name to function src...
-	 * @type {Map<String,String|function>}
+	 * Origin of the EDBML template (specifically in 'url.href')
+	 * @type {gui.URL}
 	 */
-	functions : null,
+	url : null,
 
 	/**
-	 * Experiomental...
-	 * @type {Map<String,String|function>} ???????
+	 * Function may be executed when this switches to 'ready'. 
+	 * You can overwrite the onreadystatechange method below.
+	 * @type {String}
 	 */
-	tags : null,
+	readyState : null,
+	
+	/**
+	 * Overwrite this to get notified on readyState changes. 
+	 * The method recieves the {edb.Function} as an argument.
+	 * @type {function}
+	 */
+	onreadystatechange : null,
 	
 	/**
 	 * Construct.
-	 * @param {object} pointer
+	 * @param {Document} basedoc
 	 * @param {Global} context
 	 * @param {function} handler
 	 */
-	onconstruct : function ( pointer, context, handler ) {
-		this._super.onconstruct ( pointer, context, handler );
-		/*
-		 * Redefine these terms into concepts that makes more 
-		 * sense when runinng script inside a worker context. 
-		 * (related to a future "sandbox" project of some kind)
-		 */
-		this.pointer = this.spirit;
-		this.context = context;
-		this.spirit = null;
-
-		this.tags = Object.create ( null );
-		this.functions = Object.create ( null );
+	onconstruct : function ( context, url, handler ) {
+		this.context = context || null;
+		this.url = url || null;
+		this.onreadystatechange = handler || null;
+		this._imports = Object.create ( null );
 	},
 	
 	/**
@@ -64,253 +57,182 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * 2. Compile source to invokable function 
 	 * 3. Preserve source for debugging
 	 * 4. Copy expected params
-	 * 5. Load required functions and tags.
+	 * 5. Load required functions.
 	 * 6. Report done whan all is loaded.
 	 * @overwrites {edb.Template#compile}
 	 * @param {String} source
 	 * @param {HashMap<String,String>} directives
 	 * @returns {edb.Function}
 	 */
-	compile : function ( source, directives ) {
-		if ( this._function === null ) {
-			var compiler = this._compiler = new ( this._Compiler ) ( source, directives );
-			if ( this._signature ) { 
-				compiler.sign ( this._signature );
+	compile : function ( source, directives ) { // @TODO gui.Combo.chained
+		if ( this.executable === null ) {
+			var Compiler = this._compiler ();
+			var compiler = new Compiler ( source, directives );
+			if ( this._$contextid ) {
+				compiler.sign ( this._$contextid );
 			}
-			this._function = compiler.compile ( this.context );
+			this.executable = compiler.compile ( this.context, this.url );
 			this._source = compiler.source;
-			this.params = compiler.params;
-			gui.Object.each ( compiler.tags, function ( name, src ) {
-				this._tagload ( name, src );
-			}, this );
-			gui.Object.each ( compiler.functions, function ( name, src ) {
-				this._functionload ( name, src );
-			}, this );
+			this._dependencies ( compiler );
+			this._oncompiled ( compiler, directives );
+			return this;
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
 		}
-		return this._oncompiled ();
 	},
 
 	/**
-	 * Log script source to console.
+	 * Log function source to console.
 	 */
 	debug : function () {
 		console.debug ( this._source );
 	},
 
 	/**
+	 * Resolve dependencies.
+	 * @param {edb.Compiler} compiler
+	 */
+	_dependencies : function ( compiler ) {
+		compiler.dependencies.map ( function ( dep ) {
+			this._imports [ dep.name ] = null; // null all first
+			return dep;
+		}, this ).forEach ( function ( dep ) {
+			dep.resolve ().then ( function ( resolved ) {
+				this._imports [ dep.name ] = resolved;
+				this._maybeready ();
+			}, this );
+		}, this );
+	},
+
+	/**
 	 * Sign generated methods for sandbox scenario.
-	 * @param {String} signature
+	 * @param {String} $contextid
 	 * @returns {edb.Function}
 	 */
-	sign : function ( signature ) {
-		this._signature = signature;
+	sign : function ( $contextid ) {
+		this._$contextid = $contextid;
 		return this;
 	},
 	
 	/**
-	 * Run the script. Returns a string.
+	 * Execute compiled function, most likely returning a HTML string.
 	 * @returns {String} 
 	 */
-	run : function () { // arguments via apply()
+	execute : function ( /* arguments */ ) {
 		var result = null;
-		if ( this._function ) {
+		if ( this.executable ) {
 			try {
 				this._subscribe ( true );
-				result = this._function.apply ( this.pointer, arguments );
+				result = this.executable.apply ( this.pointer, arguments );
 				this._subscribe ( false );
 			} catch ( exception ) {
 				console.error ( exception.message + ":\n\n" + this._source );
 			}
 		} else {
-			throw new Error ( "Script not compiled" );
+			throw new Error ( this + " not compiled" );
 		}
 		return result;
 	},
 	
-	/**
-	 * Handle broadcast.
-	 * @param {gui.Broadcast} broadcast
-	 */
-	onbroadcast : function ( b ) {
-		switch ( b.type ) {
-			case edb.BROADCAST_FUNCTION_LOADED :
-				this._functionloaded ( b.data );
-				break;
-			case edb.BROADCAST_TAG_LOADED :
-				this._tagloaded ( b.data );
-				break;
-		}
-	},
-	
-	
+
 	// PRIVATES ..........................................................................................
 	
 	/**
-	 * TODO: MAKE NOT PRIVATE (used by edb.Function).
-	 * Script source compiled to invocable function.
-	 * @type {function}
-	 */
-	_function : null,
-	
-	/**
-	 * Optionally stamp a signature into generated edb.Script.invoke() callbacks.
+	 * Optionally stamp a $contextid into generated edb.Script.invoke() callbacks.
 	 * @type {String} 
 	 */
-	_signature : null,
+	_$contextid : null,
 
 	/**
-	 * Compiler implementation (subclass may overwrite it).
-	 * @type {function}
+	 * Tracking imported functions.
+	 * 
+	 * 1. Mapping {edb.Import} instances while booting
+	 * 2. Mapping {edb.Function} instances once resolved.
+	 * @type {Map<String,edb.Import|function>}
 	 */
-	_Compiler : edb.FunctionCompiler,
+	_imports : null,
 
 	/**
-	 * Compiler instance.
-	 * @type {edb.FunctionCompiler}
+	 * Get compiler implementation (subclass may overwrite this method).
+	 * @returns {function}
 	 */
-	_compiler : null,
+	_compiler : function () {
+		return edb.FunctionCompiler;
+	},
 
 	/**
-	 * Called when compile is done, as expected. In development mode, 
-	 * load invokable function as a blob file; otherwise skip to init.
+	 * If supported, load invokable function 
+	 * as blob file. Otherwise skip to init.
+	 * @param {edb.FunctionCompiler} compiler
+	 * @param {Map<String,String|number|boolean>} directives
 	 */
-	_oncompiled : function () {
+	_oncompiled : function ( compiler, directives ) {
+		if ( directives.debug ) {
+			this.debug ();
+		}
 		try {
 			if ( this._useblob ()) {
-				this._loadblob ();
+				this._loadblob ( compiler );
 			} else {
 				this._maybeready ();
 			}
-		} catch ( workerexception ) { // sandbox scenario
+		} catch ( workerexception ) { // TODO: sandbox scenario
 			this._maybeready ();
 		}
-		return this;
 	},
 
 	/**
 	 * Use blob files?
-	 * @returns {boolean} Always false if not development mode
+	 * @TODO: Investigate potential overheads and asyncness
 	 */
 	_useblob : function () {
-		return edb.Function.useblob && 
-			this.context.gui.debug && 
+		return this.context.edb.useblobs && 
 			gui.Client.hasBlob && 
 			!gui.Client.isExplorer && 
 			!gui.Client.isOpera;
 	},
 	
 	/**
-	 * In development mode, load compiled script source as a file. 
-	 * This allows browser developer tools to assist in debugging. 
-	 * Note that this introduces an async step of some kind...
-	 * @param {edb.FunctionCompiler} compiler
+	 * Mount compiled function as file. 
+	 * @param {edb.Compiler} compiler
 	 */
-	_loadblob : function () {
+	_loadblob : function ( compiler ) {
 		var win = this.context;
 		var doc = win.document;
-		var key = gui.KeyMaster.generateKey ( "function" );
-		var src = this._compiler.source.replace ( "function", "function " + key );
-		this._gostate ( edb.Template.LOADING );
+		var key = gui.KeyMaster.generateKey ();
+		var src = compiler.source.replace ( "function", "function " + key );
+		this._gostate ( edb.Function.LOADING );
 		gui.BlobLoader.loadScript ( doc, src, function onload () {
-			this._gostate ( edb.Template.WORKING );
-			this._function = win [ key ];
+			this._gostate ( edb.Function.WORKING );
+			this.executable = win [ key ];
 			this._maybeready ();
 		}, this );
 	},
 
 	/**
-	 * Load function from src.
-	 * @param {String} name
-	 * @param {String} src
+	 * Update readystate and poke the statechange handler.
+	 * @param {String} state
 	 */
-	_tagload : function ( name, src ) {
-		src = gui.URL.absolute ( this.context.document, src );
-		var tag = edb.Tag.get ( src, this.context );
-		if ( tag ) {
-			this.tags [ name ] = tag;
-		} else {
-			this._await ( edb.BROADCAST_TAG_LOADED, true );
-			this.tags [ name ] = src;
+	_gostate : function ( state ) {
+		if ( state !== this.readyState ) {
+			this.readyState = state;
+			if ( gui.Type.isFunction ( this.onreadystatechange )) {
+				this.onreadystatechange ();
+			}
 		}
 	},
-
-	/**
-	 * Load function from src.
-	 * @param {String} name
-	 * @param {String} src
-	 */
-	_functionload : function ( name, src ){
-		src = gui.URL.absolute ( this.context.document, src );
-		var func = edb.Function.get ( src, this.context );
-		if ( !gui.Type.isDefined ( this.functions [ name ])) {
-			if ( func ) {
-				this.functions [ name ] = func;
-			} else {
-				this._await ( edb.BROADCAST_FUNCTION_LOADED, true );
-				this.functions [ name ] = src;
-			}
-		} else {
-			throw new Error ( "var \"" + name +  "\" already used" );
-		}
-	},
-
-	/**
-	 * Funtion loaded from src.
-	 * @param {String} src
-	 */
-	_functionloaded : function ( src ) {
-		gui.Object.each ( this.functions, function ( name, value ) {
-			if ( value === src ) {
-				this.functions [ name ] = edb.Function.get ( src, this.context );
-			}
-		}, this );
-		this._maybeready ();
-	},
-
-	/**
-	 * Funtion loaded from src.
-	 * @param {String} src
-	 */
-	_tagloaded : function ( src ) {
-		gui.Object.each ( this.tags, function ( name, value ) {
-			if ( value === src ) {
-				this.tags [ name ] = edb.Tag.get ( src, this.context );
-			}
-		}, this );
-		this._maybeready ();
-	},
-
-	/**
-	 * Watch for incoming functions and tags.
-	 * @param {boolean} add
-	 */
-	_await : function ( msg, add ) {
-		var act = add ? "add" : "remove";
-		var sig = this.context.gui.signature;
-		gui.Broadcast [ act ] ( msg, this, sig );
-	},
-
-	/*
-	_arrive : function () {
-		TODO!
-	},
-	*/
 
 	/**
 	 * Report ready? Otherwise waiting 
 	 * for data types to initialize...
 	 */
 	_maybeready : function () {
-		if ( this.readyState !== edb.Template.LOADING ) {
-			this._gostate ( edb.Template.WORKING );
+		if ( this.readyState !== edb.Function.LOADING ) {
+			this._gostate ( edb.Function.WORKING );
 			if ( this._done ()) {
-				this._await ( edb.BROADCAST_TAG_LOADED, false );
-				this._await ( edb.BROADCAST_FUNCTION_LOADED, false );
-				this._gostate ( edb.Template.READY );
+				this._gostate ( edb.Function.READY );
 			} else {
-				this._gostate ( edb.Template.WAITING );
+				this._gostate ( edb.Function.WAITING );
 			}
 		}
 	},
@@ -320,92 +242,119 @@ edb.Function = edb.Template.extend ( "edb.Function", {
 	 * @returns {boolean}
 	 */
 	_done : function () {
-		return [ "functions", "tags" ].every ( function ( map ) {
-			return Object.keys ( this [ map ] ).every ( function ( name ) {
-				return gui.Type.isFunction ( this [ map ][ name ]);
-			}, this );
+		return Object.keys ( this._imports ).every ( function ( name ) {
+			return this._imports [ name ] !== null;
 		}, this );
-	},
-	
-	/**
-	 * Add-remove broadcast handlers.
-	 * @param {boolean} isBuilding
-	 */
-	_subscribe : function ( isBuilding ) {
-		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_GETTER, this );
-		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_SETTER, this );
 	}
 
 
 }, { // Recurring static ................................................
 
 	/**
-	 * Get function for SRC.
-	 * @TODO pass document not window	
+	 * Get function loaded from given SRC and compiled into given context.
+	 * @param {Window} context
 	 * @param {String} src
-	 * @param {Window} win
 	 * @returns {function}
 	 */
-	get : function ( src, win ) {
-		src = new gui.URL ( win.document, src ).href;
-		var has = gui.Type.isFunction ( this._map [ src ]);
-		if ( !has ) {
-			return this._load ( src, win );
+	get : function ( context, src ) {
+		var ex = this._executables;
+		var id = context.gui.$contextid;
+		if ( gui.URL.absolute ( src )) {
+			return ex [ id ] ? ex [ id ][ src ] || null : null;
+		} else {
+			throw new Error ( "Absolute URL expected" );
 		}
-		return this._map [ src ];
+	},
+
+	/**
+	 * Loaded and compile function for SRC. When compiled, you can 
+	 * get the invokable function using 'edb.Function.get()' method. 
+	 * @param {Window} context Compiler target context
+	 * @param {Document} basedoc Used to resolve relative URLs
+	 * @param {String} src Document URL to load and parse (use #hash to target a SCRIPT id)
+	 * @param {function} callback
+	 * @param {object} thisp
+	 */
+	load : function ( context, basedoc, src, callback, thisp ) {
+		var exe = this._executablecontext ( context );
+		new edb.Loader ( basedoc ).load ( src, function onload ( source, directives, url ) {
+			this.compile ( context, url, source, directives, function onreadystatechange ( fun ) {
+				if ( !exe [ url.href ] && fun.readyState === edb.Function.READY ) {
+					exe [ url.href ] = fun.executable; // now avilable using edb.Function.get()
+				}
+				callback.call ( thisp, fun );
+			});
+		}, this );
+	},
+
+	/**
+	 * Compile EDBML source to {edb.Function} instance in given context.
+	 * @TODO: If <SCRIPT> has an id, we can store this in _executables...
+	 * @param {Window} context
+	 * @param {gui.URL} url
+	 * @param {String} src
+	 * @param {Map<String,String|number|boolean>} directives
+	 * @param {function} callback
+	 * @param {object} thisp
+	 */
+	compile : function ( context, url, source, directives, callback, thisp ) {
+		var Fun = this, fun = new Fun ( context, url, function onreadystatechange () {
+			callback.call ( thisp, this );
+		}).compile ( source, directives );
 	},
 
 
-	// Private recurring static ...........................................
+	// Private recurring static ..............................................................
 
 	/**
-	 * Message to dispatch when function is loaded. 
-	 * The function src appears as broadcast data.
-	 * @type {String}
+	 * Mapping contextid to map that maps URIs to functions.
+	 * @type {Map<String,Map<String,function>>}
 	 */
-	_broadcast : edb.BROADCAST_FUNCTION_LOADED,
+	_executables : Object.create ( null ),
 
 	/**
-	 * Mapping src to (loaded and compiled) function.
-	 * @type {Map<String,function>}
+	 * Get (and possibly create) map for context.
+	 * @param {Window} context
+	 * @returns {Map<String,function>}
 	 */
-	_map : Object.create ( null ),
-
-	/**
-	 * Load function from SRC (async) or lookup in local document (sync).
-	 * @param {String} src
-	 * @param {Window} win
-	 * @returns {function} only if sync (otherwise we wait for broadcast)
-	 */
-	_load : function ( src, win ) {
-		var func = null, 
-			Implementation = this, 
-			cast = this._broadcast, 
-			sig = win.gui.signature;
-		new edb.TemplateLoader ( win.document ).load ( src,
-			function onload ( source, directives ) {
-				new Implementation ( null, win, function onreadystatechange () {
-					if ( this.readyState === edb.Template.READY ) {
-						func = Implementation._map [ src ] = this._function;
-						if ( directives.debug ) {
-							this.debug ();
-						}
-						gui.Broadcast.dispatch ( null, cast, src, sig );
-					}
-				}).compile ( source, directives );
-			}
-		);
-		return func;
+	_executablecontext : function ( context ) {
+		var exe = this._executables, id = context.gui.$contextid;
+		return exe [ id ] || ( exe [ id ] = Object.create ( null ));
 	}
 
 
-}, { // Static ...................................................
+}, { // Static .............................................................................
 
 	/**
-	 * Mount compiled scripts as blob files in development mode?
-	 * @TODO map to gui.Client.hasBlob somehow...
-	 * @type {boolean}
+	 * Function is loading.
+	 * @type {String}
 	 */
-	useblob : true
+	LOADING : "loading",
+
+	/**
+	 * Function is waiting for something.
+	 * @type {String}
+	 */
+	WAITING : "waiting",
+
+	/**
+	 * Function is processing something.
+	 * @type {String}
+	 */
+	WORKING : "working",
+
+	/**
+	 * Function is ready to run.
+	 * @type {String}
+	 */
+	READY : "ready"
 
 });
+
+/**
+ * Allow function get to be thrown around. 
+ * Might benefit some template readability.
+ */
+( function bind () {
+	edb.Function.get = edb.Function.get.bind ( edb.Function );
+}());

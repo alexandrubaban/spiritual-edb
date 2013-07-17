@@ -224,7 +224,7 @@ edb.UpdateManager.prototype = {
 	},
 	
 	/**
-     * Same id trigges attribute synchronization;
+   * Same id trigges attribute synchronization;
 	 * different id triggers hard update of ancestor.
 	 * @param {Element} newnode
 	 * @param {Element} oldnode

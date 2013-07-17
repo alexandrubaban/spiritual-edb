@@ -1,31 +1,20 @@
 /**
  * Compile EDB function.
+ * @TODO precompiler to strip out both JS comments and HTML comments.
  */
 edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 
 	/**
-	 * Compiled script source.
+	 * Source of compiled function.
 	 * @type {String}
 	 */
 	source : null,
-	
-	/**
-	 * Arguments expected for compiled function. 
-	 * @type {Array<String>}
-	 */
-	params : null,
 
 	/**
-	 * Required functions. Mapping src to variable name.
-	 * @type {Map<String,String>}
+	 * Imported functions and tags.
+	 * @type {Array<edb.Import>}
 	 */
-	functions : null,
-
-	/**
-	 * Required tags. Mapping src to variable name.
-	 * @type {Map<String,String>}
-	 */
-	tags : null,
+	dependencies : null,
 
 	/**
 	 * Mapping script tag attributes.
@@ -58,41 +47,42 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	},
 		
 	/**
-	 * Compile EDBML to invocable function.
-	 * @param {Window} scope Function to be declared in scope of this window (or worker context).
-	 * @param @optional {boolean} fallback
+	 * Compile source to invocable function.
+	 * @param {Window} context
+	 * @param {Document} basedoc
 	 * @returns {function}
 	 */
-	compile : function ( scope ) {
+	compile : function ( context, url ) {
 		var result = null;
-		this.params = [];
-		this.tags = Object.create ( null );
-		this.functions = Object.create ( null );
+		this.dependencies = [];
+		this._params = [];
+		this._context = context;
+		this._url = url;
 		this._vars = [];
 		var head = {
 			declarations : Object.create ( null ), // Map<String,boolean>
-			definitions : [] // Array<String>
+			functiondefs : [] // Array<String>
 		};
 		this.sequence.forEach ( function ( step ) {
 			this.source = this [ step ] ( this.source, head );
 		}, this );
 		try {
-			result = this._convert ( scope, this.source, this.params );
-			this.source = this._source ( this.source, this.params );
+			result = this._convert ( this.source, this._params );
+			this.source = this._source ( this.source, this._params );
 		} catch ( exception ) {
-			result = this._fail ( scope, exception );
+			result = this._fail ( exception );
 		}
 		return result;
 	},
 
 	/**
-	 * Sign generated methods with a gui.signature key. This allows us to evaluate assigned 
+	 * Sign generated methods with a gui.$contextid key. This allows us to evaluate assigned 
 	 * functions in a context different to where the template HTML is used (sandbox scenario).
-	 * @param {String} signature
+	 * @param {String} contextid
 	 * @returns {edb.ScriptCompiler}
 	 */
-	sign : function ( signature ) {
-		this._signature = signature;
+	sign : function ( contextid ) {
+		this._$contextid = contextid;
 		return this;
 	},
 	
@@ -100,16 +90,28 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	// PRIVATE ..............................................................................
 	
 	/**
-	 * (Optionally) stamp a signature into edb.ScriptCompiler.invoke() callbacks.
+	 * Function to be declared in this window (or worker scope).
+	 * @type {Window}
+	 */
+	_context : null,
+
+	/**
+	 * (Optionally) stamp a $contextid into edb.ScriptCompiler.invoke() callbacks.
 	 * @type {String} 
 	 */
-	_signature : null,
+	_$contextid : null,
 
 	/**
 	 * Script processing intstructions.
 	 * @type {Array<edb.Instruction>}
 	 */
 	_instructions : null,
+
+	/**
+	 * Compiled function arguments list. 
+	 * @type {Array<String>}
+	 */
+	_params : null,
 
 	/**
 	 * Did compilation fail just yet?
@@ -159,21 +161,28 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 * @param {edb.Instruction} pi
 	 */
 	_instruct : function ( pi ) {
+		var type = pi.type;
 		var atts = pi.atts;
-		switch ( pi.type ) {
+		var href = atts.src;
+		var name = atts.name;
+		var cont = this._context;
+		switch ( type ) {
 			case "param" :
-				this.params.push ( atts.name );
+				this._params.push ( name );
 				break;
 			case "function" :
-				this.functions [ atts.name ] = atts.src;
-				break;
 			case "tag" :
-				var name = atts.src.split ( "#" )[ 1 ];
-				if ( name ) {
-					this.tags [ name ] = atts.src;
-				} else {
-					throw new Error ( "Missing #identifier: " + atts.src );
+				if ( type === edb.Import.TYPE_TAG ) {
+					if ( href.contains ( "#" )) {
+						name = href.split ( "#" )[ 1 ];
+					} else {
+						throw new Error ( "Missing tag #identifier: " + href );
+					}
 				}
+				var base = this._basedocument ();
+				this.dependencies.push ( 
+					new edb.Import ( cont, base, type, href, name )
+				);
 				break;
 		}
 	},
@@ -186,15 +195,15 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 */
 	_declare : function ( script, head ) {
 		var funcs = [];
-		gui.Object.each ( this.functions, function ( name, func ) {
-			head.declarations [ name ] = true;
-			funcs.push ( name + " = functions [ '" + name + "' ];\n" );
+		this.dependencies.forEach ( function ( dep ) {
+			head.declarations [ dep.name ] = true;
+			funcs.push ( dep.name + " = functions ( self, '" + dep.tempname () + "' );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
-			head.definitions.push ( 
+			head.functiondefs.push ( 
 				"( function lookup ( functions ) {\n" +
 				funcs.join ( "" ) +
-				"})( this.script.functions ());" 
+				"}( edb.Function.get ));"
 			);
 		}
 		return script;
@@ -209,10 +218,10 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	_define : function ( script, head ) {
 		var vars = "";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
-			vars += ", " + name + " = null";
+			vars += ", " + name;
 		});
 		var html = "var Out = edb.Out, Att = edb.Att, Tag = edb.Tag, out = new Out (), att = new Att ()" + vars +";\n";
-		head.definitions.forEach ( function ( def ) {
+		head.functiondefs.forEach ( function ( def ) {
 			html += def +"\n";
 		});
 		return html + script;
@@ -220,50 +229,49 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	
 	/**
 	 * Evaluate script to invocable function.
-	 * @param {Window} scope
 	 * @param {String} script
 	 * @param @optional (Array<String>} params
 	 * @returns {function}
 	 */
-	_convert : function ( scope, script, params ) {
-		var args = "";
+	_convert : function ( script, params ) {
+		var args = "", context = this._context;
 		if ( gui.Type.isArray ( params )) {
 			args = params.join ( "," );
 		}
-		return new scope.Function ( args, script );
+		return new context.Function ( args, script );
 	},
 
 	/**
 	 * Compilation failed. Output a fallback rendering.
-	 * @param {Window} scope
 	 * @param {Error} exception
 	 * @returns {function}
 	 */
-	_fail : function ( scope, exception ) {
+	_fail : function ( exception ) {
+		var context = this._context;
 		if ( !this._failed ) {
 			this._failed = true;
-			this._debug ( scope, this._format ( this.source ));
+			this._debug ( edb.Result.format ( this.source ));
 			this.source = "<p class=\"error\">" + exception.message + "</p>";
-			return this.compile ( scope, true );
+			return this.compile ( context, true );
 		} else {
 			throw ( exception );
 		}
 	},
-
+	
 	/**
 	 * Transfer broken script source to script element and import on page.
 	 * Hopefully this will allow the developer console to aid in debugging.
 	 * TODO: Fallback for IE9 (see http://stackoverflow.com/questions/7405345/data-uri-scheme-and-internet-explorer-9-errors)
 	 * TODO: Migrate this stuff to the gui.BlobLoader
-	 * @param {Window} scope
 	 * @param {String} source
 	 */
-	_debug : function ( scope, source ) {
+	_debug : function ( source ) {
+		var context = this._context;
 		if ( window.btoa ) {
-			source = scope.btoa ( "function debug () {\n" + source + "\n}" );
-			var script = scope.document.createElement ( "script" );
+			source = context.btoa ( "function debug () {\n" + source + "\n}" );
+			var script = context.document.createElement ( "script" );
 			script.src = "data:text/javascript;base64," + source;
-			scope.document.querySelector ( "head" ).appendChild ( script );
+			context.document.querySelector ( "head" ).appendChild ( script );
 			script.onload = function () {
 				this.parentNode.removeChild ( this );
 			};
@@ -280,14 +288,27 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var lines = source.split ( "\n" ); lines.pop (); // empty line :/
 		var args = params.length ? "( " + params.join ( ", " ) + " )" : "()";
 		return "function " + args + " {\n" + lines.join ( "\n" ) + "\n}";
+	},
+
+	/**
+	 * Base document to resolve relative URLs in templates. 
+	 * @TODO: Works not in IE9, on the server or in workers.
+	 */
+	_basedocument : function () {
+		return this._document || ( this._document = ( function ( href ) {
+			var doc = document.implementation.createHTMLDocument ( "temp" );
+	    var base = doc.createElement ( "base" );
+			base.href = href;
+			doc.querySelector ( "head" ).appendChild ( base );
+			return doc;
+		}( this._url.href )));
 	}
 	
 
 }, {}, { // Static ............................................................................
 
 	/**
-	 * @static
-	 * Test for nested scripts (because those are not parsable in the browser). 
+	 * RegExp used to validate no nested scripts (because those are not parsable in the browser). 
 	 * http://stackoverflow.com/questions/1441463/how-to-get-regex-to-match-multiple-script-tags
 	 * http://stackoverflow.com/questions/1750567/regex-to-get-attributes-and-body-of-script-tags
 	 * TODO: stress test for no SRC attribute!

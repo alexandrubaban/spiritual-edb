@@ -18,7 +18,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	context : null,
 
 	/**
-	 * Origin of the EDBML template. You're looking for 'url.href'
+	 * Origin of the EDBML template (specifically in 'url.href')
 	 * @type {gui.URL}
 	 */
 	url : null,
@@ -74,7 +74,8 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 			this.executable = compiler.compile ( this.context, this.url );
 			this._source = compiler.source;
 			this._dependencies ( compiler );
-			return this._oncompiled ( compiler );
+			this._oncompiled ( compiler, directives );
+			return this;
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
 		}
@@ -92,9 +93,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * @param {edb.Compiler} compiler
 	 */
 	_dependencies : function ( compiler ) {
-		compiler.dependencies.filter ( function ( dep ) {
-			return true; // return dep.type === edb.Import.TYPE_FUNCTION;
-		}).map ( function ( dep ) {
+		compiler.dependencies.map ( function ( dep ) {
 			this._imports [ dep.name ] = null; // null all first
 			return dep;
 		}, this ).forEach ( function ( dep ) {
@@ -165,18 +164,21 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * If supported, load invokable function 
 	 * as blob file. Otherwise skip to init.
 	 * @param {edb.FunctionCompiler} compiler
+	 * @param {Map<String,String|number|boolean>} directives
 	 */
-	_oncompiled : function ( compiler ) {
+	_oncompiled : function ( compiler, directives ) {
+		if ( directives.debug ) {
+			this.debug ();
+		}
 		try {
 			if ( this._useblob ()) {
 				this._loadblob ( compiler );
 			} else {
 				this._maybeready ();
 			}
-		} catch ( workerexception ) { // sandbox scenario
+		} catch ( workerexception ) { // TODO: sandbox scenario
 			this._maybeready ();
 		}
-		return this;
 	},
 
 	/**
@@ -291,7 +293,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * @param {Window} context
 	 * @param {gui.URL} url
 	 * @param {String} src
-	 * @param {Mao<String,object>} directives
+	 * @param {Map<String,String|number|boolean>} directives
 	 * @param {function} callback
 	 * @param {object} thisp
 	 */

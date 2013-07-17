@@ -77,7 +77,6 @@ edb.Loader = gui.FileLoader.extend ({
 	 * @returns {String} Template source code
 	 */
 	_extract : function ( text, url ) {
-		//alert ( doc.baseURI || doc.URL );
 		var doc = gui.HTMLParser.parseToDocument ( text ); // @TODO: cache this
 		var script = doc.querySelector ( url.hash || "script" );
 		if ( script ) {	

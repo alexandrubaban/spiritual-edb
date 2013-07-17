@@ -126,14 +126,16 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	},
 
 	/**
-	 * Setup input listeners.
+	 * Setup input listeners when compiled.
 	 * @param {edb.ScriptCompiler} compiler
+	 * @param {Map<String,String|number|boolean>} directives
+	 * @overloads {edb.Function#_oncompiled}
 	 */
-	_oncompiled : function ( compiler ) {
+	_oncompiled : function ( compiler, directives ) {
 		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
-		return this._super._oncompiled ( compiler );
+		this._super._oncompiled ( compiler, directives );
 	},
 
 	/**

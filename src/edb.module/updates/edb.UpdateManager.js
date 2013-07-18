@@ -25,7 +25,9 @@ edb.UpdateManager.prototype = {
 			update.update ();
 			update.dispose ();
 		});
-		this._updates.dispose ();
+		if ( this._updates ) { // huh? how can it be null?
+			this._updates.dispose ();
+		}
 		delete this._updates;
 	},
 	

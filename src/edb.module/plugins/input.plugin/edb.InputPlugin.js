@@ -19,10 +19,19 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		this._watches = [];
 		this._matches = [];
 	},
+
+	/**
+	 * Destruction time.
+	 */
+	ondestruct : function () {
+		this._super.ondestruct ();
+		this.remove ( this._watches );
+		this._xxx ( false );
+	},
 	
 	/**
 	 * Add handler for one or more input types.
-	 * @param {edb.Type|String|Array<edb.Type|String>} arg
+	 * @param {edb.Type|String|Array<edb.Type|String>} arg 
 	 * @param @optional {object} IInputHandler Defaults to this.spirit
 	 * @returns {gui.InputPlugin}
 	 */
@@ -31,13 +40,13 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._add ( arg, handler );
-		gui.Broadcast.add ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );
+		this._xxx ( true );
 	}),
 
 	/**
 	 * Remove handler for one or more input types.
 	 * @TODO Cleanup more stuff?
-	 * @param {object} arg
+	 * @param {edb.Type|String|Array<edb.Type|String>} arg 
 	 * @param @optional {object} handler implements InputListener (defaults to this)
 	 * @returns {gui.InputPlugin}
 	 */
@@ -46,7 +55,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._remove ( arg, handler );
 		if (( this.done = this._matches.length === this._watches.length )) { // right?
-			gui.Broadcast.remove ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );	
+			this._xxx ( false );
 		}
 	}),
 
@@ -112,9 +121,15 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 			this._watches.push ( type );
 			this._addchecks ( type.$classid, [ handler ]);
 			if ( type.output ) { // type has been output already?
-				gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
+
+				/*
+				 * TODO: this tick was needed at some point (perhaps in Spiritual Dox?)
+				 */
+
+				// gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
 					this._todoname ();
-				}, this );
+				// }, this );
+
 			}
 		}, this );
 	},
@@ -194,6 +209,13 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 				});
 			}
 		}, this );
+	},
+
+	/**
+	 * @param {boolean} is
+	 */
+	_xxx : function ( is ) {
+		gui.Broadcast [ is ? "add" : "remove" ] ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );
 	}
 
 

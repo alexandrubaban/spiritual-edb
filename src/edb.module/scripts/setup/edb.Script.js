@@ -95,6 +95,14 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		return result;
 	},
 
+	/**
+	 * Experimental...
+	 */
+	dispose : function () {
+		this.onreadystatechange = null;
+		this.input.ondestruct ();
+	},
+
 
 	// Private ............................................................
 
@@ -115,7 +123,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Flipped when expected inputs have been determined.
 	 * @type {boolean}
 	 */
-	_resolved : false,
+	_inputresolved : false,
 
 	/**
 	 * Get compiler implementation.
@@ -135,6 +143,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
+		this._inputresolved = true;
 		this._super._oncompiled ( compiler, directives );
 	},
 
@@ -144,7 +153,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @returns {boolean}
 	 */
 	_done : function () {
-		return this.input.done && this._super._done ();
+		return this._inputresolved && this.input.done && this._super._done ();
 	},
 
 	/**

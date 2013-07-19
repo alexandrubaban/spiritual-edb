@@ -69,11 +69,21 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		this._super.onconstruct ();
 		var spirit = this.spirit;
 		this.inputs = this.inputs.bind ( this );
-		spirit.life.add(gui.LIFE_DESTRUCT,this);
+		spirit.life.add ( gui.LIFE_DESTRUCT, this );
 		if ( spirit instanceof edb.ScriptSpirit ) {
 			this.autorun = false;
 		} else if ( this.diff ) {
 			this._updater = new edb.UpdateManager ( spirit );
+		}
+	},
+
+	/**
+	 * Destruction time.
+	 */
+	ondestruct : function () {
+		this._super.ondestruct ();
+		if ( this._script ) {
+			this._script.dispose ();
 		}
 	},
 
@@ -105,19 +115,12 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @param {gui.Life} life
 	 */
 	onlife : function ( life ) {
-		switch ( life.type ) {
-			case gui.LIFE_ENTER :
-				this.spirit.life.remove ( life.type, this );
-				if ( this._dosrc ) {
-					this.load ( this._dosrc );
-					this._dosrc = null;
-				}
-				break;
-			case gui.LIFE_DESTRUCT :
-				if ( this._script ) {
-					this._script.onreadystatechange = null; // @TODO this._script.dispose()
-				}
-				break;
+		if ( life.type ===  gui.LIFE_ENTER ) {
+			this.spirit.life.remove ( life.type, this );
+			if ( this._dosrc ) {
+				this.load ( this._dosrc );
+				this._dosrc = null;
+			}
 		}
 	},
 

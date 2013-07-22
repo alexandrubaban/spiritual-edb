@@ -50,6 +50,7 @@ module.exports = function ( grunt ) {
 					gui: true,
 					edb: true,
 					console: true,
+					alert: true,
 					setImmediate : true,
 					requestAnimationFrame : true,
 					Map : true,

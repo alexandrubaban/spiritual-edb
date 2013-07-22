@@ -197,11 +197,11 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var funcs = [];
 		this.dependencies.forEach ( function ( dep ) {
 			head.declarations [ dep.name ] = true;
-			funcs.push ( dep.name + " = functions ( self, '" + dep.tempname () + "' );\n" );
+			funcs.push ( dep.name + " = get ( self, '" + dep.tempname () + "' );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
 			head.functiondefs.push ( 
-				"( function lookup ( functions ) {\n" +
+				"( function functions ( get ) {\n" +
 				funcs.join ( "" ) +
 				"}( edb.Function.get ));"
 			);
@@ -216,11 +216,17 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 * @returns {String}
 	 */
 	_define : function ( script, head ) {
-		var vars = "";
+		var vars = "", html = "var ";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
 			vars += ", " + name;
 		});
-		var html = "var Out = edb.Out, Att = edb.Att, Tag = edb.Tag, out = new Out (), att = new Att ()" + vars +";\n";
+		if ( this._params.indexOf ( "out" ) < 0 ) {
+			html += "Out = edb.Out, out = new Out (), ";
+		}
+		if ( this._params.indexOf ( "att" ) < 0 ) {
+			html += "Att = edb.Att, att = new Att (), ";
+		}
+		html += "Tag = edb.Tag " + vars + ";\n";
 		head.functiondefs.forEach ( function ( def ) {
 			html += def +"\n";
 		});

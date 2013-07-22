@@ -54,11 +54,11 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 		var defs = [];
 		gui.Object.each ( this.inputs, function ( name, type ) {
 			head.declarations [ name ] = true;
-			defs.push ( name + " = inputs ( " + type + " );\n" );
+			defs.push ( name + " = get ( " + type + " );\n" );
 		}, this );
 		if ( defs [ 0 ]) {
 			head.functiondefs.push ( 
-				"( function lookup ( inputs ) {\n" +
+				"( function inputs ( get ) {\n" +
 				defs.join ( "" ) +
 				"})( this.script.inputs );" 
 			);

@@ -52,7 +52,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @returns {edb.Object}
 	 */
 	observe : function ( object, handler ) {
-		var id = object.$instanceid;
+		var id = object.$instanceid || object._instanceid;
 		var obs = this._observers;
 		var handlers = obs [ id ] || ( obs [ id ] = []);
 		if ( handlers.indexOf ( handler ) === -1 ) {
@@ -68,13 +68,14 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @returns {edb.Object}
 	 */
 	unobserve : function ( object, handler ) {
-		var id = object.$instanceid;
+		var id = object.$instanceid || object._instanceid;
 		var obs = this._observers;
 		var index, handlers = obs [ id ];
 		if ( handlers ) {
-			index = handlers.indexOf ( handler );
-			if ( index >-1 && gui.Array.remove ( handlers, index ) === 0 ) {
-				delete obs [ id ];
+			if (( index = handlers.indexOf ( handler )) >-1 ) {
+				if ( gui.Array.remove ( handlers, index ) === 0	) {
+					delete obs [ id ];
+				}
 			}
 		}
 		return object;
@@ -82,16 +83,23 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 
 	/**
 	 * Publishing change summaries async.
+	 * @TODO: clean this up...
 	 * @TODO: move to edb.Type (edb.Type.observe)
 	 * @param {gui.Tick} tick
 	 */
 	ontick : function ( tick ) {
-		var changes, handlers, observers = this._observers;
+		var snapshot, changes, change, handlers, observers = this._observers;
 		if ( tick.type === edb.TICK_PUBLISH_CHANGES ) {
-			changes = gui.Object.copy ( this._changes );
+			snapshot = gui.Object.copy ( this._changes );
 			this._changes = Object.create ( null );
-			gui.Object.each ( changes, function ( instanceid, changes ) {
+			gui.Object.each ( snapshot, function ( instanceid, propdef ) {
 				if (( handlers = observers [ instanceid ])) {
+					changes = gui.Object.each ( snapshot, function ( id, propdef ) {
+						change = propdef [ Object.keys ( propdef )[ 0 ]];
+						return id === instanceid ? change : null;
+					}).filter ( function ( change ) {
+						return change !== null;
+					});
 					handlers.forEach ( function ( handler ) {
 						handler.onchange ( changes );
 					});

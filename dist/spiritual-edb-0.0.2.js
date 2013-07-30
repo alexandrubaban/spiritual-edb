@@ -27,16 +27,37 @@ window.edb = gui.namespace ( "edb", {
 	/**
 	 * Constants.
 	 */
-	BROADCAST_GETTER : "edb-broadcast-getter",
-	BROADCAST_SETTER : "edb-broadcast-setter",
+	BROADCAST_ACCESS : "edb-broadcast-access",
+	BROADCAST_CHANGE : "edb-broadcast-change",
 	BROADCAST_OUTPUT : "edb-broadcast-output",
-	BROADCAST_TAG_LOADED : "edb-broadcast-tag-loaded",
 	BROADCAST_SCRIPT_INVOKE : "edb-broadcast-script-invoke",
 	LIFE_SCRIPT_WILL_RUN : "edb-life-script-will-run",
 	LIFE_SCRIPT_DID_RUN : "edb-life-script-did-run",
 	TICK_SCRIPT_UPDATE : "edb-tick-script-update",
 	TICK_COLLECT_INPUT : "edb-tick-collect-input",
-	TICK_PUBLISH_CHANGES : "edb-tick-update-changes"
+	TICK_PUBLISH_CHANGES : "edb-tick-update-changes",
+
+	/**
+	 * Register action to execute later.
+	 * @param {function} action
+	 * @param {object} thisp
+	 * @returns {function}
+	 */
+	set : function ( action, thisp ) {
+		return edb.Script.$assign ( action, thisp );
+	},
+
+	/**
+	 * Execute action.
+	 * @TODO: why was this split up in two steps? Sandboxing?
+	 * @param {Event} e
+	 * @param {String} key
+	 * @param @optional {String} sig
+	 */
+	go : function ( e, key, sig ) { // NOTE: gui.UpdateManager#_attschanged hardcoded "edb.go" ...
+		edb.Script.$register ( e );
+		edb.Script.$invoke ( key, sig, this._log );
+	}
 	
 });
 
@@ -88,14 +109,14 @@ edb.Type.prototype = {
  * Dispatch a getter broadcast before base function.
  */
 edb.Type.getter = gui.Combo.before ( function () {
-	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_GETTER, this._instanceid );
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_ACCESS, this._instanceid );
 });
 
 /*
  * Dispatch a setter broadcast after base function.
  */
 edb.Type.setter = gui.Combo.after ( function () {
-	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_SETTER, this._instanceid );
+	gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_CHANGE, this._instanceid );
 });
 
 /**
@@ -173,9 +194,24 @@ edb.Type.lookup = function ( context, arg ) {
 	return type;
 };
 
+/**
+ * @param {object} value
+ */
+edb.Type.cast = function fix ( value ) {
+	if ( gui.Type.isComplex ( value ) && !edb.Type.isInstance ( value )) {
+		switch ( gui.Type.of ( value )) {
+			case "object" :
+				return new edb.Object ( value );
+			case "array" :
+				return new edb.Array ( value );
+		}
+	} 
+	return value;
+};
+
 
 /**
- * EDB object type. 
+ * edb.Object
  * @extends {edb.Type}
  */
 edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
@@ -228,7 +264,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @returns {edb.Object}
 	 */
 	observe : function ( object, handler ) {
-		var id = object.$instanceid;
+		var id = object.$instanceid || object._instanceid;
 		var obs = this._observers;
 		var handlers = obs [ id ] || ( obs [ id ] = []);
 		if ( handlers.indexOf ( handler ) === -1 ) {
@@ -244,13 +280,14 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @returns {edb.Object}
 	 */
 	unobserve : function ( object, handler ) {
-		var id = object.$instanceid;
+		var id = object.$instanceid || object._instanceid;
 		var obs = this._observers;
 		var index, handlers = obs [ id ];
 		if ( handlers ) {
-			index = handlers.indexOf ( handler );
-			if ( index >-1 && gui.Array.remove ( handlers, index ) === 0 ) {
-				delete obs [ id ];
+			if (( index = handlers.indexOf ( handler )) >-1 ) {
+				if ( gui.Array.remove ( handlers, index ) === 0	) {
+					delete obs [ id ];
+				}
 			}
 		}
 		return object;
@@ -258,20 +295,28 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 
 	/**
 	 * Publishing change summaries async.
+	 * @TODO: clean this up...
+	 * @TODO: move to edb.Type (edb.Type.observe)
 	 * @param {gui.Tick} tick
 	 */
 	ontick : function ( tick ) {
-		var changes, handlers, observers = this._observers;
+		var snapshot, changes, change, handlers, observers = this._observers;
 		if ( tick.type === edb.TICK_PUBLISH_CHANGES ) {
-			changes = gui.Object.copy ( this._changes );
+			snapshot = gui.Object.copy ( this._changes );
 			this._changes = Object.create ( null );
-			gui.Object.each ( changes, function ( instanceid, changes ) {
+			gui.Object.each ( snapshot, function ( instanceid, propdef ) {
 				if (( handlers = observers [ instanceid ])) {
+					changes = gui.Object.each ( snapshot, function ( id, propdef ) {
+						change = propdef [ Object.keys ( propdef )[ 0 ]];
+						return id === instanceid ? change : null;
+					}).filter ( function ( change ) {
+						return change !== null;
+					});
 					handlers.forEach ( function ( handler ) {
 						handler.onchange ( changes );
 					});
 				}
-				gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_SETTER, instanceid ); // @TODO deprecate
+				gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
 			});
 		}
 	},
@@ -286,36 +331,62 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	_observers : Object.create ( null ),
 
 	/**
+	 * Create getter for key.
+	 * @param {String} key
+	 * @param {function} base
+	 * @returns {function}
+	 */
+	_getter : function ( key, base ) {
+		return function () {
+			var result = base.apply ( this );
+			edb.Object._onaccess ( this, key );
+			return result;
+		};
+	},
+
+	/**
 	 * Create setter for key.
 	 * @param {String} key
 	 * @param {function} base
+	 * @returns {function}
 	 */
 	_setter : function ( key, base ) {
 		return function ( newval ) {
 			var oldval = this [ key ]; // @TODO suspend something?
 			base.apply ( this, arguments );
-			edb.Object._onchange ( this._instanceid, new edb.Change ( 
-				this, key, "updated", oldval, newval 
-			));
+			edb.Object._onchange ( this, key, oldval, newval );
 			oldval = newval;
 		};
 	},
 
 	/**
-	 * Register change summary for publication in next tick.
+	 * Primarily for iternal use: Publish a notification on property 
+	 * accessors so that {edb.Script} may register change observers.
 	 * @param {String} instanceid
-	 * @param {edb.Change} change
+	 * @param {edb.ObjectAccess} access
 	 */
-	_onchange : function ( instanceid, change ) {
-		var all = this._changes, id = instanceid;
+	_onaccess : function ( object, name ) {
+		var access = new edb.ObjectAccess ( object, name );
+		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_ACCESS, access.instanceid );
+	},
+
+	/**
+	 * Register change summary for publication in next tick.
+	 * @param {edb.Object} object
+	 * @param {String} name
+	 * @param {object} oldval
+	 * @param {object} newval
+	 */
+	_onchange : function ( object, name, oldval, newval ) {
+		var all = this._changes, id = object._instanceid;
 		var set = all [ id ] = all [ id ] || ( all [ id ] = Object.create ( null ));
-		set [ change.name ] = change;
+		set [ name ] = new edb.ObjectChange ( object, name, edb.ObjectChange.TYPE_UPDATED, oldval, newval );
 		gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
 	},
 
 	/**
 	 * Mapping instanceids to maps that map property names to change summaries.
-	 * @type {Map<String,Map<String,edb.Change>>}
+	 * @type {Map<String,Map<String,edb.ObjectChange>>}
 	 */
 	_changes : Object.create ( null ),
 
@@ -329,46 +400,45 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 	 */
 	_approximate : function ( handler, proxy ) {
-		var Def, def, instances = Object.create ( null );
+		var Def, def, types = Object.create ( null );
 		this._definitions ( handler ).forEach ( function ( key ) {
 			def = handler [ key ];
 			if ( gui.Type.isComplex ( def )) {
 				if ( gui.Type.isConstructor ( def )) {
 					Def = def;
-					instances [ key ] = new Def ( proxy [ key ]);
+					types [ key ] = new Def ( proxy [ key ]);
+				} else {
+					types [ key ] = edb.Type.cast ( def );
 				}
 			} else if ( !gui.Type.isDefined ( proxy [ key ])) {
 				proxy [ key ] = handler [ key ];
 			}
 		});
 		/* 
-		 * Setup property accessors for handler. 
-		 * @TODO how does types get serialized back to server?
+		 * Setup property accessors for handler.
 		 *
 		 * 1. Objects by default convert to edb.Object
 		 * 2. Arrays by default convert to edb.Array
 		 * 3. Simple properties get proxy accessors
 		 */
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-			switch ( gui.Type.of ( def = proxy [ key ])) {
-				case "object" :
-					handler [ key ] = new edb.Object ( def );
-					break;
-				case "array" :
-					handler [ key ] = new edb.Array ( def );
-					break;
-				default :
-					gui.Property.accessor ( handler, key, {
-						getter : edb.Type.getter ( function () {
-							return instances [ key ] || proxy [ key ];
-						}),
-						setter : edb.Object._setter ( key, function ( value ) {
-							var target = instances [ key ] ? instances : proxy;
-							target [ key ] = value;
-						})
-					});
-					break;
+			def = proxy [ key ];
+			if ( gui.Type.isComplex ( def ) && !types [ key ]) {
+				types [ key ] = edb.Type.cast ( def );
 			}
+			gui.Property.accessor ( handler, key, {
+				getter : edb.Object._getter ( key, function () {
+					return types [ key ] || proxy [ key ];
+				}),
+				setter : edb.Object._setter ( key, function ( value ) {
+					/*
+					 * TODO: when resetting array, make sure that 
+					 * it becomes xx.MyArray (not plain edb.Array)
+					 */
+					var target = types [ key ] ? types : proxy;
+					target [ key ] = edb.Type.cast ( value );
+				})
+			});
 		});
 	},
 
@@ -380,7 +450,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 */
 	_definitions : function ( handler ) {
 		var keys = [];
-		gui.Object.all ( handler, function ( key, value ) {
+		gui.Object.all ( handler, function ( key ) {
 			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
 				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
 					if ( !key.startsWith ( "_" )) {
@@ -409,154 +479,255 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 
 
 /**
- * EDB array-like type.
- * @extends {edb.Type} (although not really)
+ * @using {Array.prototype}
  */
-edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
-	
-	/**
-	 * The content type can be declared as:
-	 *
-	 * 1. An edb.Type constructor function (my.ns.MyType)
-	 * 2. A filter function to accept JSON (for analysis) and return a constructor.
-	 * @type {function} Type constructor or filter function
-	 */
-	$of : null,
+( function using ( proto ) {
 
 	/**
-	 * Secret constructor.
+	 * edb.Array
+	 * @extends {edb.Type} ...although not really...
 	 */
-	$onconstruct : function () {
-		edb.Type.underscoreinstanceid ( this ); // iOS bug...
-		if ( arguments.length ) {
-			// accept one argument (an array) or use Arguments object as an array
-			var args = [];
-			if ( gui.Type.isArray ( arguments [ 0 ])) {
-				args = arguments [ 0 ];
-			} else {
-				Array.forEach ( arguments, function ( arg ) {
-					args.push ( arg );
-				});
-			}
-			var type = this.$of;
-			if ( gui.Type.isFunction ( type )) {
-				args = args.map ( function ( o, i ) {
-					if ( o !== undefined ) { // why can o be undefined in Firefox?
-						if ( !o._instanceid ) { // TODO: underscore depends on iPad glitch, does it still glitch?
-							var Type = type;//  type constructor or... 
-							if ( !gui.Type.isConstructor ( Type )) { // ... filter function?
-								Type = type ( o );
-							}
-							o = new Type ( o );
-						}
-					}
-					return o;
-				});
-			}
-			args.forEach ( function ( arg ) {
-				Array.prototype.push.call ( this, arg ); // bypassing broadcast mechanism
-			}, this );
-		}
+	edb.Array = gui.Class.create ( "edb.Array", proto, {
 
-		// proxy methods and invoke non-secret constructor
-		edb.Array.approximate ( this );
-		this.onconstruct.call ( this, arguments );
-	},
 
-	/**
-	 * Create true array without expando properties, recursively 
-	 * normalizing nested EDB types. This is the type of object 
-	 * you would typically transmit to the server. 
-	 * @returns {Array}
-	 */
-	$normalize : function () {
-		return Array.map ( this, function ( thing ) {
-			if ( edb.Type.isInstance ( thing )) {
-				return thing.$normalize ();
-			}
-			return thing;
-		});
-	}
-	
-	
-}, {}, { // Static .........................................................................
-
-	/**
-	 * Simplistic proxy mechanism. 
-	 * @param {object} handler The object that intercepts properties (the edb.Array)
-	 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
-	 */
-	approximate : function ( handler, proxy ) {
-		var def = null;
-		proxy = proxy || Object.create ( null );	
-		this._definitions ( handler ).forEach ( function ( key ) {
-			def = handler [ key ];
-			switch ( gui.Type.of ( def )) {
-				case "function" :
-					break;
-				case "object" :
-				case "array" :
-					console.warn ( "TODO: complex stuff on edb.Array :)" );
-					break;
-				default :
-					if ( !gui.Type.isDefined ( proxy [ key ])) {
-						proxy [ key ] = handler [ key ];
-					}
-					break;
-			}
-		});
+		// Native ...............................................................................
 		
-		/* 
-		 * Handler intercepts all accessors for simple properties.
+		/**
+		 * Push.
 		 */
-		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-			Object.defineProperty ( handler, key, {
-				enumerable : true,
-				configurable : true,
-				get : edb.Type.getter ( function () {
-					return proxy [ key ];
-				}),
-				set : edb.Type.setter ( function ( value ) {
-					proxy [ key ] = value;
-				})
-			});
-		});
-	},
+		push : function() {
+			var res = proto.push.apply ( this, arguments );
+			Array.forEach ( arguments, function ( arg ) {
+				edb.Array._onchange ( this, 1, arg );
+			}, this );
+			return res;
+		},
+		
+		/**
+		 * Pop.
+		 */
+		pop : function () {
+			var res = proto.pop.apply ( this, arguments );
+			edb.Array._onchange ( this, 0, res );
+			return res;
+		},
+		
+		/**
+		 * Shift.
+		 */
+		shift : function () {
+			var res = proto.shift.apply ( this, arguments );
+			edb.Array._onchange ( this, 0, res );
+			return res;
+		},
 
-	/**
-	 * Collect list of definitions to transfer from proxy to handler.
-	 * @param {object} handler
-	 * @returns {Array<String>}
-	 */
-	_definitions : function ( handler ) {
-		var keys = [];
-		for ( var key in handler ) {
-			if ( this._define ( key )) {
-				keys.push ( key );
+		/**
+		 * Unshift.
+		 */
+		unshift : function () {
+			var res = proto.unshift.apply ( this, arguments );
+			Array.forEach ( arguments, function ( arg ) {
+				edb.Array._onchange ( this, 1, arg );
+			}, this );
+			return res;
+		},
+
+		/**
+		 * Splice.
+		 */
+		splice : function () {
+			var res = proto.splice.apply ( this, arguments );
+			var add = [].slice.call ( arguments, 2 );
+			res.forEach ( function ( r ) {
+				edb.Array._onchange ( this, 0, r );
+			}, this );
+			add.forEach ( function ( a ) {
+				edb.Array._onchange ( this, 1, a );
+			}, this );
+			return res;
+		},
+
+
+		// Custom ...............................................................................
+
+		/**
+		 * The content type can be declared as:
+		 *
+		 * 1. An edb.Type constructor function (my.ns.MyType)
+		 * 2. A filter function to accept JSON (for analysis) and return an edb.Type constructor.
+		 * @type {function} Type constructor or filter function
+		 */
+		$of : null,
+
+		/**
+		 * Secret constructor.
+		 */
+		$onconstruct : function () {
+			edb.Type.underscoreinstanceid ( this ); // iOS bug...
+			if ( arguments.length ) {
+				// accept one argument (an array) or use Arguments object as an array
+				var args = [];
+				if ( gui.Type.isArray ( arguments [ 0 ])) {
+					args = arguments [ 0 ];
+				} else {
+					Array.forEach ( arguments, function ( arg ) {
+						args.push ( arg );
+					});
+				}
+				var type = this.$of;
+				if ( gui.Type.isFunction ( type )) {
+					args = args.map ( function ( o ) {
+						if ( o !== undefined ) { // why can o be undefined in Firefox?
+							if ( !o._instanceid ) { // TODO: underscore depends on iPad glitch, does it still glitch?
+								var Type = type;//	type constructor or... 
+								if ( !gui.Type.isConstructor ( Type )) { // ... filter function?
+									Type = type ( o );
+								}
+								o = new Type ( o );
+							}
+						}
+						return o;
+					});
+				} else {
+					args = args.map ( function ( o ) {
+						if ( !edb.Type.isInstance ( o )) {
+							switch ( gui.Type.of ( o )) {
+								case "object" : 
+									return new edb.Object ( o );
+								case "array" :
+									return new edb.Array ( o );
+								default :
+									return o;
+							}
+						}
+					});
+				}
+
+				args.forEach ( function ( arg ) {
+					Array.prototype.push.call ( this, arg ); // bypassing broadcast mechanism
+				}, this );
 			}
-		}
-		return keys;
-	},
 
-	/**
-	 * Should define given property?
-	 * @param {String} key
-	 * @returns {boolean}
-	 */
-	_define : function ( key ) {
-		if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
-			if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
-					if ( !key.startsWith ( "_" )) {
-						return true;
+			// proxy methods and invoke non-secret constructor
+			edb.Array.approximate ( this );
+			this.onconstruct.call ( this, arguments );
+		},
+
+		/**
+		 * Create true array without expando properties, recursively 
+		 * normalizing nested EDB types. This is the type of object 
+		 * you would typically transmit to the server. 
+		 * @returns {Array}
+		 */
+		$normalize : function () {
+			return Array.map ( this, function ( thing ) {
+				if ( edb.Type.isInstance ( thing )) {
+					return thing.$normalize ();
+				}
+				return thing;
+			});
+		}
+		
+		
+	}, {}, { // Static .........................................................................
+
+		/**
+		 * @param {edb.Array} array
+		 */
+		_onaccess : function ( array ) {},
+
+		/**
+		 * Register change summary for publication in next tick.
+		 * @param {edb.Array} array
+		 * @param {number} type
+		 * @param {object} item
+		 */
+		_onchange : function ( array, type, item ) {
+			type = {
+				0 : edb.ArrayChange.TYPE_REMOVED,
+				1 : edb.ArrayChange.TYPE_ADDED
+			}[ type ];
+			// console.log ( array, type, item ); TODO :)
+		},
+
+		/**
+		 * Simplistic proxy mechanism. 
+		 * @param {object} handler The object that intercepts properties (the edb.Array)
+		 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
+		 */
+		approximate : function ( handler, proxy ) {
+			var def = null;
+			proxy = proxy || Object.create ( null );	
+			this._definitions ( handler ).forEach ( function ( key ) {
+				def = handler [ key ];
+				switch ( gui.Type.of ( def )) {
+					case "function" :
+						break;
+					case "object" :
+					case "array" :
+						console.warn ( "TODO: complex stuff on edb.Array :)" );
+						break;
+					default :
+						if ( !gui.Type.isDefined ( proxy [ key ])) {
+							proxy [ key ] = handler [ key ];
+						}
+						break;
+				}
+			});
+			
+			/* 
+			 * Handler intercepts all accessors for simple properties.
+			 */
+			gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
+				Object.defineProperty ( handler, key, {
+					enumerable : true,
+					configurable : true,
+					get : edb.Type.getter ( function () {
+						return proxy [ key ];
+					}),
+					set : edb.Type.setter ( function ( value ) {
+						proxy [ key ] = value;
+					})
+				});
+			});
+		},
+
+		/**
+		 * Collect list of definitions to transfer from proxy to handler.
+		 * @param {object} handler
+		 * @returns {Array<String>}
+		 */
+		_definitions : function ( handler ) {
+			var keys = [];
+			for ( var key in handler ) {
+				if ( this._define ( key )) {
+					keys.push ( key );
+				}
+			}
+			return keys;
+		},
+
+		/**
+		 * Should define given property?
+		 * @param {String} key
+		 * @returns {boolean}
+		 */
+		_define : function ( key ) {
+			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
+				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
+					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
+						if ( !key.startsWith ( "_" )) {
+							return true;
+						}
 					}
 				}
 			}
+			return false;
 		}
-		return false;
-	}
 
-});
+	});
+
+}( Array.prototype ));
 
 /*
  * Overloading array methods.
@@ -589,12 +760,12 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 	 * Dispatch a broadcast whenever the list changes content or structure.
 	 */
 	edb.Type.decorateSetters ( proto, [
-		"push",
-		"pop", 
-		"shift", 
-		"unshift", 
-		"splice", 
-		"reverse" 
+		"push", // add
+		"unshift", // add
+		"splice", // add or remove
+		"pop", // remove
+		"shift", // remove
+		"reverse" // reversed (copies???????)
 	]);
 	
 	/*
@@ -611,19 +782,40 @@ edb.Array = gui.Class.create ( "edb.Array", Array.prototype, {
 		});
 		return clone;
 	};
+
+	// @TODO "sort", "reverse", "join"
 	
 }( edb.Array.prototype ));
 
 
+
 /**
- * edb.Object property change summary.
+ * @param {edb.Type} type
+ * @param {String} name
+ */
+edb.ObjectAccess = function ( object, name ) {
+	this.instanceid = object._instanceid;
+	this.object = object;
+	this.name = name;
+};
+
+edb.ObjectAccess.prototype = {
+	instanceid : null,
+	object : null,
+	name : null
+};
+
+
+/**
+ * edb.Object change summary.
  * @param {edb.Object} object
  * @param {String} name
  * @param {String} type
  * @param {object} oldval
  * @param {object} newval
  */
-edb.Change = function ( object, name, type, oldval, newval ) {
+edb.ObjectChange = function ( object, name, type, oldval, newval ) {
+	//this.instanceid = object._instanceid;
 	this.object = object;
 	this.name = name;
 	this.type = type;
@@ -631,13 +823,51 @@ edb.Change = function ( object, name, type, oldval, newval ) {
 	this.newValue = newval;
 };
 
-edb.Change.prototype = {
+edb.ObjectChange.prototype = {
+	//instanceid : null,
 	object: null,
 	name: null,
 	type: null,
 	oldValue: undefined,
 	newValue: undefined
 };
+
+/**
+ * We only support type "updated" until 
+ * native 'Object.observe' comes along.
+ * @type {String}
+ */
+edb.ObjectChange.TYPE_UPDATED = "updated";
+
+
+/**
+ * @param {edb.Array} array
+ */
+edb.ArrayAccess = function ( array ) {
+	this.instanceid = array._instanceid;
+	this.array = array;
+};
+
+edb.ArrayAccess.prototype = {
+	instanceid : null,
+	array : null
+};
+
+
+/**
+ * @param {edb.Array} array
+ */
+edb.ArrayChange = function ( array ) {
+	this.instanceid = array._instanceid;
+};
+
+edb.ArrayChange.prototype = {
+	instanceid : null,
+	array : null
+};
+
+edb.ArrayChange.TYPE_ADDED = "added";
+edb.ArrayChange.TYPE_REMOVED = "removed";
 
 
 /**
@@ -673,7 +903,7 @@ edb.Output = {
 /**
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
  * @TODO formalize how this is supposed to be clear
- * @TODO static interface for all this stuffel
+ * @TODO static interface for all this stuff
  */
 edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 
@@ -758,7 +988,7 @@ edb.Input.format = function ( context, data, Type ) {
 
 
 /**
- * Tracking EDB input. Note that the {edb.Script} is uisng this plugin (though it's not a spirit).
+ * Tracking EDB input. Note that the {edb.Script} is using this plugin: Don't assume a spirit around here.
  * @extends {gui.Tracker}
  */
 edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
@@ -778,10 +1008,19 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		this._watches = [];
 		this._matches = [];
 	},
+
+	/**
+	 * Destruction time.
+	 */
+	ondestruct : function () {
+		this._super.ondestruct ();
+		this.remove ( this._watches );
+		this._xxx ( false );
+	},
 	
 	/**
 	 * Add handler for one or more input types.
-	 * @param {edb.Type|String|Array<edb.Type|String>} arg
+	 * @param {edb.Type|String|Array<edb.Type|String>} arg 
 	 * @param @optional {object} IInputHandler Defaults to this.spirit
 	 * @returns {gui.InputPlugin}
 	 */
@@ -790,13 +1029,13 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._add ( arg, handler );
-		gui.Broadcast.add ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );
+		this._xxx ( true );
 	}),
 
 	/**
 	 * Remove handler for one or more input types.
 	 * @TODO Cleanup more stuff?
-	 * @param {object} arg
+	 * @param {edb.Type|String|Array<edb.Type|String>} arg 
 	 * @param @optional {object} handler implements InputListener (defaults to this)
 	 * @returns {gui.InputPlugin}
 	 */
@@ -805,7 +1044,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._remove ( arg, handler );
 		if (( this.done = this._matches.length === this._watches.length )) { // right?
-			gui.Broadcast.remove ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );	
+			this._xxx ( false );
 		}
 	}),
 
@@ -871,9 +1110,15 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 			this._watches.push ( type );
 			this._addchecks ( type.$classid, [ handler ]);
 			if ( type.output ) { // type has been output already?
-				gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
+
+				/*
+				 * TODO: this tick was needed at some point (perhaps in Spiritual Dox?)
+				 */
+
+				// gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
 					this._todoname ();
-				}, this );
+				// }, this );
+
 			}
 		}, this );
 	},
@@ -953,6 +1198,13 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 				});
 			}
 		}, this );
+	},
+
+	/**
+	 * @param {boolean} is
+	 */
+	_xxx : function ( is ) {
+		gui.Broadcast [ is ? "add" : "remove" ] ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );
 	}
 
 
@@ -965,11 +1217,10 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @returns {Array<function>}
 	 */
 	_breakdown : function ( arg, context ) {
-		switch ( gui.Type.of ( arg )) {
-			case "array" :
-				return this._breakarray ( arg, context );
-			default :
-				return this._breakother ( arg, context );
+		if ( gui.Type.isArray ( arg )) {
+			return this._breakarray ( arg, context );
+		} else {
+			return this._breakother ( arg, context );
 		}
 	},
 	
@@ -1131,10 +1382,21 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		this._super.onconstruct ();
 		var spirit = this.spirit;
 		this.inputs = this.inputs.bind ( this );
+		spirit.life.add ( gui.LIFE_DESTRUCT, this );
 		if ( spirit instanceof edb.ScriptSpirit ) {
 			this.autorun = false;
 		} else if ( this.diff ) {
 			this._updater = new edb.UpdateManager ( spirit );
+		}
+	},
+
+	/**
+	 * Destruction time.
+	 */
+	ondestruct : function () {
+		this._super.ondestruct ();
+		if ( this._script ) {
+			this._script.dispose ();
 		}
 	},
 
@@ -1166,7 +1428,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @param {gui.Life} life
 	 */
 	onlife : function ( life ) {
-		if ( life.type === gui.LIFE_ENTER ) {
+		if ( life.type ===  gui.LIFE_ENTER ) {
 			this.spirit.life.remove ( life.type, this );
 			if ( this._dosrc ) {
 				this.load ( this._dosrc );
@@ -1238,11 +1500,13 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		var changed = this._html !== html;
 		if ( changed ) {
 			this._html = html;
-			if ( this.diff ) {
-				this._updater.update ( html );
-			} else {
-				this.spirit.dom.html ( html ); // TODO: forms markup make valid!
-			}
+			this._stayfocused ( function () {
+				if ( this.diff ) {
+					this._updater.update ( html );
+				} else {
+					this.spirit.dom.html ( html ); // TODO: forms markup make valid!
+				}
+			});
 			this.ran = true;
 			this.spirit.life.dispatch ( 
 				edb.LIFE_SCRIPT_DID_RUN, changed // @TODO Support this kind of arg...
@@ -1353,10 +1617,33 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 				}
 				break;
 		}
+	},
+
+	/**
+	 * Preserve form field focus before and after action.
+	 * @param {function} action
+	 */
+	_stayfocused : function ( action ) {
+		var field, selector = edb.EDBModule.fieldselector;
+		action.call ( this );
+		if ( selector ) {
+			field = gui.DOMPlugin.q ( this.spirit.document, selector );
+			if ( field && field.id !== "#" + selector ) {
+				if ( field && gui.DOMPlugin.contains ( this.spirit, field )) {
+					field.focus ();
+					var text = "textarea,input:not([type=checkbox]):not([type=radio])";
+					if ( gui.CSSPlugin.matches ( field, text )) {
+						field.setSelectionRange ( 
+							field.value.length, 
+							field.value.length 
+						);
+					}
+				}
+			}
+		}
 	}
 
 });
-
 
 
 /**
@@ -1710,6 +1997,7 @@ edb.Status.prototype = {
 	adds : false,
 	func : null,
 	conf : null,
+	curl : null,
 	skip : 0,
 	last : 0,
 	spot : 0,
@@ -1955,26 +2243,33 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	_compilehtml : function ( c, runner, status, result ) {
 		switch ( c ) {
 			case "{" :
-				if ( status.peek || status.poke ) {}
+				if ( status.peek || status.poke ) {
+					status.curl ++;
+				}
 				break;
 			case "}" :
-				if ( status.peek ) {
-					status.peek = false;
-					status.skip = 1;
-					result.body += ") + '";
-				}
-				if ( status.poke ) {
-					this._poke ( status, result );
-					status.poke = false;
-					result.temp = null;
-					status.spot = -1;
-					status.skip = 1;
+				if ( -- status.curl === 0 ) {
+					if ( status.peek ) {
+						status.peek = false;
+						status.skip = 1;
+						status.curl = 0;
+						result.body += ") + '";
+					}
+					if ( status.poke ) {
+						this._poke ( status, result );
+						status.poke = false;
+						result.temp = null;
+						status.spot = -1;
+						status.skip = 1;
+						status.curl = 0;
+					}
 				}
 				break;
 			case "$" :
 				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
 					status.peek = true;
 					status.skip = 2;
+					status.curl = 0;
 					result.body += "' + (";
 				}
 				break;
@@ -1982,6 +2277,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
 					status.poke = true;
 					status.skip = 2;
+					status.curl = 0;
 					result.temp = "";
 				}
 				break;
@@ -2087,9 +2383,10 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 			next = body.substring ( spot ),
 			name = gui.KeyMaster.generateKey ( "poke" );
 		result.body = prev + "\n" + 
-			"var " + name + " = edb.Script.assign ( function ( value, checked ) { \n" +
+			"var " + name + " = edb.set ( function ( value, checked ) { \n" +
 			temp + ";\n}, this );" + next +
-			"edb.Script.register ( event ).invoke ( &quot;\' + " + name + " + \'&quot;" + sig + " );";
+			//"edb.Script.register ( event ).invoke ( &quot;\' + " + name + " + \'&quot;" + sig + " );";
+			"edb.go(event,&quot;\' + " + name + " + \'&quot;" + sig + ");";
 	}
 	
 
@@ -2392,11 +2689,11 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 		var funcs = [];
 		this.dependencies.forEach ( function ( dep ) {
 			head.declarations [ dep.name ] = true;
-			funcs.push ( dep.name + " = functions ( self, '" + dep.tempname () + "' );\n" );
+			funcs.push ( dep.name + " = get ( self, '" + dep.tempname () + "' );\n" );
 		}, this );
 		if ( funcs [ 0 ]) {
 			head.functiondefs.push ( 
-				"( function lookup ( functions ) {\n" +
+				"( function functions ( get ) {\n" +
 				funcs.join ( "" ) +
 				"}( edb.Function.get ));"
 			);
@@ -2411,11 +2708,17 @@ edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
 	 * @returns {String}
 	 */
 	_define : function ( script, head ) {
-		var vars = "";
+		var vars = "", html = "var ";
 		Object.keys ( head.declarations ).forEach ( function ( name ) {
 			vars += ", " + name;
 		});
-		var html = "var Out = edb.Out, Att = edb.Att, Tag = edb.Tag, out = new Out (), att = new Att ()" + vars +";\n";
+		if ( this._params.indexOf ( "out" ) < 0 ) {
+			html += "Out = edb.Out, out = new Out (), ";
+		}
+		if ( this._params.indexOf ( "att" ) < 0 ) {
+			html += "Att = edb.Att, att = new Att (), ";
+		}
+		html += "Tag = edb.Tag " + vars + ";\n";
 		head.functiondefs.forEach ( function ( def ) {
 			html += def +"\n";
 		});
@@ -2570,11 +2873,11 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 		var defs = [];
 		gui.Object.each ( this.inputs, function ( name, type ) {
 			head.declarations [ name ] = true;
-			defs.push ( name + " = inputs ( " + type + " );\n" );
+			defs.push ( name + " = get ( " + type + " );\n" );
 		}, this );
 		if ( defs [ 0 ]) {
 			head.functiondefs.push ( 
-				"( function lookup ( inputs ) {\n" +
+				"( function inputs ( get ) {\n" +
 				defs.join ( "" ) +
 				"})( this.script.inputs );" 
 			);
@@ -2701,7 +3004,6 @@ edb.Loader = gui.FileLoader.extend ({
 	 * @returns {String} Template source code
 	 */
 	_extract : function ( text, url ) {
-		//alert ( doc.baseURI || doc.URL );
 		var doc = gui.HTMLParser.parseToDocument ( text ); // @TODO: cache this
 		var script = doc.querySelector ( url.hash || "script" );
 		if ( script ) {	
@@ -2736,7 +3038,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	context : null,
 
 	/**
-	 * Origin of the EDBML template. You're looking for 'url.href'
+	 * Origin of the EDBML template (specifically in 'url.href')
 	 * @type {gui.URL}
 	 */
 	url : null,
@@ -2792,7 +3094,8 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 			this.executable = compiler.compile ( this.context, this.url );
 			this._source = compiler.source;
 			this._dependencies ( compiler );
-			return this._oncompiled ( compiler );
+			this._oncompiled ( compiler, directives );
+			return this;
 		} else {
 			throw new Error ( "TODO: recompile the script :)" );
 		}
@@ -2810,9 +3113,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * @param {edb.Compiler} compiler
 	 */
 	_dependencies : function ( compiler ) {
-		compiler.dependencies.filter ( function ( dep ) {
-			return true; // return dep.type === edb.Import.TYPE_FUNCTION;
-		}).map ( function ( dep ) {
+		compiler.dependencies.map ( function ( dep ) {
 			this._imports [ dep.name ] = null; // null all first
 			return dep;
 		}, this ).forEach ( function ( dep ) {
@@ -2883,18 +3184,21 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * If supported, load invokable function 
 	 * as blob file. Otherwise skip to init.
 	 * @param {edb.FunctionCompiler} compiler
+	 * @param {Map<String,String|number|boolean>} directives
 	 */
-	_oncompiled : function ( compiler ) {
+	_oncompiled : function ( compiler, directives ) {
+		if ( directives.debug ) {
+			this.debug ();
+		}
 		try {
 			if ( this._useblob ()) {
 				this._loadblob ( compiler );
 			} else {
 				this._maybeready ();
 			}
-		} catch ( workerexception ) { // sandbox scenario
+		} catch ( workerexception ) { // TODO: sandbox scenario
 			this._maybeready ();
 		}
-		return this;
 	},
 
 	/**
@@ -3009,7 +3313,7 @@ edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
 	 * @param {Window} context
 	 * @param {gui.URL} url
 	 * @param {String} src
-	 * @param {Mao<String,object>} directives
+	 * @param {Map<String,String|number|boolean>} directives
 	 * @param {function} callback
 	 * @param {object} thisp
 	 */
@@ -3110,7 +3414,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
-		gui.Broadcast.addGlobal ( edb.BROADCAST_SETTER, this );
+		gui.Broadcast.addGlobal ( edb.BROADCAST_CHANGE, this );
 	},
 
 	/**
@@ -3119,10 +3423,10 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 */
 	onbroadcast : function ( b ) {
 		switch ( b.type ) {
-			case edb.BROADCAST_GETTER :
+			case edb.BROADCAST_ACCESS :
 				this._keys.add ( b.data );
 				break;
-			case edb.BROADCAST_SETTER :
+			case edb.BROADCAST_CHANGE :
 				if ( this._keys.has ( b.data )) {
 					if ( this.readyState !== edb.Function.WAITING ) {
 						var tick = edb.TICK_SCRIPT_UPDATE;
@@ -3173,6 +3477,14 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		return result;
 	},
 
+	/**
+	 * Experimental...
+	 */
+	dispose : function () {
+		this.onreadystatechange = null;
+		this.input.ondestruct ();
+	},
+
 
 	// Private ............................................................
 
@@ -3193,7 +3505,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Flipped when expected inputs have been determined.
 	 * @type {boolean}
 	 */
-	_resolved : false,
+	_inputresolved : false,
 
 	/**
 	 * Get compiler implementation.
@@ -3204,14 +3516,17 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	},
 
 	/**
-	 * Setup input listeners.
+	 * Setup input listeners when compiled.
 	 * @param {edb.ScriptCompiler} compiler
+	 * @param {Map<String,String|number|boolean>} directives
+	 * @overloads {edb.Function#_oncompiled}
 	 */
-	_oncompiled : function ( compiler ) {
+	_oncompiled : function ( compiler, directives ) {
 		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
-		return this._super._oncompiled ( compiler );
+		this._inputresolved = true;
+		this._super._oncompiled ( compiler, directives );
 	},
 
 	/**
@@ -3220,7 +3535,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @returns {boolean}
 	 */
 	_done : function () {
-		return this.input.done && this._super._done ();
+		return this._inputresolved && this.input.done && this._super._done ();
 	},
 
 	/**
@@ -3228,8 +3543,8 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param {boolean} isBuilding
 	 */
 	_subscribe : function ( isBuilding ) {
-		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_GETTER, this );
-		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_SETTER, this );
+		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_ACCESS, this );
+		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_CHANGE, this );
 	}
 
 
@@ -3255,7 +3570,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param {object} thisp
 	 * @returns {String}
 	 */
-	assign : function ( func, thisp ) {
+	$assign : function ( func, thisp ) {
 		var key = gui.KeyMaster.generateKey ();
 		edb.Script._invokables.set ( key, function ( value, checked ) {
 			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
@@ -3270,7 +3585,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * @param @optional {String} sig
 	 * @param @optional {Map<String,object>} log
 	 */
-	invoke : function ( key, sig, log ) {
+	$invoke : function ( key, sig, log ) {
 		var func = null;
 		log = log || this._log;
 		/*
@@ -3305,7 +3620,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Keep a log on the latest DOM event.
 	 * @param {Event} e
 	 */
-	register : function ( e ) {
+	$register : function ( e ) {
 		this._log = {
 			type : e.type,
 			value : e.target.value,
@@ -3483,10 +3798,15 @@ edb.Att.prototype = gui.Object.create ( null, {
 	 * @returns {String} 
 	 */
 	_out : function ( att ) {
-		var val, html = "";
-		if ( gui.Type.isDefined ( this [ att ])) {
-			val = edb.Att.encode ( this [ att ]);
-			html += att + "=\"" + val + "\" ";
+		var val = this [ att ], html = "";
+		switch ( gui.Type.of ( val )) {
+			case "null" :
+			case "undefined" :
+				break;
+			default :
+				val = edb.Att.encode ( this [ att ]);
+				html += att + "=\"" + val + "\" ";
+				break;
 		}
 		return html;
 	},
@@ -3506,7 +3826,7 @@ edb.Att.prototype = gui.Object.create ( null, {
 	 * @returns {String} 
 	 */
 	_all : function () {
-		var html = "";
+		var type, html = "";
 		gui.Object.nonmethods ( this ).forEach ( function ( att ) {
 			html += this._out ( att );
 		}, this );
@@ -3693,7 +4013,9 @@ edb.UpdateManager.prototype = {
 			update.update ();
 			update.dispose ();
 		});
-		this._updates.dispose ();
+		if ( this._updates ) { // huh? how can it be null?
+			this._updates.dispose ();
+		}
 		delete this._updates;
 	},
 	
@@ -3928,26 +4250,28 @@ edb.UpdateManager.prototype = {
 	_attschanged : function ( newatts, oldatts, ids, css ) {
 		return newatts.length !== oldatts.length || !Array.every ( newatts, function ( newatt ) {
 			var oldatt = oldatts.getNamedItem ( newatt.name );
-			/*
-			if ( newatt.name === "oninput" ) {
-				alert ( oldatt.value + "\n " + newatt.value + "\n" + ( oldatt !== null && oldatt.value === newatt.value ));
-			}
-			*/
-			return oldatt && oldatt.value === newatt.value;
+			return oldatt && oldatt.value === newatt.value || (
+				[ oldatt, newatt ].every ( function ( att ) {
+					return att.value.startsWith ( "edb.go" );
+				})
+			);
 		});
 	},
 	
 	/**
 	 * Are element children candidates for "soft" sibling updates?
-	 * 1) All children must be elements or whitespace-only textnodes
-	 * 2) All elements must have a specified ID
+	 * 1) Both parents must have the same ID
+	 * 2) All children must have a specified ID
+	 * 3) All children must be elements or whitespace-only textnodes
 	 * @param {Element} newnode
 	 * @param {Element} oldnode
 	 * @return {boolean}
 	 */
 	_maybesoft : function ( newnode, oldnode ) {
 		if ( newnode && oldnode ) {
-			return this._maybesoft ( newnode ) && this._maybesoft ( oldnode );
+			return newnode.id && newnode.id === oldnode.id && 
+				this._maybesoft ( newnode ) && 
+				this._maybesoft ( oldnode );
 		} else {	
 			return Array.every ( newnode.childNodes, function ( node ) {
 				var res = true;
@@ -4211,7 +4535,7 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 			element = this.document.getElementById ( this.id );
 		}
 		if ( !element ) {
-			console.error ( "No element to match: " + this.id );
+			console.error ( "No element to match @id: " + this.id );
 			var all = this.window.gui._spirits.inside;
 			Object.keys ( all ).forEach ( function ( key ) {
 				var elm = all [ key ].element;
@@ -4922,10 +5246,18 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 /*
  * Register module.
  */
-gui.module ( "edb", {
+window.edb.EDBModule = gui.module ( "edb", {
 	
+	/**
+	 * CSS selector for currently focused form field.
+	 * @TODO: Support links and buttons as well
+	 * @TODO: Migrate to (future) EDBMLModule
+	 * @type {String}
+	 */
+	fieldselector : null,
+
 	/*
-	 * Extending all spirits.
+	 * Extending {gui.Spirit}
 	 */
 	mixins : {
 		
@@ -4937,7 +5269,7 @@ gui.module ( "edb", {
 
 		/**
 		 * Handle changes.
-		 * @param {Array<edb.Change>}
+		 * @param {Array<edb.ObjectChange|edb.ArrayChange>}
 		 */
 		onchange : function ( changes ) {}
 	},
@@ -4957,6 +5289,55 @@ gui.module ( "edb", {
 	channels : [
 		[ "script[type='text/edbml']", "edb.ScriptSpirit" ],
 		[ "link[rel='service']", "edb.ServiceSpirit" ]
-	]
+	],
+
+	/**
+	 * Context spiritualized.
+	 * @param {Window} context
+	 */
+	onafterspiritualize : function ( context ) {
+		context.document.addEventListener ( "focusin", this, true );
+		context.document.addEventListener ( "focusout", this, true );
+	},
+
+	/**
+	 * Handle event.
+	 * @param {Event} e
+	 */
+	handleEvent : function ( e ) {
+		switch ( e.type ) {
+			case "focusin" :
+				this.fieldselector = this._fieldselector ( e.target );
+				break;
+			case "focusout" :
+				this.fieldselector = null;
+				break;
+		}
+		// console.log ( e.target.ownerDocument.querySelector ( this.fieldselector ));
+	},
+
+
+	// Private ...................................................
+
+	/**
+	 * Compute selector for form field. We scope it to 
+	 * nearest element ID or fallback to document body.
+	 * @param {Element} element
+	 */
+	_fieldselector : function ( elm ) {
+		var index = -1;
+		var parts = [];
+		while ( elm !== null ) {
+			if ( elm.id ) {
+				parts.push ( "#" + elm.id );
+				elm = null;
+			} else {
+				index = gui.DOMPlugin.ordinal ( elm ) + 1;
+				parts.push ( ">" + elm.localName + ":nth-child(" + index + ")" );
+				elm = elm.parentNode;
+			}
+		}
+		return parts.reverse ().join ( "" );
+	}
 
 });

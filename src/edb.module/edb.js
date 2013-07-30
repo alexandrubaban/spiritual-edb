@@ -46,7 +46,7 @@ window.edb = gui.namespace ( "edb", {
 	 * @param {String} key
 	 * @param @optional {String} sig
 	 */
-	go : function ( e, key, sig ) {
+	go : function ( e, key, sig ) { // NOTE: gui.UpdateManager#_attschanged hardcoded "edb.go" ...
 		edb.Script.$register ( e );
 		edb.Script.$invoke ( key, sig, this._log );
 	}

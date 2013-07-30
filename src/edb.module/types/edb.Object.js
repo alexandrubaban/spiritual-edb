@@ -188,46 +188,45 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 	 */
 	_approximate : function ( handler, proxy ) {
-		var Def, def, instances = Object.create ( null );
+		var Def, def, types = Object.create ( null );
 		this._definitions ( handler ).forEach ( function ( key ) {
 			def = handler [ key ];
 			if ( gui.Type.isComplex ( def )) {
 				if ( gui.Type.isConstructor ( def )) {
 					Def = def;
-					instances [ key ] = new Def ( proxy [ key ]);
+					types [ key ] = new Def ( proxy [ key ]);
+				} else {
+					types [ key ] = edb.Type.cast ( def );
 				}
 			} else if ( !gui.Type.isDefined ( proxy [ key ])) {
 				proxy [ key ] = handler [ key ];
 			}
 		});
 		/* 
-		 * Setup property accessors for handler. 
-		 * @TODO how does types get serialized back to server?
+		 * Setup property accessors for handler.
 		 *
 		 * 1. Objects by default convert to edb.Object
 		 * 2. Arrays by default convert to edb.Array
 		 * 3. Simple properties get proxy accessors
 		 */
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-			switch ( gui.Type.of ( def = proxy [ key ])) {
-				case "object" :
-					handler [ key ] = instances [ key ] || new edb.Object ( def );
-					break;
-				case "array" :
-					handler [ key ] = instances [ key ] || new edb.Array ( def );
-					break;
-				default :
-					gui.Property.accessor ( handler, key, {
-						getter : edb.Object._getter ( key, function () {
-							return instances [ key ] || proxy [ key ];
-						}),
-						setter : edb.Object._setter ( key, function ( value ) {
-							var target = instances [ key ] ? instances : proxy;
-							target [ key ] = value;
-						})
-					});
-					break;
+			def = proxy [ key ];
+			if ( gui.Type.isComplex ( def ) && !types [ key ]) {
+				types [ key ] = edb.Type.cast ( def );
 			}
+			gui.Property.accessor ( handler, key, {
+				getter : edb.Object._getter ( key, function () {
+					return types [ key ] || proxy [ key ];
+				}),
+				setter : edb.Object._setter ( key, function ( value ) {
+					/*
+					 * TODO: when resetting array, make sure that 
+					 * it becomes xx.MyArray (not plain edb.Array)
+					 */
+					var target = types [ key ] ? types : proxy;
+					target [ key ] = edb.Type.cast ( value );
+				})
+			});
 		});
 	},
 
@@ -239,7 +238,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 */
 	_definitions : function ( handler ) {
 		var keys = [];
-		gui.Object.all ( handler, function ( key, value ) {
+		gui.Object.all ( handler, function ( key ) {
 			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
 				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
 					if ( !key.startsWith ( "_" )) {

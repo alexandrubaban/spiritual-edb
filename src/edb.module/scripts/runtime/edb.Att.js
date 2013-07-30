@@ -27,10 +27,15 @@ edb.Att.prototype = gui.Object.create ( null, {
 	 * @returns {String} 
 	 */
 	_out : function ( att ) {
-		var val, html = "";
-		if ( gui.Type.isDefined ( this [ att ])) {
-			val = edb.Att.encode ( this [ att ]);
-			html += att + "=\"" + val + "\" ";
+		var val = this [ att ], html = "";
+		switch ( gui.Type.of ( val )) {
+			case "null" :
+			case "undefined" :
+				break;
+			default :
+				val = edb.Att.encode ( this [ att ]);
+				html += att + "=\"" + val + "\" ";
+				break;
 		}
 		return html;
 	},
@@ -50,7 +55,7 @@ edb.Att.prototype = gui.Object.create ( null, {
 	 * @returns {String} 
 	 */
 	_all : function () {
-		var html = "";
+		var type, html = "";
 		gui.Object.nonmethods ( this ).forEach ( function ( att ) {
 			html += this._out ( att );
 		}, this );

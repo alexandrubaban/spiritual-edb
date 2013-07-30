@@ -96,7 +96,7 @@
 				}
 				var type = this.$of;
 				if ( gui.Type.isFunction ( type )) {
-					args = args.map ( function ( o, i ) {
+					args = args.map ( function ( o ) {
 						if ( o !== undefined ) { // why can o be undefined in Firefox?
 							if ( !o._instanceid ) { // TODO: underscore depends on iPad glitch, does it still glitch?
 								var Type = type;//	type constructor or... 
@@ -108,7 +108,21 @@
 						}
 						return o;
 					});
+				} else {
+					args = args.map ( function ( o ) {
+						if ( !edb.Type.isInstance ( o )) {
+							switch ( gui.Type.of ( o )) {
+								case "object" : 
+									return new edb.Object ( o );
+								case "array" :
+									return new edb.Array ( o );
+								default :
+									return o;
+							}
+						}
+					});
 				}
+
 				args.forEach ( function ( arg ) {
 					Array.prototype.push.call ( this, arg ); // bypassing broadcast mechanism
 				}, this );

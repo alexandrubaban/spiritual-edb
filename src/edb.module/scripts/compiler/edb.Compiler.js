@@ -125,26 +125,33 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	_compilehtml : function ( c, runner, status, result ) {
 		switch ( c ) {
 			case "{" :
-				if ( status.peek || status.poke ) {}
+				if ( status.peek || status.poke ) {
+					status.curl ++;
+				}
 				break;
 			case "}" :
-				if ( status.peek ) {
-					status.peek = false;
-					status.skip = 1;
-					result.body += ") + '";
-				}
-				if ( status.poke ) {
-					this._poke ( status, result );
-					status.poke = false;
-					result.temp = null;
-					status.spot = -1;
-					status.skip = 1;
+				if ( -- status.curl === 0 ) {
+					if ( status.peek ) {
+						status.peek = false;
+						status.skip = 1;
+						status.curl = 0;
+						result.body += ") + '";
+					}
+					if ( status.poke ) {
+						this._poke ( status, result );
+						status.poke = false;
+						result.temp = null;
+						status.spot = -1;
+						status.skip = 1;
+						status.curl = 0;
+					}
 				}
 				break;
 			case "$" :
 				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
 					status.peek = true;
 					status.skip = 2;
+					status.curl = 0;
 					result.body += "' + (";
 				}
 				break;
@@ -152,6 +159,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
 					status.poke = true;
 					status.skip = 2;
+					status.curl = 0;
 					result.temp = "";
 				}
 				break;

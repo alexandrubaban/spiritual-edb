@@ -128,3 +128,18 @@ edb.Type.lookup = function ( context, arg ) {
 	}
 	return type;
 };
+
+/**
+ * @param {object} value
+ */
+edb.Type.cast = function fix ( value ) {
+	if ( gui.Type.isComplex ( value ) && !edb.Type.isInstance ( value )) {
+		switch ( gui.Type.of ( value )) {
+			case "object" :
+				return new edb.Object ( value );
+			case "array" :
+				return new edb.Array ( value );
+		}
+	} 
+	return value;
+};

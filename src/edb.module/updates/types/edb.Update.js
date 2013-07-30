@@ -72,7 +72,7 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 			element = this.document.getElementById ( this.id );
 		}
 		if ( !element ) {
-			console.error ( "No element to match: " + this.id );
+			console.error ( "No element to match @id: " + this.id );
 			var all = this.window.gui._spirits.inside;
 			Object.keys ( all ).forEach ( function ( key ) {
 				var elm = all [ key ].element;

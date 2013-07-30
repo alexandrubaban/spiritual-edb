@@ -262,26 +262,28 @@ edb.UpdateManager.prototype = {
 	_attschanged : function ( newatts, oldatts, ids, css ) {
 		return newatts.length !== oldatts.length || !Array.every ( newatts, function ( newatt ) {
 			var oldatt = oldatts.getNamedItem ( newatt.name );
-			/*
-			if ( newatt.name === "oninput" ) {
-				alert ( oldatt.value + "\n " + newatt.value + "\n" + ( oldatt !== null && oldatt.value === newatt.value ));
-			}
-			*/
-			return oldatt && oldatt.value === newatt.value;
+			return oldatt && oldatt.value === newatt.value || (
+				[ oldatt, newatt ].every ( function ( att ) {
+					return att.value.startsWith ( "edb.go" );
+				})
+			);
 		});
 	},
 	
 	/**
 	 * Are element children candidates for "soft" sibling updates?
-	 * 1) All children must be elements or whitespace-only textnodes
-	 * 2) All elements must have a specified ID
+	 * 1) Both parents must have the same ID
+	 * 2) All children must have a specified ID
+	 * 3) All children must be elements or whitespace-only textnodes
 	 * @param {Element} newnode
 	 * @param {Element} oldnode
 	 * @return {boolean}
 	 */
 	_maybesoft : function ( newnode, oldnode ) {
 		if ( newnode && oldnode ) {
-			return this._maybesoft ( newnode ) && this._maybesoft ( oldnode );
+			return newnode.id && newnode.id === oldnode.id && 
+				this._maybesoft ( newnode ) && 
+				this._maybesoft ( oldnode );
 		} else {	
 			return Array.every ( newnode.childNodes, function ( node ) {
 				var res = true;

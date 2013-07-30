@@ -187,11 +187,13 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		var changed = this._html !== html;
 		if ( changed ) {
 			this._html = html;
-			if ( this.diff ) {
-				this._updater.update ( html );
-			} else {
-				this.spirit.dom.html ( html ); // TODO: forms markup make valid!
-			}
+			this._stayfocused ( function () {
+				if ( this.diff ) {
+					this._updater.update ( html );
+				} else {
+					this.spirit.dom.html ( html ); // TODO: forms markup make valid!
+				}
+			});
 			this.ran = true;
 			this.spirit.life.dispatch ( 
 				edb.LIFE_SCRIPT_DID_RUN, changed // @TODO Support this kind of arg...
@@ -301,6 +303,30 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 					this.run (); // @TODO: only if an when entered!
 				}
 				break;
+		}
+	},
+
+	/**
+	 * Preserve form field focus before and after action.
+	 * @param {function} action
+	 */
+	_stayfocused : function ( action ) {
+		var field, selector = edb.EDBModule.fieldselector;
+		action.call ( this );
+		if ( selector ) {
+			field = gui.DOMPlugin.q ( this.spirit.document, selector );
+			if ( field && field.id !== "#" + selector ) {
+				if ( field && gui.DOMPlugin.contains ( this.spirit, field )) {
+					field.focus ();
+					var text = "textarea,input:not([type=checkbox]):not([type=radio])";
+					if ( gui.CSSPlugin.matches ( field, text )) {
+						field.setSelectionRange ( 
+							field.value.length, 
+							field.value.length 
+						);
+					}
+				}
+			}
 		}
 	}
 

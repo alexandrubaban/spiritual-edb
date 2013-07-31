@@ -36,7 +36,7 @@ edb.ScriptCompiler = edb.FunctionCompiler.extend ({
 
 	/**
 	 * Declare.
-	 * @overloads {edb.FunctionCompiler} declare
+	 * @overrides {edb.FunctionCompiler} declare
 	 * @param {String} script
 	 * @returns {String}
 	 */

@@ -67,7 +67,7 @@ edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
 	
 	/**
 	 * Better not keep a reference to any DOM element around here.
-	 * @overloads {edb.Update#dispose}
+	 * @overrides {edb.Update#dispose}
 	 */
 	dispose : function () {
 		this._super.dispose ();

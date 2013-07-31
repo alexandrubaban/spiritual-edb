@@ -79,7 +79,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
 	 * Execute the script, most likely returning a HTML string.
-	 * @overloads {edb.Function#execute}
+	 * @overrides {edb.Function#execute}
 	 * @returns {String}
 	 */
 	execute : function () {
@@ -137,7 +137,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Setup input listeners when compiled.
 	 * @param {edb.ScriptCompiler} compiler
 	 * @param {Map<String,String|number|boolean>} directives
-	 * @overloads {edb.Function#_oncompiled}
+	 * @overrides {edb.Function#_oncompiled}
 	 */
 	_oncompiled : function ( compiler, directives ) {
 		gui.Object.each ( compiler.inputs, function ( name, type ) {
@@ -149,7 +149,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
 	 * Ready to run?
-	 * @overloads {edb.Function#_done}
+	 * @overrides {edb.Function#_done}
 	 * @returns {boolean}
 	 */
 	_done : function () {

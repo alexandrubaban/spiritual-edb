@@ -130,7 +130,7 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * When an attribute update is triggered by a EDB poke, we verify that this was the *only* thing
 	 * that changed and substitute the default update with a edb.ScriptUpdate. This will bypass the need 
 	 * for an ID attribute on the associated element (without which a hardupdate would have happened).
-	 * @overloads {edb.UpdateManager#_attschanged}
+	 * @overrides {edb.UpdateManager#_attschanged}
 	 * @param {NodeList} newatts
 	 * @param {NodeList} oldatts
 	 * @param {String} css

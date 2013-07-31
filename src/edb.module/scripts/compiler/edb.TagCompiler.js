@@ -6,7 +6,7 @@ edb.TagCompiler = edb.FunctionCompiler.extend ( "edb.TagCompiler", {
 
 	/**
 	 * We added the "tag" directive ourselves.
-	 * @overloads {edb.FunctionCompiler._direct}
+	 * @overrides {edb.FunctionCompiler._direct}
 	 * @param  {String} script
 	 * @returns {String}
 	 */

@@ -43,7 +43,64 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	}
 
 
-}, {}, { // Static ......................................................................
+}, { // Recurring static ............................................................
+	
+	/**
+	 * Resource URI.
+	 * @type {String}
+	 */
+	uri : null,
+
+	/**
+	 * GET resource.
+	 * @param {String} id
+	 * @param @optional {Map<String,object>} options
+	 * @returns {edb.Object|edb.Array}
+	 */
+	get : edb.Type.get,
+
+	/**
+	 * PUT resource.
+	 * @param {edb.Object|edb.Array} inst
+	 * @param @optional {Map<String,object>} options
+	 * @returns {object}
+	 */
+	put : edb.Type.put,
+
+	/**
+	 * POST resource.
+	 * @param {edb.Object|edb.Array} inst
+	 * @param @optional {Map<String,object>} options
+	 * @returns {object}
+	 */
+	post : edb.Type.post,
+
+	/**
+	 * DELETE resource.
+	 * @param {edb.Object|edb.Array} inst
+	 * @param @optional {Map<String,object>} options
+	 * @returns {object}
+	 */
+	del : edb.Type.del,
+
+	/**
+	 * Performs the request.
+	 * @param {String} url
+	 * @param {String} method
+	 * @param {object} payload
+	 * @param {function} callback
+	 */
+	request : edb.Type.request,
+
+	/**
+	 * Formats the reponse.
+	 * @param {object} response
+	 * @returns {object}
+	 */
+	response : edb.Type.response
+
+
+}, { // Static ......................................................................
 
 	/**
 	 * TODO
@@ -251,15 +308,11 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	}
 });
 
-
 /*
  * Mixin methods and properties common 
  * to both {edb.Object} and {edb.Array}
  */
 ( function setup () {
 	gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Object );
-	gui.Object.extend ( 
-		edb.Object.prototype, 
-		edb.Type.prototype 
-	);
+	gui.Object.extendmissing ( edb.Object.prototype, edb.Type.prototype );
 }());

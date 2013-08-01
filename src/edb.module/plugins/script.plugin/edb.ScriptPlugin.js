@@ -317,17 +317,45 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			field = gui.DOMPlugin.q ( this.spirit.document, selector );
 			if ( field && field.id !== "#" + selector ) {
 				if ( field && gui.DOMPlugin.contains ( this.spirit, field )) {
-					field.focus ();
-					var text = "textarea,input:not([type=checkbox]):not([type=radio])";
-					if ( gui.CSSPlugin.matches ( field, text )) {
-						field.setSelectionRange ( 
-							field.value.length, 
-							field.value.length 
-						);
-					}
+					this._restorefocus ( field );
+					this._debugwarning ();
 				}
 			}
 		}
+	},
+
+	/**
+	 * Focus form field.
+	 * @param {Element} field
+	 */
+	_restorefocus : function ( field ) {
+		var text = "textarea,input:not([type=checkbox]):not([type=radio])";
+		field.focus ();
+		if ( gui.CSSPlugin.matches ( field, text )) {
+			field.setSelectionRange ( 
+				field.value.length, 
+				field.value.length 
+			);
+		}
+	},
+
+	/**
+	 * We're only gonna say this once.
+	 */
+	_debugwarning : function () {
+		var This = edb.ScriptPlugin;
+		if ( This._warning && this.spirit.window.gui.debug ) {
+			console.debug ( This._warning );
+			This._warning = null;
+		}
 	}
+
+}, { // Static .......................................................
+
+	/**
+	 * TODO: STACK LOST ANYWAY!
+	 * @type {String}
+	 */
+	_warning : "Spiritual: Form elements with a unique @id may be updated without losing the undo-redo stack (now gone)."
 
 });

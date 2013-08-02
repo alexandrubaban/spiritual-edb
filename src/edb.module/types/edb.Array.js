@@ -170,6 +170,7 @@
 		 * 2. If the first argument is an array, populate using this.
 		 *
 		 * For case number two, we ignore the remaining arguments. 
+		 * @TODO read something about http://www.2ality.com/2011/08/spreading.html
 		 * @param {edb.Array}
 		 * @param {Arguments} args
 		 */

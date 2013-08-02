@@ -330,23 +330,45 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 							field.value.length 
 						);
 					}
-					var plugin = edb.ScriptPlugin;
-					if ( gui.debug && plugin._warning ) {
-						console.debug ( plugin._warning );
-						plugin._warning = null;
-					}
+					this._restorefocus ( field );
+					this._debugwarning ();
 				}
 			}
 		}
-	}
-
-
-}, {}, { // Static ......................................................
+	},
 
 	/**
-	 * Add ID to fields to use attribute updates instead of hard updates.
+	 * Focus form field.
+	 * @param {Element} field
+	 */
+	_restorefocus : function ( field ) {
+		var text = "textarea,input:not([type=checkbox]):not([type=radio])";
+		field.focus ();
+		if ( gui.CSSPlugin.matches ( field, text )) {
+			field.setSelectionRange ( 
+				field.value.length, 
+				field.value.length 
+			);
+		}
+	},
+
+	/**
+	 * We're only gonna say this once.
+	 */
+	_debugwarning : function () {
+		var This = edb.ScriptPlugin;
+		if ( This._warning && this.spirit.window.gui.debug ) {
+			console.debug ( This._warning );
+			This._warning = null;
+		}
+	}
+
+}, {}, { // Static .......................................................
+
+	/**
+	 * TODO: STACK LOST ANYWAY!
 	 * @type {String}
 	 */
-	_warning : "You can minimize repaints by adding a unique @id to all " +
-		"form fields. This will also preserve field undo history (now gone)."
+	_warning : "Spiritual: Form elements with a unique @id may be updated without losing the undo-redo stack (now gone)."
+
 });

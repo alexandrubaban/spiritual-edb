@@ -16,7 +16,7 @@ edb.UpdateManager.prototype = {
 	 */
 	update : function ( html ) {
 		this._updates = new edb.UpdateCollector ();
-		if ( this._olddom === null ) {
+		if ( !this._olddom ) {
 			this._first ( html );
 		} else {
 			this._next ( html );
@@ -114,7 +114,7 @@ edb.UpdateManager.prototype = {
 	},
 	
 	/**
-	 * Heil Hitler.
+	 * Crawl.
 	 * @param {Element} newnode
 	 * @param {Element} oldnode
 	 * @param {Element} lastnode
@@ -250,24 +250,55 @@ edb.UpdateManager.prototype = {
 	},
 
 	/**
-	 * Attributes changed? Although declared as a private method, this actually gets 
-	 * overloaded by edb.ScriptUpdate who needs to compute with the two extra arguments, 
-	 * ids and css. We didn't want to create a hard dependancy on EDB templates...
+	 * Attributes changed?
 	 * @see {edb.ScriptUpdate}
 	 * @param {NodeList} newatts
 	 * @param {NodeList} oldatts
+	 * @param {?} ids
 	 * @param {String} css
 	 * @returns {boolean}
 	 */
 	_attschanged : function ( newatts, oldatts, ids, css ) {
-		return newatts.length !== oldatts.length || !Array.every ( newatts, function ( newatt ) {
-			var oldatt = oldatts.getNamedItem ( newatt.name );
-			return oldatt && oldatt.value === newatt.value || (
-				[ oldatt, newatt ].every ( function ( att ) {
-					return att.value.startsWith ( "edb.go" );
-				})
-			);
-		});
+		var changed = newatts.length !== oldatts.length;
+		if ( !changed ) {
+			changed = !Array.every ( newatts, function ( newatt ) {
+				var oldatt = oldatts.getNamedItem ( newatt.name );
+				return oldatt && oldatt.value === newatt.value;
+			});
+			if ( changed ) {
+				Array.forEach ( newatts, function ( newatt ) {
+					var oldatt = oldatts.getNamedItem ( newatt.name );
+					if ( !this._specialchange ( newatt.name, oldatt.name, newatt.value, oldatt.value, ids, css )) {
+						changed = newatt.value !== oldatt.value;
+					}
+				}, this );
+			}
+		}
+		return changed;
+	},
+
+	/**
+	 * When an attribute update is triggered by a EDB poke, we verify that this was the *only* thing
+	 * that changed and substitute the default update with a edb.ScriptUpdate. This will bypass the need 
+	 * for an ID attribute on the associated element (without which a hardupdate would have happened).
+	 * @param {String} newname
+	 * @param {String} newname
+	 * @param {String} newname
+	 * @param {String} newname
+	 * @param {?} ids
+	 * @param {String} css
+	 * @returns {boolean}
+	 */
+	_specialchange : function ( newname, oldname, newval, oldval, ids, css ) {
+		if ( newval.contains ( "edb" ) && oldval.contains ( "edb" )) {
+			var newkey = gui.KeyMaster.extractKey ( newval );
+			var oldkey = gui.KeyMaster.extractKey ( oldval );
+			this._updates.collect ( new edb.ScriptUpdate ( this._doc ).setup ( 
+				this._spirit, css, oldname, newval, oldkey [ 0 ]
+			), ids );
+			return true;
+		}
+		return false;
 	},
 	
 	/**

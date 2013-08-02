@@ -31,7 +31,7 @@ edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
 	 * @returns {object}
 	 */
 	$normalize : function () {
-		var c, o = Object.create ( null );
+		var c, o = {};
 		gui.Object.each ( this, function ( key, value ) {
 			c = key [ 0 ];
 			if ( c !== "$" && c !== "_" && edb.Type.isInstance ( value  )) {

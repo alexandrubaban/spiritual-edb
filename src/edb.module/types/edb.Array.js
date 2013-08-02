@@ -112,6 +112,13 @@
 		 */
 		uri : null,
 
+
+		/**
+		 * Experimental.
+		 * @type {String|function}
+		 */
+		persist : null,
+
 		/**
 		 * GET resource.
 		 * @param {String} id

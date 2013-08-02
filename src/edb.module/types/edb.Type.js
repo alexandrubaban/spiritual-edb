@@ -9,6 +9,12 @@ edb.Type.prototype = {
 	 * @type {String}
 	 */
 	$id : null,
+
+	/**
+	 * Experimental.
+	 * @type {String}
+	 */
+	$contextid : null,
 		
 	/**
 	 * Instance key (clientside session only).
@@ -37,7 +43,7 @@ edb.Type.prototype = {
 	},
 
 	/**
-	 * 
+	 * Use some kind of factory pattern.
 	 */
 	$get : function () {
 		throw new Error ( "Not supported. Use " + this.constructor + ".$get(optionalid)" );

@@ -118,18 +118,20 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 */
 	_add : function ( types, handler ) {
 		types.forEach ( function ( type ) {
-			this._watches.push ( type );
-			this._addchecks ( type.$classid, [ handler ]);
-			if ( type.output ) { // type has been output already?
+			if ( gui.Type.isDefined ( type )) {
+				this._watches.push ( type );
+				this._addchecks ( type.$classid, [ handler ]);
+				if ( type.output ) { // type has been output already?
+					/*
+					 * TODO: this tick was needed at some point (perhaps in Spiritual Dox?)
+					 */
+					// gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
+						this._todoname ();
+					// }, this );
 
-				/*
-				 * TODO: this tick was needed at some point (perhaps in Spiritual Dox?)
-				 */
-
-				// gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
-					this._todoname ();
-				// }, this );
-
+				}
+			} else {
+				throw new TypeError ( "Type is not defined" );
 			}
 		}, this );
 	},

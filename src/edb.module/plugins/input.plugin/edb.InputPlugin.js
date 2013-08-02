@@ -75,6 +75,21 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		}).shift () : null;
 		return input ? input.data : null;
 	},
+
+	/**
+	 * Dispatch private data. Only the associated {edb.Script} can see this!
+	 * @TODO the dispatching spirit should be able to intercept this as well...
+	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
+	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
+	 * @returns {edb.Object|edb.Array}
+	 */
+	dispatch : function ( data, Type ) {
+		if ( this.spirit ) {
+			return this.spirit.script.input ( data, Type );
+		} else {
+			console.error ( "TODO: not implemented (private sandbox input)" );
+		}
+	},
 	
 	/**
 	 * Evaluate new input.

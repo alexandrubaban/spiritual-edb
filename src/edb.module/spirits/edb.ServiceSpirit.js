@@ -13,7 +13,7 @@ edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
 		if ( type ) {
 			var Type = gui.Object.lookup ( type, this.window );
 			if ( this.att.get ( "href" )) {
-				new gui.Request ( this.element.href ).acceptJSON ().get ( function ( status, data ) {
+				new gui.Request ( this.element.href ).get ().then ( function ( status, data ) {
 					this.output.dispatch ( new Type ( data ));
 				}, this );
 			} else {

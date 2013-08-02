@@ -37,26 +37,44 @@ edb.Type.prototype = {
 	},
 
 	/**
-	 * Store resource.
-	 * @param {Map<String,String|number|boolean>} options
+	 * 
 	 */
-	$save : function ( options ) {
-		return this.constructor.$save ( this, options );
+	$get : function () {
+		throw new Error ( "Not supported. Use " + this.constructor + ".$get(optionalid)" );
 	},
 
 	/**
-	 * Delete resource.
-	 * @param {Map<String,String|number|boolean>} options
+	 * PUT resource.
+	 * @param @optional {Map<String,object>} options
+	 * @returns {gui.Then}
+	 */
+	$put : function ( options ) {
+		return this.constructor.put ( this, options );
+	},
+
+	/**
+	 * POST resource.
+	 * @param @optional {Map<String,object>} options
+	 * @returns {gui.Then}
+	 */
+	$post : function ( options ) {
+		return this.constructor.post ( this, options );
+	},
+
+	/**
+	 * DELETE resource.
+	 * @param @optional {Map<String,object>} options
+	 * @returns {gui.Then}
 	 */
 	$delete : function ( options ) {
-		return this.constructor.$delete ( this, options );
+		return this.constructor.del ( this, options );
 	}
 };
 
 
 // Static .......................................................................
 
-gui.Object.each ({
+gui.Object.each ({ // injecting static methods
 
 	/*
 	 * Dispatch a getter broadcast before base function.
@@ -169,7 +187,10 @@ gui.Object.each ({
 
 // REST mappings ......................................................................
 
-gui.Object.each ({
+/*
+ * TODO: gui.Class mechanism for mixins on recurring static fields :)
+ */
+gui.Object.each ({ // injecting static methods
 
 	/**
 	 * Resource URI.
@@ -179,14 +200,29 @@ gui.Object.each ({
 
 	/**
 	 * GET resource.
-	 * @param {String} id
-	 * @param @optional {Map<String,object>} options
-	 * @returns {edb.Object|edb.Array}
+	 * 
+	 * 1. Any string argument will become the resource ID.
+	 * 2. Any object argument will resolve to querystring paramters.
+	 *
+	 * @param @optional {Map<String,object>|String} arg1
+	 * @param @optional {Map<String,object>} arg2
+	 * @returns {gui.Then}
 	 */
-	get : function ( id, options ) {
+	get : function () {
 		var type = this;
 		var then = new gui.Then ();
-		var href = edb.Type.url ( this.uri, options );
+		var href, id, options;
+		Array.forEach ( arguments, function ( arg ) {
+			switch ( gui.Type.of ( arg )) {
+				case "string" :
+					id = arg;
+					break;
+				case "object" :
+					options = arg;
+					break;
+			}
+		});
+		href = gui.URL.parametrize ( this.uri, options );
 		this.request ( href, "GET", null, function ( response ) {
 			then.now ( type.response ( response ));
 		});
@@ -198,12 +234,12 @@ gui.Object.each ({
 	 * @param {edb.Object|edb.Array} inst
 	 * @param @optional {Map<String,object>} options
 	 * @param {String} $method (Framework internal)
-	 * @returns {object}
+	 * @returns {gui.Then}
 	 */
 	put : function ( inst, options, $method ) {
 		var type = this;
 		var then = new gui.Then ();
-		var href = edb.Type.url ( inst.uri, options );
+		var href = gui.URL.parametrize ( inst.uri, options );
 		var data = gui.Type.isInstance ( inst ) ? inst.$normalize () : inst;
 		this.request ( href, $method || "PUT", data, function ( response ) {
 			then.now ( type.response ( response, options, $method ));
@@ -216,18 +252,18 @@ gui.Object.each ({
 	 * @param {edb.Object|edb.Array} inst
 	 * @param @optional {Map<String,object>} options
 	 * @param {String} $method (Framework internal)
-	 * @returns {object}
+	 * @returns {gui.Then}
 	 */
 	post : function ( inst, options ) {
 		return this.put ( inst, options, "POST" );
 	},
 
 	/**
-	 * DELETE resource.
+	 * DELETE resource ("delete" being a reserved keyword).
 	 * @param {edb.Object|edb.Array} inst
 	 * @param @optional {Map<String,object>} options
 	 * @param {String} $method (Framework internal)
-	 * @returns {object}
+	 * @returns {gui.Then}
 	 */
 	del : function ( inst, options ) {
 		return this.put ( inst, options, "DELETE" );
@@ -235,14 +271,16 @@ gui.Object.each ({
 
 	/**
 	 * Performs the request. Perhaps you would like to overwrite this method.
+	 * @TODO: Somehow handle HTTP status codes.
 	 * @param {String} url
 	 * @param {String} method
 	 * @param {object} payload
 	 * @param {function} callback
 	 */
 	request : function ( url, method, payload, callback ) {
-		// @TODO reference implementation using {gui.Request}
-		new gui.Request ( url ).acceptJSON ().get ( function ( status, data ) {
+		var request = new gui.Request ( url );
+		method = method.toLowerCase ();
+		request [ method ] ( payload ).then ( function ( status, data, text ) {
 			callback ( data );
 		});
 	},
@@ -265,22 +303,6 @@ gui.Object.each ({
 				break;
 		}
 		return response;
-	},
-
-	/**
-	 * Format URL with request options as querystring parameters.
-	 * @param {String} uri
-	 * param @optional {Map<String,object>} options
-	 * @returns {String}
-	 */
-	url : function ( url, options, method ) {
-		if ( gui.Type.isObject ( options )) {
-			gui.Object.each ( options, function ( key, value ) {
-				var fix = url.contains ( "?" ) ? "?" : "&";
-				url += fix + key + "=" + String ( value );
-			});
-		}
-		return url;
 	}
 
 }, function ( key, value ) {

@@ -207,9 +207,11 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	},
 
 	/**
-	 * Private input.
+	 * Private input for this script only.
+	 * @see {edb.InputPlugin#dispatch}
 	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
 	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
+	 * @returns {edb.Object|edb.Array}
 	 */
 	input : function ( data, Type ) {
 		var input = edb.Input.format ( this.context, data, Type );
@@ -219,6 +221,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			this._doinput = this._doinput || [];
 			this._doinput.push ( input );
 		}
+		return input.data;
 	},
 
 	/**
@@ -283,10 +286,12 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		switch ( script.readyState ) {
 			case edb.Function.WAITING :
 				if ( this._doinput ) {
-					while ( this._doinput.length ) {
-						this.input ( this._doinput.shift ());
+					if ( this._doinput.length ) { // strange bug...
+						while ( this._doinput.length ) {
+							this.input ( this._doinput.shift ());
+						}
+						this._doinput = null;
 					}
-					this._doinput = null;
 				}
 				break;
 			case edb.Function.READY :
@@ -315,8 +320,16 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		action.call ( this );
 		if ( selector ) {
 			field = gui.DOMPlugin.q ( this.spirit.document, selector );
-			if ( field && field.id !== "#" + selector ) {
+			if ( field && "#" + field.id !== selector ) {
 				if ( field && gui.DOMPlugin.contains ( this.spirit, field )) {
+					field.focus ();
+					var text = "textarea,input:not([type=checkbox]):not([type=radio])";
+					if ( gui.CSSPlugin.matches ( field, text )) {
+						field.setSelectionRange ( 
+							field.value.length, 
+							field.value.length 
+						);
+					}
 					this._restorefocus ( field );
 					this._debugwarning ();
 				}
@@ -350,7 +363,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		}
 	}
 
-}, { // Static .......................................................
+}, {}, { // Static .......................................................
 
 	/**
 	 * TODO: STACK LOST ANYWAY!

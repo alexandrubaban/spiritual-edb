@@ -90,8 +90,17 @@ window.edb.EDBModule = gui.module ( "edb", {
 	_fieldselector : function ( elm ) {
 		var index = -1;
 		var parts = [];
-		while ( elm !== null ) {
+		function hasid ( elm ) {
 			if ( elm.id ) {
+				try {
+					gui.DOMPlugin.q ( elm.parentNode, elm.id );
+					return true;
+				} catch ( malformedexception ) {}
+			}
+			return false;
+		}
+		while ( elm !== null ) {
+			if ( hasid ( elm )) {
 				parts.push ( "#" + elm.id );
 				elm = null;
 			} else {

@@ -2,7 +2,7 @@
  * Compile EDB function.
  * @TODO precompiler to strip out both JS comments and HTML comments.
  */
-edb.FunctionCompiler = edb.Compiler.extend ( "edb.FunctionCompiler", {
+edb.FunctionCompiler = edb.Compiler.extend ({
 
 	/**
 	 * Source of compiled function.

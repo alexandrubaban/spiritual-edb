@@ -1,7 +1,7 @@
 /**
  * Hey.
  */
-edb.HardUpdate = edb.Update.extend ( "edb.HardUpdate", {
+edb.HardUpdate = edb.Update.extend ({
 	
 	/**
 	 * Update type.

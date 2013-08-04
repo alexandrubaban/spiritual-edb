@@ -2,7 +2,7 @@
  * Init parent spirit {edb.ScriptPlugin} if there is a parent spirit. 
  * When the parent spirit runs the script, this spirit will destruct.
  */
-edb.ScriptSpirit = gui.Spirit.extend ( "edb.ScriptSpirit", {
+edb.ScriptSpirit = gui.Spirit.extend ({
 
 	/**
 	 * Log compiled source to console?

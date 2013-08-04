@@ -1,7 +1,7 @@
 /**
  * Core compiler business logic. This is where we parse the strings.
  */
-edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
+edb.Compiler = gui.Class.create ( Object.prototype, {
 
 	/**
 	 * Line begins.

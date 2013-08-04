@@ -250,8 +250,11 @@ edb.UpdateManager.prototype = {
 	},
 
 	/**
-	 * Attributes changed?
-	 * @see {edb.ScriptUpdate}
+	 * Attributes changed? When an attribute update is triggered by a EDB poke, we verify 
+	 * that this was the *only* thing that changed and substitute the default update with 
+	 * a edb.FunctionUpdate. This will bypass the need  for an ID attribute on the associated 
+	 * element (without which a hardupdate would happen).
+	 * @see {edb.FunctionUpdate}
 	 * @param {NodeList} newatts
 	 * @param {NodeList} oldatts
 	 * @param {?} ids
@@ -261,15 +264,19 @@ edb.UpdateManager.prototype = {
 	_attschanged : function ( newatts, oldatts, ids, css ) {
 		var changed = newatts.length !== oldatts.length;
 		if ( !changed ) {
-			changed = !Array.every ( newatts, function ( newatt ) {
+			changed = !Array.every ( newatts, function ischanged ( newatt ) {
 				var oldatt = oldatts.getNamedItem ( newatt.name );
 				return oldatt && oldatt.value === newatt.value;
 			});
 			if ( changed ) {
-				Array.forEach ( newatts, function ( newatt ) {
+				changed = !Array.every ( newatts, function isfunctionchanged ( newatt ) {
 					var oldatt = oldatts.getNamedItem ( newatt.name );
-					if ( !this._specialchange ( newatt.name, oldatt.name, newatt.value, oldatt.value, ids, css )) {
-						changed = newatt.value !== oldatt.value;
+					var fnkeys = this._functionchanged ( newatt.value, oldatt.value );
+					if ( fnkeys ) {
+						this._changefunction ( ids, css, oldatt.name, fnkeys.newkey, fnkeys.oldkey );
+						return true;
+					} else {
+						return newatt.value === oldatt.value;
 					}
 				}, this );
 			}
@@ -277,28 +284,22 @@ edb.UpdateManager.prototype = {
 		return changed;
 	},
 
-	/**
-	 * When an attribute update is triggered by a EDB poke, we verify that this was the *only* thing
-	 * that changed and substitute the default update with a edb.ScriptUpdate. This will bypass the need 
-	 * for an ID attribute on the associated element (without which a hardupdate would have happened).
-	 * @param {String} newname
-	 * @param {String} newname
-	 * @param {String} newname
-	 * @param {String} newname
-	 * @param {?} ids
-	 * @param {String} css
-	 * @returns {boolean}
-	 */
-	_specialchange : function ( newname, oldname, newval, oldval, ids, css ) {
-		if ( newval.contains ( "edb" ) && oldval.contains ( "edb" )) {
-			var newkey = gui.KeyMaster.extractKey ( newval );
-			var oldkey = gui.KeyMaster.extractKey ( oldval );
-			this._updates.collect ( new edb.ScriptUpdate ( this._doc ).setup ( 
-				this._spirit, css, oldname, newval, oldkey [ 0 ]
-			), ids );
-			return true;
+	_functionchanged : function ( newval, oldval ) {
+		var newkey = gui.KeyMaster.extractKey ( newval ); // @TODO zero in keymaster
+		var oldkey = gui.KeyMaster.extractKey ( oldval );
+		if ( newkey && oldkey ) {
+			return {
+				newkey : newkey [ 0 ],
+				oldkey : oldkey [ 0 ]
+			};
 		}
-		return false;
+		return null;
+	},
+
+	_changefunction : function ( ids, css, oldname, newkey, oldkey ) {
+		this._updates.collect ( new edb.FunctionUpdate ( this._doc ).setup ( 
+			this._spirit, css, oldname, newkey, oldkey
+		), ids );
 	},
 	
 	/**

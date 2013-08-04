@@ -2,7 +2,7 @@
  * Update attributes. Except for the ID which 
  * is required to be the same before and after.
  */
-edb.AttsUpdate = edb.Update.extend ( "edb.AttsUpdate", {
+edb.AttsUpdate = edb.Update.extend ({
 	
 	/**edv
 	 * Update type.

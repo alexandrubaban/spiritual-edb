@@ -1,8 +1,13 @@
 /**
  * Output input.
- * @TODO: Don't broadcast global!
+ * @TODO add and remove methods.
  */
 edb.Output = {
+
+	/**
+	 * Temp mechanism while we make namespaces a hard requirement...
+	 */
+	ERROR_ANONYMOUS : "Cannot ouput ANONYMOUS type. Declare your type in a gui.namespace.",
 
 	/**
 	 * Identification.
@@ -14,26 +19,32 @@ edb.Output = {
 
 	/**
 	 * Output data in context. @TODO: some complicated argument combos to explain here
-	 * @param {Window|WebWorkerGlobalScope} context
-	 * @param {object|array|edb.Type} data
-	 * @param @optional {function|string} Type
+	 * @param {Window|WorkerScope} context
+	 * @param {Object|Array|edb.Object|edb.Array} data Raw JSON or Type instance
+	 * @param @optional {function|string} Type Optional edb.Type constructor
 	 * @returns {edb.Object|edb.Array}
 	 */
 	dispatch : function ( context, data, Type ) {
-		var type, input = edb.Input.format ( context, data, Type );
-		Type = input.type;
-		type = input.data;
-		type.$contextid = context.gui.$contextid;
-		Type.output = input; // @TODO annotate Type.output with a dollar (Type.$output)
-		this._maybepersist ( Type, type );
+		var input = edb.Input.format ( context, data, Type );
+		this._configure ( context, input.data, input.type );
 		gui.Broadcast.dispatch ( null, edb.BROADCAST_OUTPUT, input, context.gui.$contextid );
-		return type;
+	},
+
+	/**
+	 * Type has been output in context?
+	 * @returns {boolean}
+	 */
+	exists : function ( context, Type ) {
+		var contextid = context.gui.$contextid;
+		var mycontext = this._contexts [ contextid ];
+		var classname = Type.$classname;
+		return mycontext && mycontext [ classname ];
 	},
 
 	/**
 	 * Handle broadcast.
 	 * @param {gui.Broadcast} b
-	 */
+	 *
 	onbroadcast : function ( b ) {
 		var map, persist, contextid = b.data;
 		if ( b.type === gui.BROADCAST_UNLOAD ) {
@@ -45,28 +56,54 @@ edb.Output = {
 			}, this );
 		}
 	},
-
+	*/
 
 	// Private ............................................................................
 
 	/**
-	 * Experimental.
-	 * @type {Map<String,edb.Object|edb.Array>}
+	 * Mapping contextid to map mapping Type classname to Type instance.
+	 * @type {Map<String,Map<String,edb.Object|edb.Array>>}
 	 */
-	_persist : {},
+	_contexts : {},
 
 	/**
-	 * Persist outputted type on shutdown?
-	 * @param {function} Type Constructor
+	 * Experimental.
+	 * @type {Map<String,edb.Object|edb.Array>}
+	 *
+	_persist : {},
+	*/
+
+	/**
+	 * Configure instance for output.
+	 * @param {edb.Input} input
 	 * @param {edb.Object|edb.Array} type Instance
 	 */
-	_maybepersist : function ( Type, type ) {
+	_configure : function ( context, type, Type ) {
+		var contextid = context.gui.$contextid;
+		var mycontext = this._contexts [ contextid ] || ( this._contexts [ contextid ] = {});
+		var classname = Type.$classname;
+		if ( classname !== gui.Class.ANONYMOUS ) {
+			mycontext [ classname ] = type;
+			type.$contextid = contextid;
+		} else {
+			console.error ( this.ERROR_ANONYMOUS, type );
+		}
+	},
+
+	/**
+	 * Configure instance for output. 
+	 * @param {Window|WorkerScope} context
+	 * @param {edb.Object|edb.Array} type Instance
+	 * @param {function} Type Constructor
+	 *
+	_configure : function ( context, type, Type ) {
 		if ( Type.persist && Type.$classname !== gui.Class.ANONYMOUS ) {
 			gui.Broadcast.addGlobal ( gui.BROADCAST_UNLOAD, this );
 			this._persist [ type._instanceid ] = type;
 		}
 	},
 
+*/
 	/**
 	 * Ad hoc persistance mechanism. 
 	 * @TODO something real goes here
@@ -89,6 +126,27 @@ edb.Output = {
 				}
 				break;
 		}
+	},
+
+
+	// Secrets .................................................................
+
+	/**
+	 * Get output of type in given context. Note that this returns an edb.Input. 
+	 * @TODO Officially this should be supported via methods "add" and "remove".
+	 * @param {Window|WorkerScope} context
+	 * @param {function} Type
+	 * @returns {edb.Input}
+	 */
+	$get : function ( context, Type ) {
+		if ( this.exists ( context, Type )) {
+			var contextid = context.gui.$contextid;
+			var mycontext = this._contexts [ contextid ];
+			var classname = Type.$classname;
+			var instanceo = mycontext [ classname ];
+			return edb.Input.format ( context, instanceo );
+		}
+		return null;
 	}
 
 };

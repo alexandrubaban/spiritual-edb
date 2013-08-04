@@ -7,7 +7,7 @@
 	 * edb.Array
 	 * @extends {edb.Type} ...although not really...
 	 */
-	edb.Array = gui.Class.create ( "edb.Array", proto, {
+	edb.Array = gui.Class.create ( proto, {
 
 		
 		// Overrides ...........................................................................

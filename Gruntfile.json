@@ -39,6 +39,6 @@
 	"src/edb.module/updates/types/soft/edb.InsertUpdate.js",
 	"src/edb.module/updates/types/soft/edb.AppendUpdate.js",
 	"src/edb.module/updates/types/soft/edb.RemoveUpdate.js",
-	"src/edb.module/updates/types/script/edb.ScriptUpdate.js",
+	"src/edb.module/updates/types/functions/edb.FunctionUpdate.js",
 	"src/edb.module/edb.module.js"
 ]

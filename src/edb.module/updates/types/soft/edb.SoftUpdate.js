@@ -2,7 +2,7 @@
  * Soft update.
  * @extends {edb.Update}
  */
-edb.SoftUpdate = edb.Update.extend ( "edb.SoftUpdate", {
+edb.SoftUpdate = edb.Update.extend ({
 	
 	/**
 	 * XML element stuff (not used by edb.RemoveUpdate).

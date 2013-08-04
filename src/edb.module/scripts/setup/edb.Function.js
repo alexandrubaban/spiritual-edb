@@ -3,7 +3,7 @@
  * JS function. The onreadystatechange method fires when ready. 
  * The method "execute" may by then invoke the compiled function.
  */
-edb.Function = gui.Class.create ( "edb.Function", Object.prototype, {
+edb.Function = gui.Class.create ( Object.prototype, {
 	
 	/**
 	 * EDBML source compiled to executable JS function.

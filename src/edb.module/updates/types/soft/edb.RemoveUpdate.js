@@ -2,7 +2,7 @@
  * Remove.
  * @extends {edb.SoftUpdate}
  */
-edb.RemoveUpdate = edb.SoftUpdate.extend ( "edb.RemoveUpdate", {
+edb.RemoveUpdate = edb.SoftUpdate.extend ({
 	
 	/**
 	 * Update type.

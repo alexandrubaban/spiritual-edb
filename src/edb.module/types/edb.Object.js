@@ -2,7 +2,7 @@
  * edb.Object
  * @extends {edb.Type}
  */
-edb.Object = gui.Class.create ( "edb.Object", Object.prototype, {
+edb.Object = gui.Class.create ( Object.prototype, {
 	
 	/**
 	 * Construct edb.Object with optional data.

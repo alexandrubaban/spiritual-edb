@@ -2,7 +2,7 @@
  * Compile function as tag. Tags are functions with boilerplate code.
  * @extends {edb.FunctionCompiler}
  */
-edb.TagCompiler = edb.FunctionCompiler.extend ( "edb.TagCompiler", {
+edb.TagCompiler = edb.FunctionCompiler.extend ({
 
 	/**
 	 * We added the "tag" directive ourselves.

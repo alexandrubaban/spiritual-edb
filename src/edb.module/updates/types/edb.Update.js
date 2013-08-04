@@ -1,16 +1,17 @@
 /**
  * Year!
  */
-edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
+edb.Update = gui.Class.create ( Object.prototype, {
 		
 	/**
-	 * Matches hard|atts|insert|append|remove
+	 * Matches hard|atts|insert|append|remove|function
 	 * @type {String}
 	 */
 	type : null,
 	
 	/**
 	 * Identifies associated element in one of two ways:
+	 *
 	 * 1) It's the id of an element in this.window. Or if no id:
 	 * 2) It's the $instanceid of a {gui.Spirít} in this.window
 	 * @see  {edb.Update#element}
@@ -182,5 +183,12 @@ edb.Update = gui.Class.create ( "edb.Update", Object.prototype, {
 	 * {@see SiblingUpdate}
 	 * @type {String}
 	 */
-	TYPE_REMOVE : "remove"
+	TYPE_REMOVE : "remove",
+
+	/**
+	 * EDB function update.
+	 * @type {String}
+	 */
+	TYPE_FUNCTION : "function"
+
 });

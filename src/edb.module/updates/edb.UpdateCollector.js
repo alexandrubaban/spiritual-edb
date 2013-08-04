@@ -4,7 +4,6 @@
  * reduce the collected updates to the minimum required subset.
  */
 edb.UpdateCollector = function UpdateCollector () {
-
 	this._updates = []; 
 	this._hardupdates = new Set ();
 };

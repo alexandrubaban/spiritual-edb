@@ -2,7 +2,7 @@
  * The ScriptPlugin shall render the spirits HTML.
  * @extends {gui.Plugin} (should perhaps extend some kind of genericscriptplugin)
  */
-edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
+edb.ScriptPlugin = gui.Plugin.extend ({
 
 	/**
 	 * Script has been loaded and compiled?

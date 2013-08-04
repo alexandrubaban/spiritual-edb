@@ -3,7 +3,7 @@
  * @TODO formalize how this is supposed to be clear
  * @TODO static interface for all this stuff
  */
-edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
+edb.OutputPlugin = gui.Plugin.extend ({
 
 	/**
 	 * Output data as type.
@@ -13,6 +13,15 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	 */
 	dispatch : function ( data, Type ) {
 		return edb.Output.dispatch ( this.context, data, Type );
+	},
+
+	/**
+	 * Given Type has been output already?
+	 * @param {edb.Object|edb.Array} Type
+	 * @returns {boolean}
+	 */
+	exists : function ( Type ) {
+		return edb.Output.exists ( this.context, Type );
 	}
 
 });

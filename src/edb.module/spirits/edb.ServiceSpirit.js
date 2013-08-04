@@ -2,7 +2,7 @@
  * Spirit of the data service.
  * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
  */
-edb.ServiceSpirit = gui.Spirit.extend ( "edb.ServiceSpirit", {
+edb.ServiceSpirit = gui.Spirit.extend ({
 	
 	/**
 	 * Default to accept JSON and fetch data immediately.
@@ -12,12 +12,16 @@ edb.ServiceSpirit = gui.Spirit.extend ( "edb.ServiceSpirit", {
 		var type = this.att.get ( "type" );
 		if ( type ) {
 			var Type = gui.Object.lookup ( type, this.window );
-			if ( this.att.get ( "href" )) {
-				new gui.Request ( this.element.href ).get ().then ( function ( status, data ) {
-					this.output.dispatch ( new Type ( data ));
-				}, this );
+			if ( Type ) {
+				if ( this.att.get ( "href" )) {
+					new gui.Request ( this.element.href ).get ().then ( function ( status, data ) {
+						this.output.dispatch ( new Type ( data ));
+					}, this );
+				} else {
+					this.output.dispatch ( new Type ());
+				}
 			} else {
-				this.output.dispatch ( new Type ());
+				throw new TypeError ( "\"" + type + "\" is not a Type (in this context)." );	
 			}
 		} else {
 			throw new Error ( "TODO: formalize missing type somehow" );

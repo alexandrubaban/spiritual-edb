@@ -4,10 +4,10 @@
 window.edb = gui.namespace ( "edb", {
 	
 	/**
-	 * Identification.
-	 * @returns {String}
+	 * Although it should probably be false until we have full support...
+	 * @type {boolean}
 	 */
-	toString : function () { return "[namespace edb]"; },
+	portals : true,
 
 	/**
 	 * Mount compiled functions as blob files 

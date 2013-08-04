@@ -1,14 +1,14 @@
 /**
- * TODO: check if softupdate could mistarget the edb.ScriptUpdate.
+ * TODO: check if softupdate could mistarget the edb.FunctionUpdate.
  * TODO: move to updates folder.
  */
-edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
+edb.FunctionUpdate = edb.Update.extend ({
 	
 	/**
 	 * Update type.
 	 * @type {String}
 	 */
-	type : "edbscript",
+	type : "function",
 
 	/**
 	 * Construct.
@@ -26,15 +26,15 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * @param {String} name
 	 * @param {String} value
 	 * @param {String} key
-	 * @returns {edb.ScriptUpdate}
+	 * @returns {edb.FunctionUpdate}
 	 */
-	setup : function ( spirit, selector, name, value, key ) {
+	setup : function ( spirit, selector, attname, newkey, oldkey ) {
 		this._super.setup ();
 		this._spirit = spirit;
 		this._selector = selector;
-		this._name = name;
-		this._value = value;
-		this._key = key;
+		this._attname = attname;
+		this._newkey = newkey;
+		this._oldkey = oldkey;
 		return this;
 	},
 	
@@ -51,7 +51,7 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 		} finally {
 			if ( element ) {
 				if ( this._beforeUpdate ( element )) {
-					this._update ( element );
+					this._update ( element, this._attname, this._newkey, this._oldkey );
 					this._afterUpdate ( element );
 					this._report ();
 				}
@@ -80,32 +80,33 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * Attribute name.
 	 * @type {String}
 	 */
-	_name : null,
+	_attname : null,
 
 	/**
-	 * Attribute value (a generated method call)
-	 * @type {String}
-	 */
-	_value : null,
-
-	/**
-	 * EDB script lookup key.
+	 * Old function lookup key.
 	 * TODO: use this to garbage collect unusable assignments.
 	 * @type {String}
 	 */
-	_key : null,
+	_oldkey : null,
+
+	/**
+	 * New function lookup key.
+	 * @type {String}
+	 */
+	_newkey : null,
 
 	/**
 	 * Update element.
 	 * @param {Element} element
 	 */
-	_update : function ( element ) {
-		var current = element.getAttribute ( this._name );
-		if ( current && current.contains ( this._key )) {
-			element.setAttribute ( this._name, this._value );
+	_update : function ( element, attname, newkey, oldkey ) {
+		var newval, oldval = element.getAttribute ( attname );
+		if ( oldval && oldval.contains ( oldkey )) {
+			newval = oldval.replace ( oldkey, newkey );
+			element.setAttribute ( attname, newval );
 		} else {
 			// perhaps there's an ID and we already performed an attribute update, could that be it?
-			console.warn ( "Softupdate dysfunction or what? " + this._key + " not found in " + current );
+			console.warn ( "Softupdate dysfunction or what?" );
 		}
 	},
 
@@ -113,7 +114,7 @@ edb.ScriptUpdate = edb.Update.extend ( "edb.ScriptUpdate", {
 	 * Debug changes.
 	 */
 	_report : function () {
-		this._super._report ( "edb.ScriptUpdate " + this._selector );
+		this._super._report ( "edb.FunctionUpdate " + this._selector );
 	}
 
 });

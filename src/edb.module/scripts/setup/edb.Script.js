@@ -2,7 +2,7 @@
  * EDB script.
  * @extends {edb.Function}
  */
-edb.Script = edb.Function.extend ( "edb.Script", {
+edb.Script = edb.Function.extend ({
 
 	/**
 	 * Hijacking the {edb.InputPlugin} which has been 

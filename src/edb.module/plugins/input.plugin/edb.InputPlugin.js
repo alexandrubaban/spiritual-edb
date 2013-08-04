@@ -2,7 +2,7 @@
  * Tracking EDB input. Note that the {edb.Script} is using this plugin: Don't assume a spirit around here.
  * @extends {gui.Tracker}
  */
-edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
+edb.InputPlugin = gui.Tracker.extend ({
    
 	/**
 	 * True when one of each expected input type has been collected.
@@ -132,21 +132,24 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {IInputHandler} handler
 	 */
 	_add : function ( types, handler ) {
-		types.forEach ( function ( type ) {
-			if ( gui.Type.isDefined ( type )) {
-				this._watches.push ( type );
-				this._addchecks ( type.$classid, [ handler ]);
-				if ( type.output ) { // type has been output already?
+		types.forEach ( function ( Type ) {
+			if ( gui.Type.isDefined ( Type )) {
+				this._watches.push ( Type );
+				this._addchecks ( Type.$classid, [ handler ]);
+				if ( edb.Output.exists ( this.context, Type )) { // type has been output already?
+					// alert ( edb.Output.$get ( this.context, Type ));
+
+					this._maybeinput ( edb.Output.$get ( this.context, Type ));
 					/*
 					 * TODO: this tick was needed at some point (perhaps in Spiritual Dox?)
 					 */
 					// gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
-						this._todoname ();
+						//this._todoname ();
 					// }, this );
 
 				}
 			} else {
-				throw new TypeError ( "Type is not defined" );
+				throw new TypeError ( "Could not register input for undefined Type" );
 			}
 		}, this );
 	},
@@ -166,9 +169,20 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		}, this );
 	},
 
+
+	/**
+	_todoname : function () {
+		this._watches.forEach ( function ( Type ) {
+			if ( edb.Output.exists ( Type, this.context )) {
+				this._maybeinput ( edb.Output.get ( Type, this.context ));
+			}
+		}, this );
+	},
+	*/
+
 	/*
 	 * TODO: Comment goes here.
-	 */
+	 *
 	_todoname : function () {
 		this._watches.forEach ( function ( type ) {
 			if ( type.output instanceof edb.Input ) {
@@ -176,6 +190,9 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 			}
 		}, this );
 	},
+	*/
+
+
 
 	/**
 	 * If input matches registered type, update handlers.

@@ -17,11 +17,11 @@ edb.Object = gui.Class.create ( Object.prototype, {
 				break;
 			default :
 				throw new TypeError ( 
-					"Unexpected argument of type " + 
-					gui.Type.of ( data )
+					"Unexpected edb.Object constructor argument of type " + 
+					gui.Type.of ( data ) + ": " + String ( data )
 				);
 		}
-		this.onconstruct.apply ( this, arguments ); // @TODO do we wan't this?
+		this.onconstruct.apply ( this, arguments ); // @TODO do we want this?
 	},
 
 	/**
@@ -34,10 +34,12 @@ edb.Object = gui.Class.create ( Object.prototype, {
 		var c, o = {};
 		gui.Object.each ( this, function ( key, value ) {
 			c = key [ 0 ];
-			if ( c !== "$" && c !== "_" && edb.Type.isInstance ( value  )) {
-				value = value.$normalize ();
+			if ( c !== "$" && c !== "_" ) {
+				if ( edb.Type.isInstance ( value  )) {
+					value = value.$normalize ();	
+				}
+				o [ key ] = value;	
 			}
-			o [ key ] = value;
 		});
 		return o;
 	}
@@ -255,10 +257,13 @@ edb.Object = gui.Class.create ( Object.prototype, {
 				} else {
 					types [ key ] = edb.Type.cast ( def );
 				}
-			} else if ( !gui.Type.isDefined ( proxy [ key ])) {
-				proxy [ key ] = handler [ key ];
+			} else {
+				if ( !gui.Type.isDefined ( proxy [ key ])) {
+					proxy [ key ] = handler [ key ];
+				}
 			}
 		});
+
 		/* 
 		 * Setup property accessors for handler.
 		 *
@@ -268,8 +273,11 @@ edb.Object = gui.Class.create ( Object.prototype, {
 		 */
 		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
 			def = proxy [ key ];
-			if ( gui.Type.isComplex ( def ) && !types [ key ]) {
-				types [ key ] = edb.Type.cast ( def );
+			if ( gui.Type.isComplex ( def )) {
+				if ( !types [ key ]) {
+					types [ key ] = edb.Type.cast ( def );
+				}
+			} else {
 			}
 			gui.Property.accessor ( handler, key, {
 				getter : edb.Object._getter ( key, function () {

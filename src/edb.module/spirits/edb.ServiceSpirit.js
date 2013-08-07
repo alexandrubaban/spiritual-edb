@@ -9,22 +9,35 @@ edb.ServiceSpirit = gui.Spirit.extend ({
 	 */
 	onconstruct : function () {
 		this._super.onconstruct ();
-		var type = this.att.get ( "type" );
+		var Type, type = this.att.get ( "type" );
 		if ( type ) {
-			var Type = gui.Object.lookup ( type, this.window );
-			if ( Type ) {
-				if ( this.att.get ( "href" )) {
-					new gui.Request ( this.element.href ).get ().then ( function ( status, data ) {
-						this.output.dispatch ( new Type ( data ));
-					}, this );
-				} else {
-					this.output.dispatch ( new Type ());
-				}
-			} else {
-				throw new TypeError ( "\"" + type + "\" is not a Type (in this context)." );	
+			Type = gui.Object.lookup ( type, this.window );
+			if ( !Type ) {
+				throw new TypeError ( "\"" + type + "\" is not a Type (in this context)." );
 			}
-		} else {
-			throw new Error ( "TODO: formalize missing type somehow" );
+		}
+		if ( this.att.get ( "href" )) {
+			new gui.Request ( this.element.href ).get ().then ( function ( status, data ) {
+				type = ( function () {
+					if ( Type ) {
+						return new Type ( data );
+					} else {
+						switch ( gui.Type.of ( data )) {
+							case "object" :
+								return new edb.Object ( data );
+							case "array" :
+								return new edb.Array ( data );
+						}
+					}
+				}());
+				if ( type ) {
+					this.output.dispatch ( type );
+				} else {
+					console.error ( "TODO: handle unhandled response type" );
+				}
+			}, this );
+		} else if ( Type ) {
+			this.output.dispatch ( new Type ());
 		}
 	}
 

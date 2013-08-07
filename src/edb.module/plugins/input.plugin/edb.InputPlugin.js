@@ -73,6 +73,11 @@ edb.InputPlugin = gui.Tracker.extend ({
 		var input = best ? this._matches.filter ( function ( input ) {
 			return input.type === best;
 		}).shift () : null;
+		/*
+		if ( input ) {
+			console.log ( "Bestmatch: " + input.data );
+		}
+		*/
 		return input ? input.data : null;
 	},
 

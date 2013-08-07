@@ -397,3 +397,11 @@
 	// TODO gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Array );
 	gui.Object.extend ( edb.Array.prototype, edb.Type.prototype );
 }());
+
+/*
+Object.defineProperty ( edb.Array.prototype, "$of", {
+	set : function () {
+		throw new Error ( "HUH?" );
+	}
+});
+*/

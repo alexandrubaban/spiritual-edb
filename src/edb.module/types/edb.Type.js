@@ -30,6 +30,8 @@ edb.Type.prototype = {
 	 * @TODO instead use $onconstruct consistantly throughout types?
 	 */
 	onconstruct : function () {},
+
+	$ondestruct : function () {},
 	
 	/**
 	 * Serialize to JSON string without private and expando properties.

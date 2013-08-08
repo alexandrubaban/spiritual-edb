@@ -27,10 +27,14 @@ edb.Type.prototype = {
 	
 	/**
 	 * Called after $onconstruct (by gui.Class convention).
-	 * @TODO instead use $onconstruct consistantly throughout types?
+	 * @TODO kill this and use $onconstruct only ($-prefixes only)
 	 */
 	onconstruct : function () {},
 
+	/**
+	 * Called by {edb.Output} when the output context shuts down 
+	 * (when the window unloads or the web worker is terminated).
+	 */
 	$ondestruct : function () {},
 	
 	/**
@@ -44,11 +48,14 @@ edb.Type.prototype = {
 		return JSON.stringify ( this.$normalize (), filter, tabber );
 	},
 
+
+	// CRUD .............................................................................
+
 	/**
 	 * Use some kind of factory pattern.
 	 */
-	$get : function () {
-		throw new Error ( "Not supported. Use " + this.constructor + ".$get(optionalid)" );
+	$GET : function () {
+		throw new Error ( "Not supported. Use " + this.constructor + ".$GET(optionalid)" );
 	},
 
 	/**
@@ -56,8 +63,8 @@ edb.Type.prototype = {
 	 * @param @optional {Map<String,object>} options
 	 * @returns {gui.Then}
 	 */
-	$put : function ( options ) {
-		return this.constructor.put ( this, options );
+	$PUT : function ( options ) {
+		return this.constructor.PUT ( this, options );
 	},
 
 	/**
@@ -65,8 +72,8 @@ edb.Type.prototype = {
 	 * @param @optional {Map<String,object>} options
 	 * @returns {gui.Then}
 	 */
-	$post : function ( options ) {
-		return this.constructor.post ( this, options );
+	$POST : function ( options ) {
+		return this.constructor.POST ( this, options );
 	},
 
 	/**
@@ -74,15 +81,15 @@ edb.Type.prototype = {
 	 * @param @optional {Map<String,object>} options
 	 * @returns {gui.Then}
 	 */
-	$delete : function ( options ) {
-		return this.constructor.del ( this, options );
+	$DELETE : function ( options ) {
+		return this.constructor.DELETE ( this, options );
 	}
 };
 
 
-// Static .......................................................................
+// Static ........................................................................
 
-gui.Object.each ({ // injecting static methods
+gui.Object.each ({ // static mixins edb.Type
 
 	/*
 	 * Dispatch a getter broadcast before base function.
@@ -188,131 +195,187 @@ gui.Object.each ({ // injecting static methods
 		return value;
 	}
 
-}, function ( key, value ) {
+}, function mixin ( key, value ) {
 	edb.Type [ key ] = value;
 });
 
 
-// REST mappings ......................................................................
+// HTTP CRUD .......................................................................
 
-/*
- * TODO: gui.Class mechanism for mixins on recurring static fields :)
+/**
+ * Setup for mixin to {edb.Object} and {edb.Array}.
  */
-gui.Object.each ({ // injecting static methods
+( function () {
 
-	/**
-	 * Resource URI.
-	 * @type {String}
-	 */
-	uri : null,
+	var httpmixins = {
 
-	/**
-	 * GET resource.
-	 * 
-	 * 1. Any string argument will become the resource ID.
-	 * 2. Any object argument will resolve to querystring paramters.
-	 *
-	 * @param @optional {Map<String,object>|String} arg1
-	 * @param @optional {Map<String,object>} arg2
-	 * @returns {gui.Then}
-	 */
-	get : function () {
-		var type = this;
-		var then = new gui.Then ();
-		var href, id, options;
-		Array.forEach ( arguments, function ( arg ) {
-			switch ( gui.Type.of ( arg )) {
-				case "string" :
-					id = arg;
-					break;
+		/**
+		 * The resource URI-reference is the base URL for 
+		 * resources of this type excluding the resource 
+		 * primary key. This might be inferred from JSON. 
+		 * @type {String}
+		 */
+		uri : null,
+
+		/**
+		 * When requesting a list of resources, a property 
+		 * of this name should be found in the JSON for 
+		 * each individual resource. The property value 
+		 * will be auto-inserted into URL paths when 
+		 * the resource is fetched, updated or deleted. 
+		 * @type {String}
+		 */
+		primarykey : "_id",
+
+		/**
+		 * GET resource.
+		 * 
+		 * 1. Any string argument will become the resource ID.
+		 * 2. Any object argument will resolve to querystring paramters.
+		 *
+		 * @param @optional {Map<String,object>|String} arg1
+		 * @param @optional {Map<String,object>} arg2
+		 * @returns {gui.Then}
+		 */
+		GET : function () {
+			alert  (this);
+			return this.$httpread.apply ( this, arguments );
+		},
+
+		/**
+		 * PUT resource.
+		 * @param {edb.Object|edb.Array} inst
+		 * @param @optional {Map<String,object>} options
+		 * @param {String} $method (Framework internal)
+		 * @returns {gui.Then}
+		 */
+		PUT : function ( inst, options ) {
+			return this.$httpupdate ( "PUT", inst, options );
+		},
+
+		/**
+		 * POST resource.
+		 * @param {edb.Object|edb.Array} inst
+		 * @param @optional {Map<String,object>} options
+		 * @param {String} $method (Framework internal)
+		 * @returns {gui.Then}
+		 */
+		POST : function ( inst, options ) {
+			return this.$httpupdate ( "POST", inst, options );
+		},
+
+		/**
+		 * DELETE resource.
+		 * @param {edb.Object|edb.Array} inst
+		 * @param @optional {Map<String,object>} options
+		 * @param {String} $method (Framework internal)
+		 * @returns {gui.Then}
+		 */
+		DELETE : function ( inst, options ) {
+			return this.$httpupdate ( "DELETE", inst, options );
+		},
+
+
+		// Static secret .......................................................
+
+		/**
+		 * GET resource.
+		 */
+		$httpread : function ( ) {
+			var type = this;
+			var then = new gui.Then ();
+			var href, id, options;
+			Array.forEach ( arguments, function ( arg ) {
+				switch ( gui.Type.of ( arg )) {
+					case "string" :
+						id = arg;
+						break;
+					case "object" :
+						options = arg;
+						break;
+				}
+			});
+			href = gui.URL.parametrize ( this.uri, options );
+			this.$httprequest ( href, "GET", null, function ( response ) {
+				then.now ( type.$httpresponse ( response ));
+			});
+			return then;
+		},
+
+		/**
+		 * PUT POST DELETE resource.
+		 * @param {String} method (Framework internal)
+		 * @param {edb.Object|edb.Array} inst
+		 * @param @optional {Map<String,object>} options
+		 * @returns {gui.Then}
+		 */
+		$httpupdate : function ( method, inst, options ) {
+			var type = this;
+			var then = new gui.Then ();
+			var href = gui.URL.parametrize ( inst.uri, options );
+			var data = gui.Type.isInstance ( inst ) ? inst.$normalize () : inst;
+			this.$httprequest ( href, method || "PUT", data, function ( response ) {
+				then.now ( type.$httpresponse ( response, options, method ));
+			});
+			return then;
+		},
+
+		/**
+		 * Performs the request. Perhaps you would like to overwrite this method.
+		 * @TODO: Somehow handle HTTP status codes.
+		 * @param {String} url
+		 * @param {String} method
+		 * @param {object} payload
+		 * @param {function} callback
+		 */
+		$httprequest : function ( url, method, payload, callback ) {
+			var request = new gui.Request ( url );
+			method = method.toLowerCase ();
+			request [ method ] ( payload ).then ( function ( status, data, text ) {
+				callback ( data );
+			});
+		},
+
+		/**
+		 * Formats the reponse. Perhaps you would like to overwrite this method. 
+		 * If the service returns an object or an array, we assume that the service 
+		 * is echoing the posted data and new up an instance of this constructor.
+		 * @param {object} response
+		 * param @optional {Map<String,object>} options
+		 * @param {String} $method GET PUT POST DELETE
+		 * @returns {object}
+		 */
+		$httpresponse : function ( response, options, method ) {
+			var Type = this;
+			switch ( gui.Type.of ( response )) {
 				case "object" :
-					options = arg;
+				case "array" :
+					response = new Type ( response );
 					break;
 			}
-		});
-		href = gui.URL.parametrize ( this.uri, options );
-		this.request ( href, "GET", null, function ( response ) {
-			then.now ( type.response ( response ));
-		});
-		return then;
-	},
-
-	/**
-	 * PUT resource.
-	 * @param {edb.Object|edb.Array} inst
-	 * @param @optional {Map<String,object>} options
-	 * @param {String} $method (Framework internal)
-	 * @returns {gui.Then}
-	 */
-	put : function ( inst, options, $method ) {
-		var type = this;
-		var then = new gui.Then ();
-		var href = gui.URL.parametrize ( inst.uri, options );
-		var data = gui.Type.isInstance ( inst ) ? inst.$normalize () : inst;
-		this.request ( href, $method || "PUT", data, function ( response ) {
-			then.now ( type.response ( response, options, $method ));
-		});
-		return then;
-	},
-
-	/**
-	 * POST resource.
-	 * @param {edb.Object|edb.Array} inst
-	 * @param @optional {Map<String,object>} options
-	 * @param {String} $method (Framework internal)
-	 * @returns {gui.Then}
-	 */
-	post : function ( inst, options ) {
-		return this.put ( inst, options, "POST" );
-	},
-
-	/**
-	 * DELETE resource ("delete" being a reserved keyword).
-	 * @param {edb.Object|edb.Array} inst
-	 * @param @optional {Map<String,object>} options
-	 * @param {String} $method (Framework internal)
-	 * @returns {gui.Then}
-	 */
-	del : function ( inst, options ) {
-		return this.put ( inst, options, "DELETE" );
-	},
-
-	/**
-	 * Performs the request. Perhaps you would like to overwrite this method.
-	 * @TODO: Somehow handle HTTP status codes.
-	 * @param {String} url
-	 * @param {String} method
-	 * @param {object} payload
-	 * @param {function} callback
-	 */
-	request : function ( url, method, payload, callback ) {
-		var request = new gui.Request ( url );
-		method = method.toLowerCase ();
-		request [ method ] ( payload ).then ( function ( status, data, text ) {
-			callback ( data );
-		});
-	},
-
-	/**
-	 * Formats the reponse. Perhaps you would like to overwrite this method. 
-	 * If the service returns an object or an array, we assume that the service 
-	 * is echoing the posted data and new up an instance of this constructor.
-	 * @param {object} response
-	 * param @optional {Map<String,object>} options
-	 * @param {String} $method GET PUT POST DELETE
-	 * @returns {object}
-	 */
-	response : function ( response, options, method ) {
-		var Type = this;
-		switch ( gui.Type.of ( response )) {
-			case "object" :
-			case "array" :
-				response = new Type ( response );
-				break;
+			return response;
 		}
-		return response;
-	}
 
-}, function ( key, value ) {
-	edb.Type [ key ] = value;
-});
+	};
+
+	/**
+	 * Declare the fields on edb.Type.
+	 */
+	gui.Object.each ( httpmixins, function mixin ( key, value ) {
+		edb.Type [ key ] = value;
+	});
+
+	/**
+	 * Create one-liner for mixin to a constructors recurring static fields.
+	 * @TODO: come up with a formalized setup for this stunt
+	 * @returns {Map<String,String|function>}
+	 */
+	edb.Type.$httpmixins = function () {
+		var mixins = {};
+		Object.keys ( httpmixins ).forEach ( function ( key ) {
+			mixins [ key ] = this [ key ];
+		}, this );
+		return mixins;
+	};
+
+}());

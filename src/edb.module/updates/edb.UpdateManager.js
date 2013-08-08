@@ -285,12 +285,12 @@ edb.UpdateManager.prototype = {
 	},
 
 	_functionchanged : function ( newval, oldval ) {
-		var newkey = gui.KeyMaster.extractKey ( newval ); // @TODO zero in keymaster
-		var oldkey = gui.KeyMaster.extractKey ( oldval );
-		if ( newkey && oldkey ) {
+		var newkeys = gui.KeyMaster.extractKey ( newval );
+		var oldkeys = gui.KeyMaster.extractKey ( oldval );
+		if ( newkeys && oldkeys ) {
 			return {
-				newkey : newkey [ 0 ],
-				oldkey : oldkey [ 0 ]
+				newkey : newkeys [ 0 ],
+				oldkey : oldkeys [ 0 ]
 			};
 		}
 		return null;

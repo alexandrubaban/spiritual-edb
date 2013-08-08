@@ -104,71 +104,17 @@
 		}
 		
 		
-	}, { // Recurring static ...............................................................
+	}, ( function mixins () { // Recurring static ..........................................
 
-		/**
-		 * Resource URI.
-		 * @type {String}
+		/*
+		 * edb.Object and edb.Array don't really subclass edb.Type, 
+		 * so we'll just have to hack in these shared static fields. 
+		 * @TODO: formalized mixin strategy for recurring statics...
 		 */
-		uri : null,
+		return edb.Type.$httpmixins ();
+		
 
-
-		/**
-		 * Experimental.
-		 * @type {String|function}
-		 */
-		persist : null,
-
-		/**
-		 * GET resource.
-		 * @param {String} id
-		 * @param @optional {Map<String,object>} options
-		 * @returns {edb.Object|edb.Array}
-		 */
-		get : edb.Type.get,
-
-		/**
-		 * PUT resource.
-		 * @param {edb.Object|edb.Array} inst
-		 * @param @optional {Map<String,object>} options
-		 * @returns {object}
-		 */
-		put : edb.Type.put,
-
-		/**
-		 * POST resource.
-		 * @param {edb.Object|edb.Array} inst
-		 * @param @optional {Map<String,object>} options
-		 * @returns {object}
-		 */
-		post : edb.Type.post,
-
-		/**
-		 * DELETE resource.
-		 * @param {edb.Object|edb.Array} inst
-		 * @param @optional {Map<String,object>} options
-		 * @returns {object}
-		 */
-		del : edb.Type.del,
-
-		/**
-		 * Performs the request.
-		 * @param {String} url
-		 * @param {String} method
-		 * @param {object} payload
-		 * @param {function} callback
-		 */
-		request : edb.Type.request,
-
-		/**
-		 * Formats the reponse.
-		 * @param {object} response
-		 * @returns {object}
-		 */
-		response : edb.Type.response
-
-
-	}, { // Static ..............................................................
+	}()), { // Static ......................................................................
 
 		/**
 		 * Populate {edb.Array} from constructor arguments.
@@ -397,11 +343,3 @@
 	// TODO gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Array );
 	gui.Object.extend ( edb.Array.prototype, edb.Type.prototype );
 }());
-
-/*
-Object.defineProperty ( edb.Array.prototype, "$of", {
-	set : function () {
-		throw new Error ( "HUH?" );
-	}
-});
-*/

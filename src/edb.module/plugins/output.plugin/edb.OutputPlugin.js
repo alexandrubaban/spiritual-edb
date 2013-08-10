@@ -1,4 +1,5 @@
 /**
+ * @deprecated
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
  * @TODO formalize how this is supposed to be clear
  * @TODO static interface for all this stuff
@@ -12,6 +13,7 @@ edb.OutputPlugin = gui.Plugin.extend ({
 	 * @returns {edb.Object|edb.Array}
 	 */
 	dispatch : function ( data, Type ) {
+		console.error ( "edb.OutputPlugin is deprecated" );
 		return edb.Output.dispatch ( this.context, data, Type );
 	},
 
@@ -21,7 +23,8 @@ edb.OutputPlugin = gui.Plugin.extend ({
 	 * @returns {boolean}
 	 */
 	exists : function ( Type ) {
-		return edb.Output.exists ( this.context, Type );
+		console.error ( "edb.OutputPlugin is deprecated" );
+		return edb.Output.out ( Type, this.context || self );
 	}
 
 });

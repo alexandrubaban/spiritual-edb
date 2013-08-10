@@ -1,5 +1,5 @@
 /**
- * Output the inputs.
+ * Output all the inputs.
  * @TODO add and remove methods.
  */
 edb.Output = {
@@ -13,24 +13,32 @@ edb.Output = {
 	},
 
 	/**
-	 * Output data in context. @TODO: some complicated argument combos to explain here
-	 * @param {Window|WorkerScope} context
+	 * Output Type instance in context. @TODO: some complicated argument combos to explain here
+	 * @param {Window|WorkerGlobalScope|IInputHandler} context @TODO input handler!
 	 * @param {Object|Array|edb.Object|edb.Array} data Raw JSON or Type instance
 	 * @param @optional {function|string} Type Optional edb.Type constructor
 	 * @returns {edb.Object|edb.Array}
 	 */
-	dispatch : function ( context, data, Type ) {
-		var input = edb.Input.format ( context, data, Type );
-		this._configure ( context, input.data, input.type );
-		gui.Broadcast.dispatch ( null, edb.BROADCAST_OUTPUT, input, context.gui.$contextid );
+	dispatch : function ( type, context ) {
+		context = context || self;
+		this._configure ( type.constructor, type, context );
+		gui.Broadcast.dispatch ( 
+			null, 
+			edb.BROADCAST_OUTPUT, 
+			new edb.Input ( type ), 
+			context.gui.$contextid 
+		);
 		gui.Broadcast.addGlobal ( gui.BROADCAST_WILL_UNLOAD, this );
 	},
 
 	/**
-	 * Type has been output in context?
+	 * Instance of given Type has been output to context?
+	 * @param {function} type Type constructor
+	 * @param {Window|WorkerGlobalScope} context
 	 * @returns {boolean}
 	 */
-	exists : function ( context, Type ) {
+	out : function ( Type, context ) {
+		context = context || self;
 		var contxid = context.gui.$contextid;
 		var contmap = this._contexts [ contxid ];
 		var classid = Type.$classid;
@@ -51,21 +59,23 @@ edb.Output = {
 	// Private ............................................................................
 
 	/**
-	 * Mapping contxid to map mapping Type classid to Type instance.
+	 * Mapping contextid to map mapping Type classname to Type instance.
 	 * @type {Map<String,Map<String,edb.Object|edb.Array>>}
 	 */
 	_contexts : {},
 
 	/**
-	 * Configure instance for output.
-	 * @param {edb.Input} input
-	 * @param {edb.Object|edb.Array} type Instance
+	 * Configure Type instance for output.
+	 * @param {function} Type constructor
+	 * @param {edb.Object|edb.Array} type instance
+	 * @param {Window|WorkerGlobalScope} context
 	 */
-	_configure : function ( context, type, Type ) {
+	_configure : function ( Type, type, context ) {
 		var contxid = context.gui.$contextid;
 		var contmap = this._contexts [ contxid ] || ( this._contexts [ contxid ] = {});
 		var classid = Type.$classid;
 		contmap [ classid ] = type;
+		type.$context = context;
 		type.$contextid = contxid;
 	},
 
@@ -89,17 +99,18 @@ edb.Output = {
 	/**
 	 * Get output of type in given context. Note that this returns an edb.Input. 
 	 * @TODO Officially this should be supported via methods "add" and "remove".
-	 * @param {Window|WorkerScope} context
+	 * @param {Window|WorkerGlobalScope} context
 	 * @param {function} Type
 	 * @returns {edb.Input}
 	 */
-	$get : function ( context, Type ) {
-		if ( this.exists ( context, Type )) {
+	$get : function ( Type, context ) {
+		context = context || self;
+		if ( Type.out ( context )) {
 			var contxid = context.gui.$contextid;
 			var contmap = this._contexts [ contxid ];
 			var classid = Type.$classid;
 			var typeobj = contmap [ classid ];
-			return edb.Input.format ( context, typeobj );
+			return new edb.Input ( typeobj );
 		}
 		return null;
 	}

@@ -5,11 +5,11 @@
 edb.Object = gui.Class.create ( Object.prototype, {
 	
 	/**
-	 * Construct edb.Object with optional data.
-	 * @param @optional {object|edb.Object} data
+	 * Constructor.
+	 * @overrides {edb.Type#onconstruct}
 	 */
 	$onconstruct : function ( data ) {
-		edb.Type.underscoreinstanceid ( this ); // iOS bug...
+		edb.Type.prototype.$onconstruct.apply ( this, arguments );
 		switch ( gui.Type.of ( data )) {
 			case "object" : 
 			case "undefined" :
@@ -53,7 +53,7 @@ edb.Object = gui.Class.create ( Object.prototype, {
 	 * so we'll just have to hack in these shared static fields. 
 	 * @TODO: formalized mixin strategy for recurring statics...
 	 */
-	return edb.Type.$httpmixins ();
+	return edb.Type.$staticmixins ();
 	
 
 }()), { // Static ......................................................................

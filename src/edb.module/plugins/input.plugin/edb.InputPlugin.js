@@ -141,10 +141,10 @@ edb.InputPlugin = gui.Tracker.extend ({
 			if ( gui.Type.isDefined ( Type )) {
 				this._watches.push ( Type );
 				this._addchecks ( Type.$classid, [ handler ]);
-				if ( edb.Output.exists ( this.context, Type )) { // type has been output already?
+				if ( Type.out ( this.context )) { // type has been output already?
 					// alert ( edb.Output.$get ( this.context, Type ));
 
-					this._maybeinput ( edb.Output.$get ( this.context, Type ));
+					this._maybeinput ( edb.Output.$get ( Type, this.context ));
 					/*
 					 * TODO: this tick was needed at some point (perhaps in Spiritual Dox?)
 					 */
@@ -173,31 +173,6 @@ edb.InputPlugin = gui.Tracker.extend ({
 			}
 		}, this );
 	},
-
-
-	/**
-	_todoname : function () {
-		this._watches.forEach ( function ( Type ) {
-			if ( edb.Output.exists ( Type, this.context )) {
-				this._maybeinput ( edb.Output.get ( Type, this.context ));
-			}
-		}, this );
-	},
-	*/
-
-	/*
-	 * TODO: Comment goes here.
-	 *
-	_todoname : function () {
-		this._watches.forEach ( function ( type ) {
-			if ( type.output instanceof edb.Input ) {
-				this._maybeinput ( type.output );
-			}
-		}, this );
-	},
-	*/
-
-
 
 	/**
 	 * If input matches registered type, update handlers.
@@ -239,7 +214,7 @@ edb.InputPlugin = gui.Tracker.extend ({
 	 * @param {edb.Input} input
 	 */
 	_updatehandlers : function ( input ) {
-		var keys = gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
+		gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
 			var list = this._trackedtypes [ Type.$classid ];
 			if ( list ) {
 				list.forEach ( function ( checks ) {

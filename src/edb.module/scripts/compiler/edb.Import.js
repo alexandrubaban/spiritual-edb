@@ -90,7 +90,7 @@ edb.Import.prototype = {
 
 	/**
 	 * Context to compile into.
-	 * @type {Window|WebWorkerGlobalScope}
+	 * @type {Window|WorkerGlobalScope}
 	 */
 	_context : null,
 

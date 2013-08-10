@@ -14,7 +14,7 @@ edb.Output = {
 
 	/**
 	 * Output data in context. @TODO: some complicated argument combos to explain here
-	 * @param {Window|WebWorkerGlobalScope} context
+	 * @param {Window|WorkerGlobalScope} context
 	 * @param {object|array|edb.Type} data
 	 * @param @optional {function|string} Type
 	 * @returns {edb.Object|edb.Array}

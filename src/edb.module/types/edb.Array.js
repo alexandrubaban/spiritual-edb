@@ -80,10 +80,11 @@
 		$of : null,
 
 		/**
-		 * Secret constructor.
+		 * Constructor.
+		 * @overrides {edb.Type#onconstruct}
 		 */
 		$onconstruct : function () {
-			edb.Type.underscoreinstanceid ( this ); // iOS bug...
+			edb.Type.prototype.$onconstruct.apply ( this, arguments );
 			edb.Array.populate ( this, arguments );
 			edb.Array.approximate ( this );
 			this.onconstruct.call ( this, arguments );
@@ -111,7 +112,7 @@
 		 * so we'll just have to hack in these shared static fields. 
 		 * @TODO: formalized mixin strategy for recurring statics...
 		 */
-		return edb.Type.$httpmixins ();
+		return edb.Type.$staticmixins ();
 		
 
 	}()), { // Static ......................................................................
@@ -341,5 +342,5 @@
  */
 ( function setup () {
 	// TODO gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Array );
-	gui.Object.extend ( edb.Array.prototype, edb.Type.prototype );
+	gui.Object.extendmissing ( edb.Array.prototype, edb.Type.prototype );
 }());

@@ -31,13 +31,14 @@ edb.ServiceSpirit = gui.Spirit.extend ({
 					}
 				}());
 				if ( type ) {
-					this.output.dispatch ( type );
+					//this.output.dispatch ( type );
+					type.$output ( this.window );
 				} else {
 					console.error ( "TODO: handle unhandled response type" );
 				}
 			}, this );
 		} else if ( Type ) {
-			this.output.dispatch ( new Type ());
+			new Type ().$output ( this.window );
 		}
 	}
 

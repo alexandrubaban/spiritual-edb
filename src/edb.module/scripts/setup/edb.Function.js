@@ -13,7 +13,7 @@ edb.Function = gui.Class.create ( Object.prototype, {
 
 	/**
 	 * Executable JS function compiled into this context.
-	 * @type {Window|WebWorkerGlobalScope}
+	 * @type {Window|WorkerGlobalScope}
 	 */
 	context : null,
 

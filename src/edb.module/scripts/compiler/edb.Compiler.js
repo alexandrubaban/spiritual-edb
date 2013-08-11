@@ -55,7 +55,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 				break;
 		}
 		if ( status.skip-- <= 0 ) {
-			if ( status.poke ) {
+			if ( status.poke || status.geek ) {
 				result.temp += c;
 			} else {
 				if ( !status.istag ()) {
@@ -123,9 +123,10 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	 * @param {edb.Result} result
 	 */
 	_compilehtml : function ( c, runner, status, result ) {
+		var special = status.peek || status.poke || status.geek;
 		switch ( c ) {
 			case "{" :
-				if ( status.peek || status.poke ) {
+				if ( special ) {
 					status.curl ++;
 				}
 				break;
@@ -145,18 +146,33 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 						status.skip = 1;
 						status.curl = 0;
 					}
+					if ( status.geek ) {
+						this._geek ( status, result );
+						status.geek = false;
+						result.temp = null;
+						status.spot = -1;
+						status.skip = 1;
+						status.curl = 0;
+					}
 				}
 				break;
 			case "$" :
-				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
-					status.peek = true;
-					status.skip = 2;
-					status.curl = 0;
-					result.body += "' + (";
+				if ( !special && runner.ahead ( "{" )) {
+					if ( runner.behind ( "gui.test=\"" )) {
+						status.geek = true;
+						status.skip = 2;
+						status.curl = 0;
+						result.temp = "";
+					} else {
+						status.peek = true;
+						status.skip = 2;
+						status.curl = 0;
+						result.body += "' + (";
+					}			
 				}
 				break;
 			case "#" :
-				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
+				if ( !special && runner.ahead ( "{" )) {
 					status.poke = true;
 					status.skip = 2;
 					status.curl = 0;
@@ -172,7 +188,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 				}
 				break;
 			case "'" :
-				if ( !status.peek && !status.poke ) {
+				if ( !special ) {
 					result.body += "\\";
 				}
 				break;
@@ -263,12 +279,25 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 			spot = status.spot,
 			prev = body.substring ( 0, spot ),
 			next = body.substring ( spot ),
-			name = gui.KeyMaster.generateKey ( "poke" );
+			name = gui.KeyMaster.generateKey ();
 		result.body = prev + "\n" + 
 			"var " + name + " = edb.set ( function ( value, checked ) { \n" +
 			temp + ";\n}, this );" + next +
-			//"edb.Script.register ( event ).invoke ( &quot;\' + " + name + " + \'&quot;" + sig + " );";
 			"edb.go(event,&quot;\' + " + name + " + \'&quot;" + sig + ");";
+	},
+
+	_geek : function ( status, result ) {
+		var sig = this._$contextid ? ( ", &quot;" + this._$contextid + "&quot;" ) : "";
+		var body = result.body,
+			temp = result.temp,
+			spot = status.spot,
+			prev = body.substring ( 0, spot ),
+			next = body.substring ( spot ),
+			name = gui.KeyMaster.generateKey ();
+		result.body = prev + "\n" + 
+			"var " + name + " = edb.set ( \"" + name + "\", function () { \n" +
+			"return " + temp + ";\n}, this );alert( " + name + ");\n" + next +
+			"edb.get(&quot;\' + " + name + " + \'&quot;" + sig + ");";
 	}
 	
 

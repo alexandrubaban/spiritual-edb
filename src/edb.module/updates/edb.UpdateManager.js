@@ -16,15 +16,24 @@ edb.UpdateManager.prototype = {
 	 */
 	update : function ( html ) {
 		this._updates = new edb.UpdateCollector ();
+		this._functions = {};
 		if ( !this._olddom ) {
 			this._first ( html );
 		} else {
 			this._next ( html );
+			this._updates.collect ( 
+				new edb.FunctionUpdate ( this._doc ).setup ( 
+					this._keyid, 
+					this._functions 
+				)
+			);
 		}
 		this._updates.eachRelevant ( function ( update ) {
 			update.update ();
 			update.dispose ();
 		});
+		//this._fisse ( this._functions );
+		//edb.FunctionUpdate.remap ( this._spirit, this._functions );
 		if ( this._updates ) { // huh? how can it be null?
 			this._updates.dispose ();
 		}
@@ -78,6 +87,34 @@ edb.UpdateManager.prototype = {
 	 */
 	_assistant : edb.UpdateAssistant,
 
+	/*
+	_fisse : function ( remappings ) {
+		var count = 0;
+		if ( Object.keys ( remappings ).length ) {
+			new gui.Crawler ( "John" ).descend ( this._spirit, {
+				handleElement : function ( elm ) {
+					Array.forEach ( elm.attributes, function ( att ) {
+						var oldkeys = gui.KeyMaster.extractKey ( att.value );
+						if ( oldkeys ) {
+							var newkey;
+							oldkeys.forEach ( function ( oldkey ) {
+								if (( newkey = remappings [ oldkey ])) {
+									att.value = att.value.replace ( oldkey, newkey );
+									edb.Script.$revoke ( oldkey );
+									count ++;
+								}
+							});
+						}
+					});
+				}
+			});
+		}
+		if ( count ) {
+			console.debug ( "Updated " + count + " function keys." );
+		}
+	},
+	*/
+
 	/**
 	 * First update (always a hard update).
 	 * @param {String} html
@@ -122,16 +159,15 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @returns {boolean}
 	 */
-	_crawl : function ( newchild, oldchild, lastnode, id, ids, css ) {
-		var result = true, n = 1;
+	_crawl : function ( newchild, oldchild, lastnode, id, ids ) {
+		var result = true;
 		while ( newchild && oldchild && !this._updates.hardupdates ( id )) {
 			switch ( newchild.nodeType ) {
 				case Node.TEXT_NODE :
-					result = this._check ( newchild, oldchild, lastnode, id, ids, css, n );
+					result = this._check ( newchild, oldchild, lastnode, id, ids );
 					break;
 				case Node.ELEMENT_NODE :
-					result = this._scan ( newchild, oldchild, lastnode, id, ids, css, n );
-					n ++;
+					result = this._scan ( newchild, oldchild, lastnode, id, ids );
 					break;
 			}
 			newchild = newchild.nextSibling;
@@ -149,17 +185,16 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @returns {boolean}
 	 */
-	_scan : function ( newnode, oldnode, lastnode, id, ids, css, n ) {
+	_scan : function ( newnode, oldnode, lastnode, id, ids ) {
 		var result = true, oldid = this._assistant.id ( oldnode );
-		css = css ? oldid ? "#" + oldid : css + ">" + oldnode.localName + ":nth-child(" + n + ")" : "this";
-		if (( result = this._check ( newnode, oldnode, lastnode, id, ids, css, n )))  {	
+		if (( result = this._check ( newnode, oldnode, lastnode, id, ids )))  {	
 			if ( oldid ) {
 				ids = gui.Object.copy ( ids );
 				lastnode = newnode;
 				ids [ oldid ] = true;
 				id = oldid;
 			}
-			result = this._crawl ( newnode.firstChild, oldnode.firstChild, lastnode, id, ids, css );
+			result = this._crawl ( newnode.firstChild, oldnode.firstChild, lastnode, id, ids );
 		}
 		return result;
 	},
@@ -173,7 +208,7 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @returns {boolean}
 	 */
-	_check : function ( newnode, oldnode, lastnode, id, ids, css, n ) {
+	_check : function ( newnode, oldnode, lastnode, id, ids ) {
 		var result = true;
 		var isSoftUpdate = false;
 		var isPluginUpdate = false; // TODO: plugins...
@@ -188,10 +223,10 @@ edb.UpdateManager.prototype = {
 					break;
 				case Node.ELEMENT_NODE :
 					if (( result = this._familiar ( newnode, oldnode ))) {
-						if (( result = this._checkatts ( newnode, oldnode, ids, css ))) {
+						if (( result = this._checkatts ( newnode, oldnode, ids ))) {
 							if ( this._maybesoft ( newnode, oldnode )) {
 								if ( this._confirmsoft ( newnode, oldnode )) {
-									this._updatesoft ( newnode, oldnode, ids, css, n );
+									this._updatesoft ( newnode, oldnode, ids );
 									isSoftUpdate = true; // prevents the replace update
 								}
 								result = false; // crawling continued in _updatesoft
@@ -206,9 +241,8 @@ edb.UpdateManager.prototype = {
 			}
 		}
 		if ( !result && !isSoftUpdate && !isPluginUpdate ) {
-			this._updates.collect ( 
-				new edb.HardUpdate ( this._doc ).setup ( id, lastnode )
-			);
+			this._updates.collect ( new edb.FunctionUpdate ( this._doc ).setup ( id ));
+			this._updates.collect ( new edb.HardUpdate ( this._doc ).setup ( id, lastnode ));
 		}
 		return result;
 	},
@@ -233,10 +267,10 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @returns {boolean} When false, replace "hard" and stop crawling.
 	 */
-	_checkatts : function ( newnode, oldnode, ids, css ) {
+	_checkatts : function ( newnode, oldnode, ids ) {
 		var result = true;
 		var update = null;
-		if ( this._attschanged ( newnode.attributes, oldnode.attributes, ids, css )) {
+		if ( this._attschanged ( newnode.attributes, oldnode.attributes, ids )) {
 			var newid = this._assistant.id ( newnode );
 			var oldid = this._assistant.id ( oldnode );
 			if ( newid && newid === oldid ) {
@@ -258,10 +292,9 @@ edb.UpdateManager.prototype = {
 	 * @param {NodeList} newatts
 	 * @param {NodeList} oldatts
 	 * @param {?} ids
-	 * @param {String} css
 	 * @returns {boolean}
 	 */
-	_attschanged : function ( newatts, oldatts, ids, css ) {
+	_attschanged : function ( newatts, oldatts, ids ) {
 		var changed = newatts.length !== oldatts.length;
 		if ( !changed ) {
 			changed = !Array.every ( newatts, function ischanged ( newatt ) {
@@ -271,9 +304,7 @@ edb.UpdateManager.prototype = {
 			if ( changed ) {
 				changed = !Array.every ( newatts, function isfunctionchanged ( newatt ) {
 					var oldatt = oldatts.getNamedItem ( newatt.name );
-					var fnkeys = this._functionchanged ( newatt.value, oldatt.value );
-					if ( fnkeys ) {
-						this._changefunction ( ids, css, oldatt.name, fnkeys.newkey, fnkeys.oldkey );
+					if ( this._functionchanged ( newatt.value, oldatt.value ) ) {
 						return true;
 					} else {
 						return newatt.value === oldatt.value;
@@ -288,18 +319,12 @@ edb.UpdateManager.prototype = {
 		var newkeys = gui.KeyMaster.extractKey ( newval );
 		var oldkeys = gui.KeyMaster.extractKey ( oldval );
 		if ( newkeys && oldkeys ) {
-			return {
-				newkey : newkeys [ 0 ],
-				oldkey : oldkeys [ 0 ]
-			};
+			oldkeys.forEach ( function ( oldkey, i ) {
+				this._functions [ oldkey ] = newkeys [ i ];
+			}, this );
+			return true;
 		}
-		return null;
-	},
-
-	_changefunction : function ( ids, css, oldname, newkey, oldkey ) {
-		this._updates.collect ( new edb.FunctionUpdate ( this._doc ).setup ( 
-			this._spirit, css, oldname, newkey, oldkey
-		), ids );
+		return false;
 	},
 	
 	/**
@@ -364,7 +389,7 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @return {boolean}
 	 */
-	_updatesoft : function ( newnode, oldnode, ids, css, n ) {
+	_updatesoft : function ( newnode, oldnode, ids ) {
 		var updates = [];
 		var news = this._assistant.index ( newnode.childNodes );
 		var olds = this._assistant.index ( oldnode.childNodes );
@@ -401,10 +426,13 @@ edb.UpdateManager.prototype = {
 				updates.push (
 					new edb.RemoveUpdate ( this._doc ).setup ( id ) 
 				);
+				updates.push (
+					new edb.FunctionUpdate ( this._doc ).setup ( id ) 
+				);
 			} else { // note that crawling continues here...
 				var n1 = news [ id ];
 				var n2 = olds [ id ];
-				this._scan ( n1, n2, n1, id, ids, css, n );
+				this._scan ( n1, n2, n1, id, ids );
 			}
 		}, this );
 		

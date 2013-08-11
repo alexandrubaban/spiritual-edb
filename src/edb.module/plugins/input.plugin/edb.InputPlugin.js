@@ -168,7 +168,7 @@ edb.InputPlugin = gui.Tracker.extend ({
 		types.forEach ( function ( type ) {
 			var index = this._watches.indexOf ( type );
 			if ( index >-1 ) {
-				this._watches.remove ( index );
+				gui.Array.remove ( this._watches, ( index ));
 				this._removechecks ( type.$classid, [ handler ]);
 			}
 		}, this );

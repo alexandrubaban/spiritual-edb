@@ -39,6 +39,11 @@ window.edb = gui.namespace ( "edb", {
 		return edb.Script.$assign ( action, thisp );
 	},
 
+	get : function ( key, sig ) {
+		alert ( key );
+		return edb.Script.$tempname ( key, sig );
+	},
+
 	/**
 	 * Execute action.
 	 * @TODO: why was this split up in two steps? Sandboxing?
@@ -48,7 +53,7 @@ window.edb = gui.namespace ( "edb", {
 	 */
 	go : function ( e, key, sig ) { // NOTE: gui.UpdateManager#_attschanged hardcoded "edb.go" ...
 		edb.Script.$register ( e );
-		edb.Script.$invoke ( key, sig, this._log );
+		edb.Script.$invoke ( key, sig ); // this._log
 	}
 	
 });

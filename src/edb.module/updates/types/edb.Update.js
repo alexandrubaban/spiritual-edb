@@ -18,6 +18,13 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	 * @type {String}
 	 */
 	id : null,
+
+	/**
+	 * Tracking ancestor element IDs. We use this to regulate whether an 
+	 * update should be discarded because a hard replace has obsoleted it.
+	 * @type {Map<String,boolean>}
+	 */
+	ids : null,
 	
 	/**
 	 * Update context window.
@@ -57,13 +64,11 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	/**
 	 * Get element associated to this.id. Depending on update type, 
 	 * this element will be removed or added or updated and so on.
+	 * The root element (the one whose spirit is assigned the script) 
+	 * may be indexed by "$instanceid" if no ID attribute is specified.
 	 * @returns {Element}
 	 */
 	element : function () {
-		/*
-		 * The root element (the one whose spirit is assigned the script) 
-		 * may be indexed by "$instanceid" if no ID attribute is specified.
-		 */
 		var spirit, element = null;
 		if ( gui.KeyMaster.isKey ( this.id )) {
 			if (( spirit = this.window.gui.get ( this.id ))) {
@@ -74,11 +79,6 @@ edb.Update = gui.Class.create ( Object.prototype, {
 		}
 		if ( !element ) {
 			console.error ( "No element to match @id: " + this.id );
-			var all = this.window.gui._spirits.inside;
-			Object.keys ( all ).forEach ( function ( key ) {
-				var elm = all [ key ].element;
-				console.debug ( key, elm.localName, elm.className );
-			});
 		}
 		return element;
 	},
@@ -92,7 +92,7 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	},
 	
 	
-	// PRIVATE ...................................................................
+	// Private ...................................................................
 	
 	/**
 	 * When something changed, dispatch pre-update event. 
@@ -110,7 +110,7 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	 * @return {boolean}
 	 */
 	_afterUpdate : function ( element ) {
-		var event = "x-aftrerupdate-" + this.type;
+		var event = "x-afterupdate-" + this.type;
 		return this._dispatch ( element, event );
 	},
 	
@@ -143,7 +143,6 @@ edb.Update = gui.Class.create ( Object.prototype, {
 }, {}, { // Static .......................................................
 	
 	/**
-	 * @static
 	 * Default replace update. A section of the DOM tree is replaced. 
 	 * {@see ReplaceUpdate}
 	 * @type {String}
@@ -151,7 +150,6 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	TYPE_HARD : "hard",
 
 	/**
-	 * @static
 	 * Attribute update. The element must have an ID specified.
 	 * {@see UpdateManager#hasSoftAttributes}
 	 * {@see AttributesUpdate}
@@ -160,7 +158,6 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	TYPE_ATTS : "atts",
 
 	/**
-	 * @static
 	 * Insertion update: Inserts a child without replacing the parent. Child 
 	 * siblings must all be Elements and they must all have an ID specified.
 	 * {@see SiblingUpdate}
@@ -169,15 +166,12 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	TYPE_INSERT : "insert",
 
 	/**
-	 * @static
-	 * TODO...
 	 * {@see SiblingUpdate}
 	 * @type {String}
 	 */
 	TYPE_APPEND : "append",
 
 	/**
-	 * @static
 	 * Removal update: Removes a child without replacing the parent. Child 
 	 * siblings must all be Elements and they must all have an ID specified.
 	 * {@see SiblingUpdate}
@@ -186,7 +180,8 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	TYPE_REMOVE : "remove",
 
 	/**
-	 * EDB function update.
+	 * EDB function update. Dereferencing functions bound to GUI 
+	 * events that are no longer associated to any DOM element.
 	 * @type {String}
 	 */
 	TYPE_FUNCTION : "function"

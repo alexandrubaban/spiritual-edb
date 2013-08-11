@@ -1,120 +1,108 @@
 /**
- * TODO: check if softupdate could mistarget the edb.FunctionUpdate.
- * TODO: move to updates folder.
+ * Updating the functions it is.
+ * @TODO: revoke all functions in context on window.unload (if portalled)
  */
 edb.FunctionUpdate = edb.Update.extend ({
-	
+
 	/**
 	 * Update type.
 	 * @type {String}
 	 */
-	type : "function",
+	type : edb.Update.TYPE_FUNCTION,
 
-	/**
-	 * Construct.
-	 * @param {Document} doc
-	 */
-	onconstruct : function ( doc ) {
-		this._super.onconstruct ( doc );
-		this._summary = [];
-	},
-	
 	/**
 	 * Setup update.
-	 * @param {gui.Spirit} spirit
-	 * @param {String} selector
-	 * @param {String} name
-	 * @param {String} value
-	 * @param {String} key
-	 * @returns {edb.FunctionUpdate}
+	 * @param {String} id
+	 * @param @optional {Map<String,String>} map
 	 */
-	setup : function ( spirit, selector, attname, newkey, oldkey ) {
-		this._super.setup ();
-		this._spirit = spirit;
-		this._selector = selector;
-		this._attname = attname;
-		this._newkey = newkey;
-		this._oldkey = oldkey;
+	setup : function ( id, map ) {
+		this.id = id;
+		this._map = map || null;
 		return this;
 	},
-	
+
 	/**
-	 * Update :)
+	 * Do the update.
 	 */
 	update : function () {
-		this._super.update ();
-		var element = null;
-		try {
-			element = this._spirit.dom.q ( this._selector );
-		} catch ( domexception ) {
-			throw new Error ( "Bad selector: " + this._selector );
-		} finally {
-			if ( element ) {
-				if ( this._beforeUpdate ( element )) {
-					this._update ( element, this._attname, this._newkey, this._oldkey );
-					this._afterUpdate ( element );
-					this._report ();
-				}
-			} else {
-				throw new Error ( "No such element: " + this._selector );
+		var count = 0, elm = this.element ();
+		if ( this._map ) {
+			if (( count = edb.FunctionUpdate._remap ( elm, this._map ))) {
+				this._report ( "remapped " + count + " keys" );
 			}
-		} 
-	},
-
-
-	// PRIVATE ....................................................................
-	
-	/**
-	 * Spirit who runs the EDB template (has the script element childnode).
-	 * @type {[type]}
-	 */
-	_spirit : null,
-
-	/**
-	 * CSS selector to match the updated element.
-	 * @type {String}
-	 */
-	_selector : null,
-
-	/**
-	 * Attribute name.
-	 * @type {String}
-	 */
-	_attname : null,
-
-	/**
-	 * Old function lookup key.
-	 * TODO: use this to garbage collect unusable assignments.
-	 * @type {String}
-	 */
-	_oldkey : null,
-
-	/**
-	 * New function lookup key.
-	 * @type {String}
-	 */
-	_newkey : null,
-
-	/**
-	 * Update element.
-	 * @param {Element} element
-	 */
-	_update : function ( element, attname, newkey, oldkey ) {
-		var newval, oldval = element.getAttribute ( attname );
-		if ( oldval && oldval.contains ( oldkey )) {
-			newval = oldval.replace ( oldkey, newkey );
-			element.setAttribute ( attname, newval );
 		} else {
-			// perhaps there's an ID and we already performed an attribute update, could that be it?
-			console.warn ( "Softupdate dysfunction or what?" );
+			if (( count = edb.FunctionUpdate._revoke ( elm ))) {
+				this._report ( "revoked " + count + " keys" );
+			}
 		}
 	},
 
 	/**
-	 * Debug changes.
+	 * Report the update.
+	 * @param {String} report
 	 */
-	_report : function () {
-		this._super._report ( "edb.FunctionUpdate " + this._selector );
+	_report : function ( report ) {
+		this._super._report ( "edb.FunctionUpdate " + report );
+	}
+
+}, { // Static ......................................................
+
+	/**
+	 * @param {Element} element
+	 */
+	_revoke : function ( element ) {
+		var count = 0, keys;
+		this._getatts ( element ).forEach ( function ( att ) {
+			keys = gui.KeyMaster.extractKey ( att.value );
+			if ( keys ) {
+				keys.forEach ( function ( key ) {
+					edb.Script.$revoke ( key );
+					count ++;
+				});
+			}
+		});
+		return count;
+	},
+
+	/**
+	 * @param {Element} element
+	 * @param {Map<String,String>} map
+	 */
+	_remap : function ( element, map ) {
+		var count = 0, oldkeys, newkey;
+		if ( Object.keys ( map ).length ) {
+			this._getatts ( element ).forEach ( function ( att ) {
+				if (( oldkeys = gui.KeyMaster.extractKey ( att.value ))) {
+					oldkeys.forEach ( function ( oldkey ) {
+						if (( newkey = map [ oldkey ])) {
+							att.value = att.value.replace ( oldkey, newkey );
+							edb.Script.$revoke ( oldkey );
+							count ++;
+						}
+					});
+				}
+			});
+		}
+		return count;
+	},
+
+	/**
+	 * Collect attributes from DOM subtree that 
+	 * somewhat resemble EDBML poke statements.
+	 * @returns {Array<Attribute>}
+	 */
+	_getatts : function ( element ) {
+		var atts = [];
+		new gui.Crawler ().descend ( element, {
+			handleElement : function ( elm ) {
+				Array.forEach ( elm.attributes, function ( att ) {
+					if ( att.value.contains ( "edb.go" )) {
+						atts.push ( att );
+					}
+				});
+			}
+		});
+		return atts;
 	}
 
 });

@@ -28,7 +28,10 @@ edb.Script = edb.Function.extend ({
 		this.input = new edb.InputPlugin ();
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
-		console.warn ( "Bad: onconstruct should autoinvoke" );
+
+		// @TODO this!
+		// console.warn ( "Bad: onconstruct should autoinvoke" );
+
 		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
@@ -173,7 +176,9 @@ edb.Script = edb.Function.extend ({
 	 * Mapping compiled functions to keys.
 	 * @type {Map<String,function>}
 	 */
-	_invokables : new Map (),
+	_invokables : Object.create ( null ),
+
+	_fister : Object.create ( null ),
 
 	/**
 	 * Loggin event details.
@@ -190,10 +195,19 @@ edb.Script = edb.Function.extend ({
 	 */
 	$assign : function ( func, thisp ) {
 		var key = gui.KeyMaster.generateKey ();
-		edb.Script._invokables.set ( key, function ( value, checked ) {
+		edb.Script._invokables [ key ] = function ( value, checked ) {
 			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
-		});
+		};
 		return key;
+	},
+
+	/**
+	 * Garbage collect function that isn't called by the 
+	 * GUI using whatever strategy they prefer nowadays.
+	 */
+	$revoke : function ( key ) {
+		edb.Script._invokables [ key ] = null; // garbage one
+		delete edb.Script._invokables [ key ]; // garbage two
 	},
 
 	/**
@@ -220,7 +234,7 @@ edb.Script = edb.Function.extend ({
 			 * Timeout is a cosmetic stunt to unfreeze a pressed 
 			 * button in case the function takes a while to complete. 
 			 */
-			if (( func = this._invokables.get ( key ))) {
+			if (( func = this._invokables [ key ])) {
 				if ( log.type === "click" ) {
 					setImmediate ( function () {
 						func ( log.value, log.checked );
@@ -245,6 +259,22 @@ edb.Script = edb.Function.extend ({
 			checked : e.target.checked
 		};
 		return this;
+	},
+
+	/**
+	 * Yerh.
+	 */
+	$tempname : function ( key, sig ) {
+		var func;
+		if ( sig ) {
+			console.error ( "TODO" );
+		} else {
+			if (( func = this._invokables [ key ])) {
+				return func ();
+			} else {
+				throw new Error ( "out of synch" );
+			}
+		}
 	}
 	
 });

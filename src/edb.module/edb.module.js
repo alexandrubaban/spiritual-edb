@@ -104,9 +104,14 @@ window.edb.EDBModule = gui.module ( "edb", {
 				parts.push ( "#" + elm.id );
 				elm = null;
 			} else {
-				index = gui.DOMPlugin.ordinal ( elm ) + 1;
-				parts.push ( ">" + elm.localName + ":nth-child(" + index + ")" );
-				elm = elm.parentNode;
+				if ( elm.localName === "body" ) {
+					parts.push ( "body" );
+					elm = null;
+				} else {
+					index = gui.DOMPlugin.ordinal ( elm ) + 1;
+					parts.push ( ">" + elm.localName + ":nth-child(" + index + ")" );
+					elm = elm.parentNode;
+				}
 			}
 		}
 		return parts.reverse ().join ( "" );

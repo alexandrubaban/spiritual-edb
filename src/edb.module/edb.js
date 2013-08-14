@@ -40,7 +40,6 @@ window.edb = gui.namespace ( "edb", {
 	},
 
 	get : function ( key, sig ) {
-		alert ( key );
 		return edb.Script.$tempname ( key, sig );
 	},
 

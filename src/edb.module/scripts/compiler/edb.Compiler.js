@@ -271,33 +271,40 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 
 	/**
 	 * Generate poke at marked spot.
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
 	 */
 	_poke : function ( status, result ) {
-		var sig = this._$contextid ? ( ", &quot;" + this._$contextid + "&quot;" ) : "";
-		var body = result.body,
-			temp = result.temp,
-			spot = status.spot,
-			prev = body.substring ( 0, spot ),
-			next = body.substring ( spot ),
-			name = gui.KeyMaster.generateKey ();
-		result.body = prev + "\n" + 
-			"var " + name + " = edb.set ( function ( value, checked ) { \n" +
-			temp + ";\n}, this );" + next +
-			"edb.go(event,&quot;\' + " + name + " + \'&quot;" + sig + ");";
+		this._inject ( status, result, edb.Compiler._POKE );
 	},
 
+	/**
+	 * Generate geek at marked spot.
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
+	 */
 	_geek : function ( status, result ) {
-		var sig = this._$contextid ? ( ", &quot;" + this._$contextid + "&quot;" ) : "";
+		this._inject ( status, result, edb.Compiler._GEEK );
+	},
+
+	/**
+	 * Inject JS (outline and inline combo) at marked spot.
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
+	 * @param {Map<String,String>} js
+	 */
+	_inject : function ( status, result, js ) {
 		var body = result.body,
 			temp = result.temp,
 			spot = status.spot,
 			prev = body.substring ( 0, spot ),
 			next = body.substring ( spot ),
 			name = gui.KeyMaster.generateKey ();
-		result.body = prev + "\n" + 
-			"var " + name + " = edb.set ( \"" + name + "\", function () { \n" +
-			"return " + temp + ";\n}, this );alert( " + name + ");\n" + next +
-			"edb.get(&quot;\' + " + name + " + \'&quot;" + sig + ");";
+		result.body = 
+			prev + "\n" + 
+			js.outline.replace ( "$name", name ).replace ( "$temp", temp ) + 
+			next +
+			js.inline.replace ( "$name", name );
 	}
 	
 
@@ -390,9 +397,27 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 }, {}, { // Static ............................................................................
 
 	/**
+	 * Poke.
+	 * @type {String}
+	 */
+	_POKE : {
+		outline : "var $name = edb.set ( function ( value, checked ) {\n$temp;\n}, this );",
+		inline: "edb.go(event,&quot;\' + $name + \'&quot;);"
+	},
+
+	/**
+	 * Geek.
+	 * @type {String}
+	 */
+	_GEEK : {
+		outline : "var $name = edb.set ( function () {\nreturn $temp;\n}, this );",
+		inline: "edb.get(&quot;\' + $name + \'&quot;);"
+	},
+
+	/**
 	 * Matches a qualified attribute name (class,id,src,href) allowing 
 	 * underscores, dashes and dots while not starting with a number. 
-	 * @TODO class and id may start with a number nowadays
+	 * @TODO class and id may start with a number nowadays!!!!!!!!!!!!
 	 * @TODO https://github.com/jshint/jshint/issues/383
 	 * @type {RegExp}
 	 */

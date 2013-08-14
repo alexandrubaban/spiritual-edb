@@ -178,8 +178,6 @@ edb.Script = edb.Function.extend ({
 	 */
 	_invokables : Object.create ( null ),
 
-	_fister : Object.create ( null ),
-
 	/**
 	 * Loggin event details.
 	 * @type {Map<String,object>}
@@ -196,7 +194,7 @@ edb.Script = edb.Function.extend ({
 	$assign : function ( func, thisp ) {
 		var key = gui.KeyMaster.generateKey ();
 		edb.Script._invokables [ key ] = function ( value, checked ) {
-			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
+			return func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
 		};
 		return key;
 	},
@@ -236,7 +234,7 @@ edb.Script = edb.Function.extend ({
 			 */
 			if (( func = this._invokables [ key ])) {
 				if ( log.type === "click" ) {
-					setImmediate ( function () {
+					gui.Tick.next ( function () {
 						func ( log.value, log.checked );
 					});
 				} else {

@@ -56,6 +56,11 @@ edb.Type.prototype = {
 	},
 
 	/**
+	 * Hello.
+	 */
+	$oninit : function () {},
+
+	/**
 	 * Called by {edb.Output} when the output context shuts down 
 	 * (when the window unloads or the web worker is terminated).
 	 */

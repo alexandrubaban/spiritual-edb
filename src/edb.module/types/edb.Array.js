@@ -88,6 +88,7 @@
 			edb.Array.populate ( this, arguments );
 			edb.Array.approximate ( this );
 			this.onconstruct.call ( this, arguments );
+			this.$oninit ();
 		},
 
 		/**

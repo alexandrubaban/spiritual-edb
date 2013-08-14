@@ -46,6 +46,23 @@ window.edb.EDBModule = gui.module ( "edb", {
 		[ "link[rel='service']", "edb.ServiceSpirit" ]
 	],
 
+	oncontextinitialize : function ( context ) {
+		var plugin, proto, method;
+		if ( !context.gui.portalled ) {
+			if (( plugin = context.gui.AttConfigPlugin )) {
+				proto = plugin.prototype;
+				method = proto.$evaluate;
+				proto.$evaluate = function ( name, value, fix ) {
+					if ( value.startsWith ( "edb.get" )) {
+						var key = gui.KeyMaster.extractKey ( value )[ 0 ];
+						value = key ? context.edb.get ( key ) : key;
+					}
+					return method.call ( this, name, value, fix );
+				};
+			}
+		}
+	},
+
 	/**
 	 * Context spiritualized.
 	 * @param {Window} context

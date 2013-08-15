@@ -34,7 +34,7 @@ edb.Instruction.prototype = {
  * @returns {Array<edb.Instruction>}
  */
 edb.Instruction.from = function ( source ) {
-	var pis = [], pi = null, hit = null; 
+	var pis = [], hit = null; 
 	while (( hit = this._PIEXP.exec ( source ))) {
 			pis.push ( new edb.Instruction ( hit [ 0 ]));
 	}

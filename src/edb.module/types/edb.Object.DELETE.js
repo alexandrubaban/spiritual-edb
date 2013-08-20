@@ -216,77 +216,7 @@
 				if ( isdefined ( val )) {
 					if ( isdefined ( def )) {
 						if ( iscomplex ( def )) {
-							if ( isfunction ( def )) {
-								if ( !isconstructor ( def )) {
-									def = def ( val );
-								}
-								if ( isconstructor ( def )) {
-									Def = def;
-									types [ key ] = new Def ( proxy [ key ]);
-								} else {
-									throw new TypeError ( name + " \"" + key + "\" must resolve to a constructor" );
-								}
-							} else {
-								types [ key ] = edb.Type.cast ( def );
-							}
-						}
-					} else {
-						throw new TypeError ( name + " declares \"" + key + "\" as something undefined" );
-					}
-				} else {
-					proxy [ key ] = def;
-				}
-			});
-
-			/* 
-			 * Setup property accessors for handler.
-			 *
-			 * 1. Objects by default convert to edb.Object
-			 * 2. Arrays by default convert to edb.Array
-			 * 3. Simple properties get proxy accessors
-			 */
-			gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-				def = proxy [ key ];
-				if ( gui.Type.isComplex ( def )) {
-					if ( !types [ key ]) {
-						types [ key ] = edb.Type.cast ( def );
-					}
-				} else {
-				}
-				gui.Property.accessor ( handler, key, {
-					getter : edb.Object._getter ( key, function () {
-						return types [ key ] || proxy [ key ];
-					}),
-					setter : edb.Object._setter ( key, function ( value ) {
-						/*
-						 * TODO: when resetting array, make sure that 
-						 * it becomes xx.MyArray (not plain edb.Array)
-						 */
-						var target = types [ key ] ? types : proxy;
-						target [ key ] = edb.Type.cast ( value );
-					})
-				});
-			});
-		},
-
-		/**
-		 * Servers two purposes:
-		 * 
-		 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
-		 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
-		 * 
-		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
-		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
-		 */
-		_approximatexxx : function ( handler, proxy ) {
-			var name = handler.constructor.$classname;
-			var Def, def, val, types = Object.create ( null );
-			this._definitions ( handler ).forEach ( function ( key ) {
-				def = handler [ key ];
-				val = proxy [ key ];
-				if ( isdefined ( val )) {
-					if ( isdefined ( def )) {
-						if ( iscomplex ( def )) {
+							alert ( key + ": "+ JSON.stringify ( def ));
 							if ( isfunction ( def )) {
 								if ( !isconstructor ( def )) {
 									def = def ( val );
@@ -306,6 +236,8 @@
 					} else {
 						throw new TypeError ( name + " declares \"" + key + "\" as something undefined" );
 					}
+				} else {
+					proxy [ key ] = def;
 				}
 			});
 

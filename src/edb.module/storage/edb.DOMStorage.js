@@ -45,16 +45,17 @@ edb.DOMStorage = edb.Storage.extend ({
 	/**
 	 * Get item.
 	 * @param {String} key
-	 * @param {edb.Model|edb.Collection} item
+	 * @param {function} callback
+	 * @param @optional {Window|WorkerScope} context
 	 */
-	$getItem : function ( key, callback ) {
+	$getItem : function ( key, callback, context ) {
 		var json = null;
 		var type = null;
 		var Type = null;
 		var xxxx = this.$read ();
 		if (( json = xxxx [ key ])) {
 			json = JSON.parse ( json );
-			Type = gui.Object.lookup ( key, self );
+			Type = gui.Object.lookup ( key, context || self );
 			type = Type ? new Type ( json ) : null;
 		}
 		callback.call ( this, type );

@@ -9,9 +9,10 @@
 
 module.exports = function ( grunt ) {
 
-	grunt.loadNpmTasks("grunt-contrib-concat");
-	grunt.loadNpmTasks("grunt-contrib-uglify");
-	grunt.loadNpmTasks("grunt-contrib-jshint");
+	grunt.loadNpmTasks ( "grunt-contrib-concat" );
+	grunt.loadNpmTasks ( "grunt-contrib-uglify" );
+	grunt.loadNpmTasks ( "grunt-contrib-jshint" );
+	grunt.loadNpmTasks ( "grunt-spiritual-dox"  );
 
 	var sourcelist = grunt.file.readJSON("Gruntfile.json");
 	sourcelist.unshift("<banner:meta.banner>");
@@ -21,7 +22,11 @@ module.exports = function ( grunt ) {
 		' * Spiritual EDB <%= meta.version %>\n' +
 		' * (c) <%= grunt.template.today("yyyy") %> Wunderbyte\n' +
 		' * Spiritual is freely distributable under the MIT license.\n' +
-		' */\n';
+		' */\n\n' +
+		' ( function () {\n' +
+		' "use strict";\n';
+	var FOOTER = '}());';
+	var SPACER = "\n\n\n";
 
 	grunt.initConfig({
 		meta: {
@@ -63,8 +68,9 @@ module.exports = function ( grunt ) {
 		},
 		concat: {
 			options: {
-				separator : "\n\n\n",
-				banner: BANNER + "\n\n\n"
+				separator : SPACER,
+				banner: BANNER + SPACER,
+				footer : SPACER + FOOTER
 			},
 			dist: {
 				src: sourcelist,
@@ -82,10 +88,22 @@ module.exports = function ( grunt ) {
 	        'dist/spiritual-edb-<%= meta.version %>.min.js': ['dist/spiritual-edb-<%= meta.version %>.js']
 	      }
 	    }
-	  }
-		//uglify: {}
+	  },
+		dox : {
+			files: {
+				"dox/sources.json" : [ "src/**/*.js" ]
+			}
+		},
+		doxbuild : {
+			options : {
+				mangle : true
+			},
+			files: {
+				"dox" : "../spiritual-dox"
+			}
+		}
 	});
 
 	// default task
-	grunt.registerTask('default', [ "jshint", "concat","uglify" ]);
+	grunt.registerTask('default', [ "jshint", "concat", "uglify", "dox", "doxbuild" ]);
 };

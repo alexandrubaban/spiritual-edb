@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Dox</title>
+    <meta charset="UTF-8"/>
+    <meta name="gui.debug" content="true"/>
+    <link rel="stylesheet" href="index.css"/>
+    <link rel="service" type="dox.Doc" gui="dox.DocServiceSpirit"/>
+    <link rel="service" type="dox.Folder" gui="dox.FileServiceSpirit"/>
+  </head>
+  <body>
+    <main gui="dox.MainSpirit">
+      <script type="text/edbml">
+        <?input name="doc" type="dox.Doc"?>
+        this.element.scrollTop = 0;
+        switch ( doc.constructor ) {
+          case dox.JSDoc :
+            <article class="js">
+              doc.forEach ( function ( chapter, section, index ) {
+                <section data-line="${section.line}">
+                  var title = chapter.title && index === 0;
+                  <div class="docs ${title?'title':''}">
+                    if ( title ) {
+                      <h2>${chapter.title}</h2>
+                    } else {
+                      <div class="desc">${section.desc||""}</div>
+                      if ( section.tags.length ) {
+                        <ul class="tags">
+                          section.tags.forEach ( function ( tag ) {
+                            <li class="tag">
+                              <span class="name">${tag.name}</span>
+                              <span class="type">${tag.type}</span>
+                              <span class="desc">${tag.desc}</span>
+                            </li>
+                          });
+                        </ul>
+                      }
+                    }
+                  </div>
+                  <pre class="code" gui="dox.PrismSpirit">
+                    <code class="language-javascript">${'#'+section.$encode()}</code>
+                  </pre>
+                </section>
+              });
+            </article>
+            break;
+          case dox.MDDoc :
+            <article class="md">
+              <section>
+                <div class="docs">${doc.markup}</div>
+                <pre class="code"></pre>
+              </section>
+            </article>
+            break;
+        }
+      </script>
+    </main>
+    <aside gui="dox.AsideSpirit">
+      <script type="text/edbml">
+        <?input name="root" type="dox.Folder"?>
+        <?param name="search"?>
+        <div>
+          <form id="form" gui="dox.FormSpirit">
+            <fieldset>
+              <label for="search">Files</label>
+              <input id="search" type="text"/>
+            </fieldset>
+          </form>
+          <ul id="root">
+            ( function recurse ( next ) {
+              next.nodes.forEach ( function ( node ) {
+                if ( !search || node.matches ( search )) {
+                  <li>
+                    switch ( node.constructor ) {
+                      case dox.File :
+                        <a class="file" href="#${node.src}">${node.name}</a>
+                        break;
+                      case dox.Folder :
+                        <span class="folder" onclick="#{node.open=!node.open}">${node.name}</span>
+                        if ( search || node.open ) {
+                          <ul>
+                            recurse ( node );
+                          </ul>
+                        }
+                        break;
+                    }
+                  </li>
+                }
+              });
+            })( root );
+          </ul>
+        </div>
+      </script>
+    </aside>
+    <div>
+      <script src="index.js"></script>
+    </div>
+  </body>
+</html>

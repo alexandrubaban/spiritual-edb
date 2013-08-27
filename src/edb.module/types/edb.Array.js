@@ -289,9 +289,7 @@
  * @using {edb.Array.prototype}
  */
 ( function using ( proto ) {
-
-	"use strict";
-
+	
 	/*
 	 * Dispatch a broadcast whenever the list is inspected or traversed.
 	 */

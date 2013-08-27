@@ -42,7 +42,7 @@ edb.Output = {
 		var contxid = context.gui.$contextid;
 		var contmap = this._contexts [ contxid ];
 		var classid = Type.$classid;
-		return contmap && contmap [ classid ];
+		return contmap && contmap [ classid ] ? true : false;
 	},
 
 	/**
@@ -76,6 +76,7 @@ edb.Output = {
 		var classid = Type.$classid;
 		contmap [ classid ] = type;
 		type.$context = context;
+		//alert ( Type.$classname + ": "+ context.document.title );
 		type.$contextid = contxid;
 	},
 

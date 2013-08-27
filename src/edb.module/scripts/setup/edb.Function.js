@@ -298,7 +298,8 @@ edb.Function = gui.Class.create ( Object.prototype, {
 	 * @param {object} thisp
 	 */
 	compile : function ( context, url, source, directives, callback, thisp ) {
-		var Fun = this, fun = new Fun ( context, url, function onreadystatechange () {
+		var Fun = this;
+		new Fun ( context, url, function onreadystatechange () {
 			callback.call ( thisp, this );
 		}).compile ( source, directives );
 	},

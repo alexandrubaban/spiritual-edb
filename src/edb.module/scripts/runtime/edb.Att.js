@@ -55,7 +55,7 @@ edb.Att.prototype = gui.Object.create ( null, {
 	 * @returns {String} 
 	 */
 	_all : function () {
-		var type, html = "";
+		var html = "";
 		gui.Object.nonmethods ( this ).forEach ( function ( att ) {
 			html += this._out ( att );
 		}, this );

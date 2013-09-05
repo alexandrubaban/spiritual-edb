@@ -74,9 +74,8 @@ edb.Update = gui.Class.create ( Object.prototype, {
 			if (( spirit = this.window.gui.get ( this.id ))) {
 				element = spirit.element;
 			}
-		} else {
-			element = this.document.getElementById ( this.id );
 		}
+		element = element || this.document.getElementById ( this.id );
 		if ( !element ) {
 			console.error ( "No element to match @id: " + this.id );
 		}

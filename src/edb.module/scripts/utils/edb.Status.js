@@ -22,6 +22,7 @@ edb.Status.prototype = {
 	adds : false,
 	func : null,
 	conf : null,
+	curl : null,
 	skip : 0,
 	last : 0,
 	spot : 0,

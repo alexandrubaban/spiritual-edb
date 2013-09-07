@@ -2,7 +2,7 @@
  * Append.
  * @extends {edb.SoftUpdate}
  */
-edb.AppendUpdate = edb.SoftUpdate.extend ( "edb.AppendUpdate", {
+edb.AppendUpdate = edb.SoftUpdate.extend ({
 	
 	/**
 	 * Update type.

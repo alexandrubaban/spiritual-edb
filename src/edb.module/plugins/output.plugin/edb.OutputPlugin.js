@@ -1,9 +1,10 @@
 /**
+ * @deprecated
  * Note: This plugin may be used standalone, so don't reference any spirits around here.
  * @TODO formalize how this is supposed to be clear
  * @TODO static interface for all this stuff
  */
-edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
+edb.OutputPlugin = gui.Plugin.extend ({
 
 	/**
 	 * Output data as type.
@@ -12,7 +13,18 @@ edb.OutputPlugin = gui.Plugin.extend ( "edb.OutputPlugin", {
 	 * @returns {edb.Object|edb.Array}
 	 */
 	dispatch : function ( data, Type ) {
+		console.error ( "edb.OutputPlugin is deprecated" );
 		return edb.Output.dispatch ( this.context, data, Type );
+	},
+
+	/**
+	 * Given Type has been output already?
+	 * @param {edb.Object|edb.Array} Type
+	 * @returns {boolean}
+	 */
+	exists : function ( Type ) {
+		console.error ( "edb.OutputPlugin is deprecated" );
+		return edb.Output.out ( Type, this.context || self );
 	}
 
 });

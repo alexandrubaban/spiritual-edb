@@ -2,7 +2,7 @@
  * Here it is.
  * @extends {edb.Function}
  */
-edb.Tag = edb.Function.extend ( "edb.Tag", {
+edb.Tag = edb.Function.extend ({
 
 	/**
 	 * Get compiler implementation.
@@ -14,7 +14,7 @@ edb.Tag = edb.Function.extend ( "edb.Tag", {
 
 	/**
 	 * Adding the "tag" directive.
-	 * @overloads {edb.Template#compile}
+	 * @overrides {edb.Template#compile}
 	 * @param {String} source
 	 * @param {HashMap<String,String>} directives
 	 * @returns {edb.Function}

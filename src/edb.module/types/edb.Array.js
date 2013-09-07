@@ -7,10 +7,10 @@
 	 * edb.Array
 	 * @extends {edb.Type} ...although not really...
 	 */
-	edb.Array = gui.Class.create ( "edb.Array", proto, {
+	edb.Array = gui.Class.create ( proto, {
 
-
-		// Native ...............................................................................
+		
+		// Overrides ...........................................................................
 		
 		/**
 		 * Push.
@@ -68,7 +68,7 @@
 		},
 
 
-		// Custom ...............................................................................
+		// Custom ..............................................................................
 
 		/**
 		 * The content type can be declared as:
@@ -80,49 +80,20 @@
 		$of : null,
 
 		/**
-		 * Secret constructor.
+		 * Constructor.
+		 * @overrides {edb.Type#onconstruct}
 		 */
 		$onconstruct : function () {
-			edb.Type.underscoreinstanceid ( this ); // iOS bug...
-			if ( arguments.length ) {
-				// accept one argument (an array) or use Arguments object as an array
-				var args = [];
-				if ( gui.Type.isArray ( arguments [ 0 ])) {
-					args = arguments [ 0 ];
-				} else {
-					Array.forEach ( arguments, function ( arg ) {
-						args.push ( arg );
-					});
-				}
-				var type = this.$of;
-				if ( gui.Type.isFunction ( type )) {
-					args = args.map ( function ( o, i ) {
-						if ( o !== undefined ) { // why can o be undefined in Firefox?
-							if ( !o._instanceid ) { // TODO: underscore depends on iPad glitch, does it still glitch?
-								var Type = type;//	type constructor or... 
-								if ( !gui.Type.isConstructor ( Type )) { // ... filter function?
-									Type = type ( o );
-								}
-								o = new Type ( o );
-							}
-						}
-						return o;
-					});
-				}
-				args.forEach ( function ( arg ) {
-					Array.prototype.push.call ( this, arg ); // bypassing broadcast mechanism
-				}, this );
-			}
-
-			// proxy methods and invoke non-secret constructor
+			edb.Type.prototype.$onconstruct.apply ( this, arguments );
+			edb.Array.populate ( this, arguments );
 			edb.Array.approximate ( this );
 			this.onconstruct.call ( this, arguments );
+			this.$oninit ();
 		},
 
 		/**
-		 * Create true array without expando properties, recursively 
-		 * normalizing nested EDB types. This is the type of object 
-		 * you would typically transmit to the server. 
+		 * Create true array without expando properties, recursively normalizing nested EDB 
+		 * types. Returns the type of array we would typically transmit back to the server. 
 		 * @returns {Array}
 		 */
 		$normalize : function () {
@@ -135,25 +106,45 @@
 		}
 		
 		
-	}, {}, { // Static .........................................................................
+	}, ( function mixins () { // Recurring static ..........................................
+
+		/*
+		 * edb.Object and edb.Array don't really subclass edb.Type, 
+		 * so we'll just have to hack in these shared static fields. 
+		 * @TODO: formalized mixin strategy for recurring statics...
+		 */
+		return edb.Type.$staticmixins ();
+		
+
+	}()), { // Static ......................................................................
 
 		/**
-		 * @param {edb.Array} array
+		 * Populate {edb.Array} from constructor arguments.
+		 *
+		 * 1. Populate as normal array, one member for each argument
+		 * 2. If the first argument is an array, populate using this.
+		 *
+		 * For case number two, we ignore the remaining arguments. 
+		 * @TODO read something about http://www.2ality.com/2011/08/spreading.html
+		 * @param {edb.Array}
+		 * @param {Arguments} args
 		 */
-		_onaccess : function ( array ) {},
-
-		/**
-		 * Register change summary for publication in next tick.
-		 * @param {edb.Array} array
-		 * @param {number} type
-		 * @param {object} item
-		 */
-		_onchange : function ( array, type, item ) {
-			type = {
-				0 : edb.ArrayChange.TYPE_REMOVED,
-				1 : edb.ArrayChange.TYPE_ADDED
-			}[ type ];
-			// console.log ( array, type, item ); TODO :)
+		populate : function ( array, args ) {
+			var members;
+			if ( args.length ) {
+				members = [];
+				if ( gui.Type.isArray ( args [ 0 ])) {
+					members = args [ 0 ];
+				} else {
+					members = Array.prototype.slice.call ( args );
+				}
+				if ( gui.Type.isFunction ( array.$of )) {
+					members = edb.Array._populatefunction ( members, array.$of );
+				} else {
+					members = edb.Array._populatedefault ( members );
+				}
+				Array.prototype.push.apply ( array, members );
+			}
 		},
 
 		/**
@@ -198,6 +189,9 @@
 			});
 		},
 
+
+		// Private static .........................................................
+
 		/**
 		 * Collect list of definitions to transfer from proxy to handler.
 		 * @param {object} handler
@@ -229,6 +223,61 @@
 				}
 			}
 			return false;
+		},
+
+		/**
+		 * Parse field declared via constructor or via 
+		 * filter function (which returns a constructor).
+		 */
+		_populatefunction : function ( members, func ) {
+			return members.map ( function ( o ) {
+				if ( o !== undefined && !o._instanceid ) {
+					var Type = func;
+					if ( !gui.Type.isConstructor ( Type )) {
+						Type = func ( o );
+					}
+					o = new Type ( o );
+				}
+				return o;
+			});
+		},
+
+		/**
+		 * Parse field default. Objects and arrays automatically  
+		 * converts to instances of {edb.Object} and {edb.Array}
+		 */
+		_populatedefault : function ( members ) {
+			return members.map ( function ( o ) {
+				if ( !edb.Type.isInstance ( o )) {
+					switch ( gui.Type.of ( o )) {
+						case "object" : 
+							return new edb.Object ( o );
+						case "array" :
+							return new edb.Array ( o );
+					}
+				}
+				return o;
+			});
+		},
+
+		/**
+		 * TODO.
+		 * @param {edb.Array} array
+		 */
+		_onaccess : function ( array ) {},
+
+		/**
+		 * Register change summary for publication in next tick.
+		 * @param {edb.Array} array
+		 * @param {number} type
+		 * @param {object} item
+		 */
+		_onchange : function ( array, type, item ) {
+			type = {
+				0 : edb.ArrayChange.TYPE_REMOVED,
+				1 : edb.ArrayChange.TYPE_ADDED
+			}[ type ];
+			// console.log ( array, type, item ); TODO :)
 		}
 
 	});
@@ -240,15 +289,7 @@
  * @using {edb.Array.prototype}
  */
 ( function using ( proto ) {
-
-	"use strict";
-
-	/*
-	 * Mixin methods and properties common 
-	 * to both {edb.Object} and {edb.Array}
-	 */
-	gui.Object.extend ( proto, edb.Type.prototype );
-
+	
 	/*
 	 * Dispatch a broadcast whenever the list is inspected or traversed.
 	 */
@@ -264,6 +305,7 @@
 
 	/*
 	 * Dispatch a broadcast whenever the list changes content or structure.
+	 * @TODO we now have two systems for this (moving to precise observers)
 	 */
 	edb.Type.decorateSetters ( proto, [
 		"push", // add
@@ -292,3 +334,12 @@
 	// @TODO "sort", "reverse", "join"
 	
 }( edb.Array.prototype ));
+
+/*
+ * Mixin methods and properties common 
+ * to both {edb.Object} and {edb.Array}
+ */
+( function setup () {
+	// TODO gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Array );
+	gui.Object.extendmissing ( edb.Array.prototype, edb.Type.prototype );
+}());

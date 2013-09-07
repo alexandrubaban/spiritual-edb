@@ -2,7 +2,7 @@
  * Tracking EDB input. Note that the {edb.Script} is using this plugin: Don't assume a spirit around here.
  * @extends {gui.Tracker}
  */
-edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
+edb.InputPlugin = gui.Tracker.extend ({
    
 	/**
 	 * True when one of each expected input type has been collected.
@@ -12,17 +12,26 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	
 	/**
 	 * Construction time.
-	 * @overloads {gui.Tracker#construct}
+	 * @overrides {gui.Tracker#construct}
 	 */
 	onconstruct : function () {
 		this._super.onconstruct ();
 		this._watches = [];
 		this._matches = [];
 	},
+
+	/**
+	 * Destruction time.
+	 */
+	ondestruct : function () {
+		this._super.ondestruct ();
+		this.remove ( this._watches );
+		this._xxx ( false );
+	},
 	
 	/**
 	 * Add handler for one or more input types.
-	 * @param {edb.Type|String|Array<edb.Type|String>} arg
+	 * @param {edb.Type|String|Array<edb.Type|String>} arg 
 	 * @param @optional {object} IInputHandler Defaults to this.spirit
 	 * @returns {gui.InputPlugin}
 	 */
@@ -31,13 +40,13 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._add ( arg, handler );
-		gui.Broadcast.add ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );
+		this._xxx ( true );
 	}),
 
 	/**
 	 * Remove handler for one or more input types.
 	 * @TODO Cleanup more stuff?
-	 * @param {object} arg
+	 * @param {edb.Type|String|Array<edb.Type|String>} arg 
 	 * @param @optional {object} handler implements InputListener (defaults to this)
 	 * @returns {gui.InputPlugin}
 	 */
@@ -46,7 +55,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
 		this._remove ( arg, handler );
 		if (( this.done = this._matches.length === this._watches.length )) { // right?
-			gui.Broadcast.remove ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );	
+			this._xxx ( false );
 		}
 	}),
 
@@ -64,7 +73,27 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		var input = best ? this._matches.filter ( function ( input ) {
 			return input.type === best;
 		}).shift () : null;
+		/*
+		if ( input ) {
+			console.log ( "Bestmatch: " + input.data );
+		}
+		*/
 		return input ? input.data : null;
+	},
+
+	/**
+	 * Dispatch private data. Only the associated {edb.Script} can see this!
+	 * @TODO the dispatching spirit should be able to intercept this as well...
+	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
+	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
+	 * @returns {edb.Object|edb.Array}
+	 */
+	dispatch : function ( data, Type ) {
+		if ( this.spirit ) {
+			return this.spirit.script.input ( data, Type );
+		} else {
+			console.error ( "TODO: not implemented (private sandbox input)" );
+		}
 	},
 	
 	/**
@@ -108,13 +137,24 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {IInputHandler} handler
 	 */
 	_add : function ( types, handler ) {
-		types.forEach ( function ( type ) {
-			this._watches.push ( type );
-			this._addchecks ( type.$classid, [ handler ]);
-			if ( type.output ) { // type has been output already?
-				gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
-					this._todoname ();
-				}, this );
+		types.forEach ( function ( Type ) {
+			if ( gui.Type.isDefined ( Type )) {
+				this._watches.push ( Type );
+				this._addchecks ( Type.$classid, [ handler ]);
+				if ( Type.out ( this.context )) { // type has been output already?
+					// alert ( edb.Output.$get ( this.context, Type ));
+
+					this._maybeinput ( edb.Output.$get ( Type, this.context ));
+					/*
+					 * TODO: this tick was needed at some point (perhaps in Spiritual Dox?)
+					 */
+					// gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
+						//this._todoname ();
+					// }, this );
+
+				}
+			} else {
+				throw new TypeError ( "Could not register input for undefined Type" );
 			}
 		}, this );
 	},
@@ -128,19 +168,8 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 		types.forEach ( function ( type ) {
 			var index = this._watches.indexOf ( type );
 			if ( index >-1 ) {
-				this._watches.remove ( index );
+				gui.Array.remove ( this._watches, ( index ));
 				this._removechecks ( type.$classid, [ handler ]);
-			}
-		}, this );
-	},
-
-	/*
-	 * TODO: Comment goes here.
-	 */
-	_todoname : function () {
-		this._watches.forEach ( function ( type ) {
-			if ( type.output instanceof edb.Input ) {
-				this._maybeinput ( type.output );
 			}
 		}, this );
 	},
@@ -185,7 +214,7 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 	 * @param {edb.Input} input
 	 */
 	_updatehandlers : function ( input ) {
-		var keys = gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
+		gui.Class.ancestorsAndSelf ( input.type, function ( Type ) {
 			var list = this._trackedtypes [ Type.$classid ];
 			if ( list ) {
 				list.forEach ( function ( checks ) {
@@ -194,6 +223,13 @@ edb.InputPlugin = gui.Tracker.extend ( "edb.InputPlugin", {
 				});
 			}
 		}, this );
+	},
+
+	/**
+	 * @param {boolean} is
+	 */
+	_xxx : function ( is ) {
+		gui.Broadcast [ is ? "add" : "remove" ] ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );
 	}
 
 

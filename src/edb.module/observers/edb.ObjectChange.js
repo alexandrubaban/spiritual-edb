@@ -7,7 +7,7 @@
  * @param {object} newval
  */
 edb.ObjectChange = function ( object, name, type, oldval, newval ) {
-	this.instanceid = object._instanceid;
+	//this.instanceid = object._instanceid;
 	this.object = object;
 	this.name = name;
 	this.type = type;
@@ -16,7 +16,7 @@ edb.ObjectChange = function ( object, name, type, oldval, newval ) {
 };
 
 edb.ObjectChange.prototype = {
-	instanceid : null,
+	//instanceid : null,
 	object: null,
 	name: null,
 	type: null,

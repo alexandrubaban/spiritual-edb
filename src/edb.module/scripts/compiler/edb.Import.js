@@ -1,5 +1,6 @@
 /**
  * Tracking a single function import (dependency).
+ * @TODO: Validate "src" not "href" on <?function?> instruction (otherwise endless loading)
  * @param {Window} context Compiler target context
  * @param {Document} basedoc Resolving relative URLs
  * @param {String} type
@@ -89,7 +90,7 @@ edb.Import.prototype = {
 
 	/**
 	 * Context to compile into.
-	 * @type {Window|WebWorkerGlobalScope}
+	 * @type {Window|WorkerGlobalScope}
 	 */
 	_context : null,
 

@@ -4,7 +4,6 @@
  * reduce the collected updates to the minimum required subset.
  */
 edb.UpdateCollector = function UpdateCollector () {
-
 	this._updates = []; 
 	this._hardupdates = new Set ();
 };
@@ -35,15 +34,16 @@ edb.UpdateCollector.prototype = {
 	 * Collect update candidate. All updates may not be evaluated, see below.
 	 * @param {edb.Update} update
 	 * @param {Map<String,boolean>} ids Indexing ID of ancestor elements
-	 * @returns {[type]}
+	 * @returns {edb.UpdateCollector}
 	 */
 	collect : function ( update, ids ) {
 		this._updates.push ( update );
 		if ( update.type === edb.Update.TYPE_HARD ) {
 			this._hardupdates.add ( update.id );
 		} else {
-			update.ids = ids;
+			update.ids = ids || {};
 		}
+		return this;
 	},
 
 	/**

@@ -4,10 +4,10 @@
 window.edb = gui.namespace ( "edb", {
 	
 	/**
-	 * Identification.
-	 * @returns {String}
+	 * Although it should probably be false until we have full support...
+	 * @type {boolean}
 	 */
-	toString : function () { return "[namespace edb]"; },
+	portals : true,
 
 	/**
 	 * Mount compiled functions as blob files 
@@ -32,10 +32,15 @@ window.edb = gui.namespace ( "edb", {
 	/**
 	 * Register action to execute later.
 	 * @param {function} action
+	 * @param {object} thisp
 	 * @returns {function}
 	 */
-	set : function ( action ) {
-		return edb.Script.$assign ( action )
+	set : function ( action, thisp ) {
+		return edb.Script.$assign ( action, thisp );
+	},
+
+	get : function ( key, sig ) {
+		return edb.Script.$tempname ( key, sig );
 	},
 
 	/**
@@ -45,9 +50,9 @@ window.edb = gui.namespace ( "edb", {
 	 * @param {String} key
 	 * @param @optional {String} sig
 	 */
-	go : function ( e, key, sig ) {
+	go : function ( e, key, sig ) { // NOTE: gui.UpdateManager#_attschanged hardcoded "edb.go" ...
 		edb.Script.$register ( e );
-		edb.Script.$invoke ( key, sig, this._log );
-	},
+		edb.Script.$invoke ( key, sig ); // this._log
+	}
 	
 });

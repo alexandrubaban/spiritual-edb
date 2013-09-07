@@ -2,7 +2,7 @@
  * The ScriptPlugin shall render the spirits HTML.
  * @extends {gui.Plugin} (should perhaps extend some kind of genericscriptplugin)
  */
-edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
+edb.ScriptPlugin = gui.Plugin.extend ({
 
 	/**
 	 * Script has been loaded and compiled?
@@ -69,10 +69,21 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		this._super.onconstruct ();
 		var spirit = this.spirit;
 		this.inputs = this.inputs.bind ( this );
+		spirit.life.add ( gui.LIFE_DESTRUCT, this );
 		if ( spirit instanceof edb.ScriptSpirit ) {
 			this.autorun = false;
 		} else if ( this.diff ) {
 			this._updater = new edb.UpdateManager ( spirit );
+		}
+	},
+
+	/**
+	 * Destruction time.
+	 */
+	ondestruct : function () {
+		this._super.ondestruct ();
+		if ( this._script ) {
+			this._script.dispose ();
 		}
 	},
 
@@ -104,7 +115,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	 * @param {gui.Life} life
 	 */
 	onlife : function ( life ) {
-		if ( life.type === gui.LIFE_ENTER ) {
+		if ( life.type ===  gui.LIFE_ENTER ) {
 			this.spirit.life.remove ( life.type, this );
 			if ( this._dosrc ) {
 				this.load ( this._dosrc );
@@ -176,11 +187,13 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		var changed = this._html !== html;
 		if ( changed ) {
 			this._html = html;
-			if ( this.diff ) {
-				this._updater.update ( html );
-			} else {
-				this.spirit.dom.html ( html ); // TODO: forms markup make valid!
-			}
+			this._stayfocused ( function () {
+				if ( this.diff ) {
+					this._updater.update ( html );
+				} else {
+					this.spirit.dom.html ( html ); // TODO: forms markup make valid!
+				}
+			});
 			this.ran = true;
 			this.spirit.life.dispatch ( 
 				edb.LIFE_SCRIPT_DID_RUN, changed // @TODO Support this kind of arg...
@@ -194,9 +207,11 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 	},
 
 	/**
-	 * Private input.
+	 * Private input for this script only.
+	 * @see {edb.InputPlugin#dispatch}
 	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
 	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
+	 * @returns {edb.Object|edb.Array}
 	 */
 	input : function ( data, Type ) {
 		var input = edb.Input.format ( this.context, data, Type );
@@ -206,6 +221,7 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 			this._doinput = this._doinput || [];
 			this._doinput.push ( input );
 		}
+		return input.data;
 	},
 
 	/**
@@ -270,10 +286,12 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 		switch ( script.readyState ) {
 			case edb.Function.WAITING :
 				if ( this._doinput ) {
-					while ( this._doinput.length ) {
-						this.input ( this._doinput.shift ());
+					if ( this._doinput.length ) { // strange bug...
+						while ( this._doinput.length ) {
+							this.input ( this._doinput.shift ());
+						}
+						this._doinput = null;
 					}
-					this._doinput = null;
 				}
 				break;
 			case edb.Function.READY :
@@ -291,6 +309,66 @@ edb.ScriptPlugin = gui.Plugin.extend ( "edb.ScriptPlugin", {
 				}
 				break;
 		}
+	},
+
+	/**
+	 * Preserve form field focus before and after action.
+	 * @param {function} action
+	 */
+	_stayfocused : function ( action ) {
+		var field, selector = edb.EDBModule.fieldselector;
+		action.call ( this );
+		if ( selector ) {
+			field = gui.DOMPlugin.q ( this.spirit.document, selector );
+			if ( field && "#" + field.id !== selector ) {
+				if ( field && gui.DOMPlugin.contains ( this.spirit, field )) {
+					field.focus ();
+					var text = "textarea,input:not([type=checkbox]):not([type=radio])";
+					if ( gui.CSSPlugin.matches ( field, text )) {
+						field.setSelectionRange ( 
+							field.value.length, 
+							field.value.length 
+						);
+					}
+					this._restorefocus ( field );
+					this._debugwarning ();
+				}
+			}
+		}
+	},
+
+	/**
+	 * Focus form field.
+	 * @param {Element} field
+	 */
+	_restorefocus : function ( field ) {
+		var text = "textarea,input:not([type=checkbox]):not([type=radio])";
+		field.focus ();
+		if ( gui.CSSPlugin.matches ( field, text )) {
+			field.setSelectionRange ( 
+				field.value.length, 
+				field.value.length 
+			);
+		}
+	},
+
+	/**
+	 * We're only gonna say this once.
+	 */
+	_debugwarning : function () {
+		var This = edb.ScriptPlugin;
+		if ( This._warning && this.spirit.window.gui.debug ) {
+			console.debug ( This._warning );
+			This._warning = null;
+		}
 	}
+
+}, {}, { // Static .......................................................
+
+	/**
+	 * TODO: STACK LOST ANYWAY!
+	 * @type {String}
+	 */
+	_warning : "Spiritual: Form elements with a unique @id may be updated without losing the undo-redo stack (now gone)."
 
 });

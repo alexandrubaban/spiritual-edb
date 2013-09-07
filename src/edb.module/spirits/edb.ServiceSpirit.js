@@ -2,25 +2,43 @@
  * Spirit of the data service.
  * @see http://wiki.whatwg.org/wiki/ServiceRelExtension
  */
-edb.ServiceSpirit = gui.Spirit.infuse ( "edb.ServiceSpirit", {
+edb.ServiceSpirit = gui.Spirit.extend ({
 	
 	/**
 	 * Default to accept JSON and fetch data immediately.
 	 */
 	onconstruct : function () {
 		this._super.onconstruct ();
-		var type = this.att.get ( "type" );
+		var Type, type = this.att.get ( "type" );
 		if ( type ) {
-			var Type = gui.Object.lookup ( type, this.window );
-			if ( this.att.get ( "href" )) {
-				new gui.Request ( this.element.href ).acceptJSON ().get ( function ( status, data ) {
-					this.output.dispatch ( new Type ( data ));
-				}, this );
-			} else {
-				this.output.dispatch ( new Type ());
+			Type = gui.Object.lookup ( type, this.window );
+			if ( !Type ) {
+				throw new TypeError ( "\"" + type + "\" is not a Type (in this context)." );
 			}
-		} else {
-			throw new Error ( "TODO: formalize missing type somehow" );
+		}
+		if ( this.att.get ( "href" )) {
+			new gui.Request ( this.element.href ).get ().then ( function ( status, data ) {
+				type = ( function () {
+					if ( Type ) {
+						return new Type ( data );
+					} else {
+						switch ( gui.Type.of ( data )) {
+							case "object" :
+								return new edb.Object ( data );
+							case "array" :
+								return new edb.Array ( data );
+						}
+					}
+				}());
+				if ( type ) {
+					//this.output.dispatch ( type );
+					type.$output ( this.window );
+				} else {
+					console.error ( "TODO: handle unhandled response type" );
+				}
+			}, this );
+		} else if ( Type ) {
+			new Type ().$output ( this.window );
 		}
 	}
 

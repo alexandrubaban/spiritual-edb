@@ -1,14 +1,14 @@
 /**
  * edb.Object
- * @extends {edb.Type} at least in principle.
+ * @extends {edb.Type}
  * @using {gui.Type.isDefined}
  * @using {gui.Type.isComplex}, 
  * @using {gui.Type.isFunction} 
  * @using {gui.Type.isConstructor}
  */
-edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor ) {
+( function using ( isdefined, iscomplex, isfunction, isconstructor ) {
 	
-	return gui.Class.create ( Object.prototype, {
+	edb.Object = gui.Class.create ( Object.prototype, {
 		
 		/**
 		 * Constructor.
@@ -207,15 +207,6 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
 		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 		 */
-		/**
-		 * Servers two purposes:
-		 * 
-		 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
-		 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
-		 * 
-		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
-		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
-		 */
 		_approximate : function ( handler, proxy ) {
 			var name = handler.constructor.$classname;
 			var Def, def, val, types = Object.create ( null );
@@ -225,6 +216,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 				if ( isdefined ( val )) {
 					if ( isdefined ( def )) {
 						if ( iscomplex ( def )) {
+							alert ( key + ": "+ JSON.stringify ( def ));
 							if ( isfunction ( def )) {
 								if ( !isconstructor ( def )) {
 									def = def ( val );
@@ -239,8 +231,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 								types [ key ] = edb.Type.cast ( isdefined ( val ) ? val : def );
 							}
 						} else {
-							// ??????????????????????
-							//proxy [ key ] = def;
+							proxy [ key ] = def;
 						}
 					} else {
 						throw new TypeError ( name + " declares \"" + key + "\" as something undefined" );
@@ -263,6 +254,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 					if ( !types [ key ]) {
 						types [ key ] = edb.Type.cast ( def );
 					}
+				} else {
 				}
 				gui.Property.accessor ( handler, key, {
 					getter : edb.Object._getter ( key, function () {
@@ -301,17 +293,18 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		}
 	});
 
+	/*
+	 * Mixin methods and properties common 
+	 * to both {edb.Object} and {edb.Array}
+	 */
+	( function setup () {
+		gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Object );
+		gui.Object.extendmissing ( edb.Object.prototype, edb.Type.prototype );
+	}());
+
 }) ( 
 	gui.Type.isDefined, 
 	gui.Type.isComplex, 
 	gui.Type.isFunction, 
 	gui.Type.isConstructor
 );
-
-/*
- * Mixin methods and properties common to both {edb.Object} and {edb.Array}
- */
-( function setup () {
-	gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Object );
-	gui.Object.extendmissing ( edb.Object.prototype, edb.Type.prototype );
-}());

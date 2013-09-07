@@ -2,7 +2,7 @@
  * EDB script.
  * @extends {edb.Function}
  */
-edb.Script = edb.Function.extend ( "edb.Script", {
+edb.Script = edb.Function.extend ({
 
 	/**
 	 * Hijacking the {edb.InputPlugin} which has been 
@@ -28,7 +28,10 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 		this.input = new edb.InputPlugin ();
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
-		console.warn ( "Bad: onconstruct should autoinvoke" );
+
+		// @TODO this!
+		// console.warn ( "Bad: onconstruct should autoinvoke" );
+
 		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
@@ -79,7 +82,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 
 	/**
 	 * Execute the script, most likely returning a HTML string.
-	 * @overloads {edb.Function#execute}
+	 * @overrides {edb.Function#execute}
 	 * @returns {String}
 	 */
 	execute : function () {
@@ -93,6 +96,14 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 			 throw new Error ( "Script awaits input" );
 		}
 		return result;
+	},
+
+	/**
+	 * Experimental...
+	 */
+	dispose : function () {
+		this.onreadystatechange = null;
+		this.input.ondestruct ();
 	},
 
 
@@ -115,7 +126,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Flipped when expected inputs have been determined.
 	 * @type {boolean}
 	 */
-	_resolved : false,
+	_inputresolved : false,
 
 	/**
 	 * Get compiler implementation.
@@ -129,22 +140,23 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Setup input listeners when compiled.
 	 * @param {edb.ScriptCompiler} compiler
 	 * @param {Map<String,String|number|boolean>} directives
-	 * @overloads {edb.Function#_oncompiled}
+	 * @overrides {edb.Function#_oncompiled}
 	 */
 	_oncompiled : function ( compiler, directives ) {
 		gui.Object.each ( compiler.inputs, function ( name, type ) {
 			this.input.add ( type, this );
 		}, this );
+		this._inputresolved = true;
 		this._super._oncompiled ( compiler, directives );
 	},
 
 	/**
 	 * Ready to run?
-	 * @overloads {edb.Function#_done}
+	 * @overrides {edb.Function#_done}
 	 * @returns {boolean}
 	 */
 	_done : function () {
-		return this.input.done && this._super._done ();
+		return this._inputresolved && this.input.done && this._super._done ();
 	},
 
 	/**
@@ -164,7 +176,7 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 * Mapping compiled functions to keys.
 	 * @type {Map<String,function>}
 	 */
-	_invokables : new Map (),
+	_invokables : Object.create ( null ),
 
 	/**
 	 * Loggin event details.
@@ -181,10 +193,19 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 	 */
 	$assign : function ( func, thisp ) {
 		var key = gui.KeyMaster.generateKey ();
-		edb.Script._invokables.set ( key, function ( value, checked ) {
-			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
-		});
+		edb.Script._invokables [ key ] = function ( value, checked ) {
+			return func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
+		};
 		return key;
+	},
+
+	/**
+	 * Garbage collect function that isn't called by the 
+	 * GUI using whatever strategy they prefer nowadays.
+	 */
+	$revoke : function ( key ) {
+		edb.Script._invokables [ key ] = null; // garbage one
+		delete edb.Script._invokables [ key ]; // garbage two
 	},
 
 	/**
@@ -211,9 +232,9 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 			 * Timeout is a cosmetic stunt to unfreeze a pressed 
 			 * button in case the function takes a while to complete. 
 			 */
-			if (( func = this._invokables.get ( key ))) {
+			if (( func = this._invokables [ key ])) {
 				if ( log.type === "click" ) {
-					setImmediate ( function () {
+					gui.Tick.next ( function () {
 						func ( log.value, log.checked );
 					});
 				} else {
@@ -236,6 +257,22 @@ edb.Script = edb.Function.extend ( "edb.Script", {
 			checked : e.target.checked
 		};
 		return this;
+	},
+
+	/**
+	 * Yerh.
+	 */
+	$tempname : function ( key, sig ) {
+		var func;
+		if ( sig ) {
+			console.error ( "TODO" );
+		} else {
+			if (( func = this._invokables [ key ])) {
+				return func ();
+			} else {
+				throw new Error ( "out of synch" );
+			}
+		}
 	}
 	
 });

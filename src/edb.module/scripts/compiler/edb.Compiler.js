@@ -1,7 +1,7 @@
 /**
  * Core compiler business logic. This is where we parse the strings.
  */
-edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
+edb.Compiler = gui.Class.create ( Object.prototype, {
 
 	/**
 	 * Line begins.
@@ -55,7 +55,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 				break;
 		}
 		if ( status.skip-- <= 0 ) {
-			if ( status.poke ) {
+			if ( status.poke || status.geek ) {
 				result.temp += c;
 			} else {
 				if ( !status.istag ()) {
@@ -123,35 +123,59 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 	 * @param {edb.Result} result
 	 */
 	_compilehtml : function ( c, runner, status, result ) {
+		var special = status.peek || status.poke || status.geek;
 		switch ( c ) {
 			case "{" :
-				if ( status.peek || status.poke ) {}
+				if ( special ) {
+					status.curl ++;
+				}
 				break;
 			case "}" :
-				if ( status.peek ) {
-					status.peek = false;
-					status.skip = 1;
-					result.body += ") + '";
-				}
-				if ( status.poke ) {
-					this._poke ( status, result );
-					status.poke = false;
-					result.temp = null;
-					status.spot = -1;
-					status.skip = 1;
+				if ( -- status.curl === 0 ) {
+					if ( status.peek ) {
+						status.peek = false;
+						status.skip = 1;
+						status.curl = 0;
+						result.body += ") + '";
+					}
+					if ( status.poke ) {
+						this._poke ( status, result );
+						status.poke = false;
+						result.temp = null;
+						status.spot = -1;
+						status.skip = 1;
+						status.curl = 0;
+					}
+					if ( status.geek ) {
+						this._geek ( status, result );
+						status.geek = false;
+						result.temp = null;
+						status.spot = -1;
+						status.skip = 1;
+						status.curl = 0;
+					}
 				}
 				break;
 			case "$" :
-				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
-					status.peek = true;
-					status.skip = 2;
-					result.body += "' + (";
+				if ( !special && runner.ahead ( "{" )) {
+					if ( runner.behind ( "gui.test=\"" )) {
+						status.geek = true;
+						status.skip = 2;
+						status.curl = 0;
+						result.temp = "";
+					} else {
+						status.peek = true;
+						status.skip = 2;
+						status.curl = 0;
+						result.body += "' + (";
+					}			
 				}
 				break;
 			case "#" :
-				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
+				if ( !special && runner.ahead ( "{" )) {
 					status.poke = true;
 					status.skip = 2;
+					status.curl = 0;
 					result.temp = "";
 				}
 				break;
@@ -164,7 +188,7 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 				}
 				break;
 			case "'" :
-				if ( !status.peek && !status.poke ) {
+				if ( !special ) {
 					result.body += "\\";
 				}
 				break;
@@ -247,20 +271,40 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 
 	/**
 	 * Generate poke at marked spot.
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
 	 */
 	_poke : function ( status, result ) {
-		var sig = this._$contextid ? ( ", &quot;" + this._$contextid + "&quot;" ) : "";
+		this._inject ( status, result, edb.Compiler._POKE );
+	},
+
+	/**
+	 * Generate geek at marked spot.
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
+	 */
+	_geek : function ( status, result ) {
+		this._inject ( status, result, edb.Compiler._GEEK );
+	},
+
+	/**
+	 * Inject JS (outline and inline combo) at marked spot.
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
+	 * @param {Map<String,String>} js
+	 */
+	_inject : function ( status, result, js ) {
 		var body = result.body,
 			temp = result.temp,
 			spot = status.spot,
 			prev = body.substring ( 0, spot ),
 			next = body.substring ( spot ),
-			name = gui.KeyMaster.generateKey ( "poke" );
-		result.body = prev + "\n" + 
-			"var " + name + " = edb.set ( function ( value, checked ) { \n" +
-			temp + ";\n}, this );" + next +
-			//"edb.Script.register ( event ).invoke ( &quot;\' + " + name + " + \'&quot;" + sig + " );";
-			"edb.go(event,&quot;\' + " + name + " + \'&quot;" + sig + ");";
+			name = gui.KeyMaster.generateKey ();
+		result.body = 
+			prev + "\n" + 
+			js.outline.replace ( "$name", name ).replace ( "$temp", temp ) + 
+			next +
+			js.inline.replace ( "$name", name );
 	}
 	
 
@@ -353,9 +397,27 @@ edb.Compiler = gui.Class.create ( "edb.Compiler", Object.prototype, {
 }, {}, { // Static ............................................................................
 
 	/**
+	 * Poke.
+	 * @type {String}
+	 */
+	_POKE : {
+		outline : "var $name = edb.set ( function ( value, checked ) {\n$temp;\n}, this );",
+		inline: "edb.go(event,&quot;\' + $name + \'&quot;);"
+	},
+
+	/**
+	 * Geek.
+	 * @type {String}
+	 */
+	_GEEK : {
+		outline : "var $name = edb.set ( function () {\nreturn $temp;\n}, this );",
+		inline: "edb.get(&quot;\' + $name + \'&quot;);"
+	},
+
+	/**
 	 * Matches a qualified attribute name (class,id,src,href) allowing 
 	 * underscores, dashes and dots while not starting with a number. 
-	 * @TODO class and id may start with a number nowadays
+	 * @TODO class and id may start with a number nowadays!!!!!!!!!!!!
 	 * @TODO https://github.com/jshint/jshint/issues/383
 	 * @type {RegExp}
 	 */

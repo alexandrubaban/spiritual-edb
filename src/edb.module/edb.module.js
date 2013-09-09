@@ -116,7 +116,7 @@ window.edb.EDBModule = gui.module ( "edb", {
 			}
 			return false;
 		}
-		while ( elm !== null ) {
+		while ( elm && elm.nodeType === Node.ELEMENT_NODE ) {
 			if ( hasid ( elm )) {
 				parts.push ( "#" + elm.id );
 				elm = null;

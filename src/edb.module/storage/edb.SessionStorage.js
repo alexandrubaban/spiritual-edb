@@ -8,9 +8,11 @@ edb.SessionStorage = edb.DOMStorage.extend ({
 
 	/**
 	 * Storage target.
-	 * @type {LocalStorage}
+	 * @returns {SessionStorage}
 	 */
-	_domstorage : sessionStorage,
+	_domstorage : function ( context ) {
+		return context.sessionStorage;
+	},
 
 	/**
 	 * Storage key.
@@ -22,10 +24,11 @@ edb.SessionStorage = edb.DOMStorage.extend ({
 
 /**
  * Write sync on context shutdown.
- */
+ *
 ( function shutdown () {
 	gui.Broadcast.addGlobal ( 
 		gui.BROADCAST_UNLOAD, 
 		edb.SessionStorage 
 	);
 }());
+*/

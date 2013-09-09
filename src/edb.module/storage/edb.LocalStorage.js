@@ -4,13 +4,15 @@
  */
 edb.LocalStorage = edb.DOMStorage.extend ({
 
-}, {  // Static ..............................
+}, {  // Static ............................
 
 	/**
 	 * Storage target.
-	 * @type {LocalStorage}
+	 * @returns {LocalStorage}
 	 */
-	_domstorage : localStorage,
+	_domstorage : function ( context ) {
+		return context.localStorage;
+	},
 
 	/**
 	 * Storage key.
@@ -22,10 +24,11 @@ edb.LocalStorage = edb.DOMStorage.extend ({
 
 /**
  * Write sync on context shutdown.
- */
+ *
 ( function shutdown () {
 	gui.Broadcast.addGlobal ( 
 		gui.BROADCAST_UNLOAD, 
 		edb.LocalStorage 
 	);
 }());
+*/

@@ -1,9 +1,11 @@
-/*
- * Spiritual EDB 0.0.2
- * (c) 2013 Wunderbyte
+/**
+ * Spiritual EDB
+ * 2013 Wunderbyte
  * Spiritual is freely distributable under the MIT license.
  */
+( function ( window ) {
 
+"use strict";
 
 
 /*
@@ -47,6 +49,10 @@ window.edb = gui.namespace ( "edb", {
 		return edb.Script.$assign ( action, thisp );
 	},
 
+	get : function ( key, sig ) {
+		return edb.Script.$tempname ( key, sig );
+	},
+
 	/**
 	 * Execute action.
 	 * @TODO: why was this split up in two steps? Sandboxing?
@@ -56,7 +62,7 @@ window.edb = gui.namespace ( "edb", {
 	 */
 	go : function ( e, key, sig ) { // NOTE: gui.UpdateManager#_attschanged hardcoded "edb.go" ...
 		edb.Script.$register ( e );
-		edb.Script.$invoke ( key, sig, this._log );
+		edb.Script.$invoke ( key, sig ); // this._log
 	}
 	
 });
@@ -119,6 +125,11 @@ edb.Type.prototype = {
 		edb.Type.underscoreinstanceid ( this ); // iOS bug...
 		edb.Type.$confirmpersist ( this );
 	},
+
+	/**
+	 * Hello.
+	 */
+	$oninit : function () {},
 
 	/**
 	 * Called by {edb.Output} when the output context shuts down 
@@ -298,7 +309,7 @@ gui.Object.each ({ // static mixins edb.Type
 
 	/**
 	 * Type constructed. Validate persistance OK.
-	 * @param {ts.edb.Model|ts.edb.Collection} type
+	 * @param {edb.Model|edb.Collection} type
 	 */
 	$confirmpersist : function ( type ) {
 		var Type = type.constructor;
@@ -314,12 +325,12 @@ gui.Object.each ({ // static mixins edb.Type
 
 	/**
 	 * Type destructed. Persist if required.
-	 * @param {ts.edb.Model|ts.edb.Collection} type
+	 * @param {edb.Model|edb.Collection} type
 	 */
 	$maybepersist : function ( type ) {
 		var Type = type.constructor;
 		if ( Type.storage ) {
-			Type.$store ( type );
+			Type.$store ( type, true );
 		}
 	}
 
@@ -338,7 +349,7 @@ gui.Object.each ({ // static mixins edb.Type
 	var iomixins = { // input-output methods
 
 		/**
-		 * Instance of Type has been output to context?
+		 * Instance of this Type has been output to context?
 		 * @param @optional {Window|WorkerGlobalScope} context
 		 * @returns {boolean}
 		 */
@@ -359,16 +370,16 @@ gui.Object.each ({ // static mixins edb.Type
 		 * (this constructor) will be called with only one single argument.
 		 * @returns {gui.Then}
 		 */
-		restore : function () {
-			return this.storage.getItem ( this.$classname );
+		restore : function ( context ) {
+			return this.storage.getItem ( this.$classname, context || self );
 		},
 
 		/**
 		 * Persist instance. Managed by the framework via instance.$ondestruct.
 		 * @param {edb.Object|edb.Array} type
 		 */
-		$store : function ( type ) {
-			this.storage.setItem ( this.$classname, type );
+		$store : function ( type, now ) {
+			this.storage.setItem ( this.$classname, type, type.$context, now );
 		}
 	};
 
@@ -551,279 +562,316 @@ gui.Object.each ({ // static mixins edb.Type
 
 /**
  * edb.Object
- * @extends {edb.Type}
+ * @extends {edb.Type} at least in principle.
+ * @using {gui.Type.isDefined}
+ * @using {gui.Type.isComplex}, 
+ * @using {gui.Type.isFunction} 
+ * @using {gui.Type.isConstructor}
  */
-edb.Object = gui.Class.create ( Object.prototype, {
+edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor ) {
 	
-	/**
-	 * Constructor.
-	 * @overrides {edb.Type#onconstruct}
-	 */
-	$onconstruct : function ( data ) {
-		edb.Type.prototype.$onconstruct.apply ( this, arguments );
-		switch ( gui.Type.of ( data )) {
-			case "object" : 
-			case "undefined" :
-				edb.Object._approximate ( this, data || Object.create ( null ));
-				break;
-			default :
-				throw new TypeError ( 
-					"Unexpected edb.Object constructor argument of type " + 
-					gui.Type.of ( data ) + ": " + String ( data )
-				);
-		}
-		this.onconstruct.apply ( this, arguments ); // @TODO do we want this?
-	},
-
-	/**
-	 * Create clone of this object filtering out 
-	 * underscore and dollar prefixed properties. 
-	 * Recursively normalizing nested EDB types.
-	 * TODO: WHITELIST stuff that *was* in JSON!
-	 * @returns {object}
-	 */
-	$normalize : function () {
-		var c, o = {};
-		gui.Object.each ( this, function ( key, value ) {
-			c = key [ 0 ];
-			if ( c !== "$" && c !== "_" ) {
-				if ( edb.Type.isInstance ( value  )) {
-					value = value.$normalize ();	
-				}
-				o [ key ] = value;	
-			}
-		});
-		return o;
-	}
-
-
-}, ( function mixins () { // Recurring static ..........................................
-
-	/*
-	 * edb.Object and edb.Array don't really subclass edb.Type, 
-	 * so we'll just have to hack in these shared static fields. 
-	 * @TODO: formalized mixin strategy for recurring statics...
-	 */
-	return edb.Type.$staticmixins ();
-	
-
-}()), { // Static ......................................................................
-
-	/**
-	 * TODO
-	 * @param {edb.Object} object
-	 * @param {edb.IChangeHandler} handler
-	 * @returns {edb.Object}
-	 */
-	observe : function ( object, handler ) {
-		var id = object.$instanceid || object._instanceid;
-		var obs = this._observers;
-		var handlers = obs [ id ] || ( obs [ id ] = []);
-		if ( handlers.indexOf ( handler ) === -1 ) {
-			handlers.push ( handler );
-		}
-		return object;
-	},
-
-	/**
-	 * TODO
-	 * @param {edb.Object} object
-	 * @param {edb.IChangeHandler} handler
-	 * @returns {edb.Object}
-	 */
-	unobserve : function ( object, handler ) {
-		var id = object.$instanceid || object._instanceid;
-		var obs = this._observers;
-		var index, handlers = obs [ id ];
-		if ( handlers ) {
-			if (( index = handlers.indexOf ( handler )) >-1 ) {
-				if ( gui.Array.remove ( handlers, index ) === 0	) {
-					delete obs [ id ];
-				}
-			}
-		}
-		return object;
-	},
-
-	/**
-	 * Publishing change summaries async.
-	 * @TODO: clean this up...
-	 * @TODO: move to edb.Type (edb.Type.observe)
-	 * @param {gui.Tick} tick
-	 */
-	ontick : function ( tick ) {
-		var snapshot, changes, change, handlers, observers = this._observers;
-		if ( tick.type === edb.TICK_PUBLISH_CHANGES ) {
-			snapshot = gui.Object.copy ( this._changes );
-			this._changes = Object.create ( null );
-			gui.Object.each ( snapshot, function ( instanceid, propdef ) {
-				if (( handlers = observers [ instanceid ])) {
-					changes = gui.Object.each ( snapshot, function ( id, propdef ) {
-						change = propdef [ Object.keys ( propdef )[ 0 ]];
-						return id === instanceid ? change : null;
-					}).filter ( function ( change ) {
-						return change !== null;
-					});
-					handlers.forEach ( function ( handler ) {
-						handler.onchange ( changes );
-					});
-				}
-				gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
-			});
-		}
-	},
-
-
-	// Private static ....................................................................
-
-	/**
-	 * Object observers.
-	 * @type {}
-	 */
-	_observers : Object.create ( null ),
-
-	/**
-	 * Create getter for key.
-	 * @param {String} key
-	 * @param {function} base
-	 * @returns {function}
-	 */
-	_getter : function ( key, base ) {
-		return function () {
-			var result = base.apply ( this );
-			edb.Object._onaccess ( this, key );
-			return result;
-		};
-	},
-
-	/**
-	 * Create setter for key.
-	 * @param {String} key
-	 * @param {function} base
-	 * @returns {function}
-	 */
-	_setter : function ( key, base ) {
-		return function ( newval ) {
-			var oldval = this [ key ]; // @TODO suspend something?
-			base.apply ( this, arguments );
-			edb.Object._onchange ( this, key, oldval, newval );
-			oldval = newval;
-		};
-	},
-
-	/**
-	 * Primarily for iternal use: Publish a notification on property 
-	 * accessors so that {edb.Script} may register change observers.
-	 * @param {String} instanceid
-	 * @param {edb.ObjectAccess} access
-	 */
-	_onaccess : function ( object, name ) {
-		var access = new edb.ObjectAccess ( object, name );
-		gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_ACCESS, access.instanceid );
-	},
-
-	/**
-	 * Register change summary for publication in next tick.
-	 * @param {edb.Object} object
-	 * @param {String} name
-	 * @param {object} oldval
-	 * @param {object} newval
-	 */
-	_onchange : function ( object, name, oldval, newval ) {
-		var all = this._changes, id = object._instanceid;
-		var set = all [ id ] = all [ id ] || ( all [ id ] = Object.create ( null ));
-		set [ name ] = new edb.ObjectChange ( object, name, edb.ObjectChange.TYPE_UPDATED, oldval, newval );
-		gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
-	},
-
-	/**
-	 * Mapping instanceids to maps that map property names to change summaries.
-	 * @type {Map<String,Map<String,edb.ObjectChange>>}
-	 */
-	_changes : Object.create ( null ),
-
-	/**
-	 * Servers two purposes:
-	 * 
-	 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
-	 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
-	 * 
-	 * @param {edb.Object} handler The edb.Object instance that intercepts properties
-	 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
-	 */
-	_approximate : function ( handler, proxy ) {
-		var Def, def, types = Object.create ( null );
-		this._definitions ( handler ).forEach ( function ( key ) {
-			def = handler [ key ];
-			if ( gui.Type.isComplex ( def )) {
-				if ( gui.Type.isConstructor ( def )) {
-					Def = def;
-					types [ key ] = new Def ( proxy [ key ]);
-				} else {
-					types [ key ] = edb.Type.cast ( def );
-				}
-			} else {
-				if ( !gui.Type.isDefined ( proxy [ key ])) {
-					proxy [ key ] = handler [ key ];
-				}
-			}
-		});
-
-		/* 
-		 * Setup property accessors for handler.
-		 *
-		 * 1. Objects by default convert to edb.Object
-		 * 2. Arrays by default convert to edb.Array
-		 * 3. Simple properties get proxy accessors
+	return gui.Class.create ( Object.prototype, {
+		
+		/**
+		 * Constructor.
+		 * @overrides {edb.Type#onconstruct}
 		 */
-		gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-			def = proxy [ key ];
-			if ( gui.Type.isComplex ( def )) {
-				if ( !types [ key ]) {
-					types [ key ] = edb.Type.cast ( def );
-				}
-			} else {
+		$onconstruct : function ( data ) {
+			edb.Type.prototype.$onconstruct.apply ( this, arguments );
+			switch ( gui.Type.of ( data )) {
+				case "object" : 
+				case "undefined" :
+					edb.Object._approximate ( this, data || Object.create ( null ));
+					break;
+				default :
+					throw new TypeError ( 
+						"Unexpected edb.Object constructor argument of type " + 
+						gui.Type.of ( data ) + ": " + String ( data )
+					);
 			}
-			gui.Property.accessor ( handler, key, {
-				getter : edb.Object._getter ( key, function () {
-					return types [ key ] || proxy [ key ];
-				}),
-				setter : edb.Object._setter ( key, function ( value ) {
-					/*
-					 * TODO: when resetting array, make sure that 
-					 * it becomes xx.MyArray (not plain edb.Array)
-					 */
-					var target = types [ key ] ? types : proxy;
-					target [ key ] = edb.Type.cast ( value );
-				})
+			this.onconstruct.apply ( this, arguments ); // @TODO do we want this?
+			this.$oninit ();
+		},
+		
+		/**
+		 * Create clone of this object filtering out 
+		 * underscore and dollar prefixed properties. 
+		 * Recursively normalizing nested EDB types.
+		 * TODO: WHITELIST stuff that *was* in JSON!
+		 * @returns {object}
+		 */
+		$normalize : function () {
+			var c, o = {};
+			gui.Object.each ( this, function ( key, value ) {
+				c = key [ 0 ];
+				if ( c !== "$" && c !== "_" ) {
+					if ( edb.Type.isInstance ( value  )) {
+						value = value.$normalize ();	
+					}
+					o [ key ] = value;	
+				}
 			});
-		});
-	},
+			return o;
+		}
 
-	/**
-	 * List non-private fields names from handler that are not 
-	 * mixed in from {edb.Type} and not inherited from Object.
-	 * @param {edb.Object} handler
-	 * @returns {Array<String>}
-	 */
-	_definitions : function ( handler ) {
-		var keys = [];
-		gui.Object.all ( handler, function ( key ) {
-			if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
-				if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
-					if ( !key.startsWith ( "_" )) {
-						keys.push ( key );
+
+	}, ( function mixins () { // Recurring static ..........................................
+
+		/*
+		 * edb.Object and edb.Array don't really subclass edb.Type, 
+		 * so we'll just have to hack in these shared static fields. 
+		 * @TODO: formalized mixin strategy for recurring statics...
+		 */
+		return edb.Type.$staticmixins ();
+		
+
+	}()), { // Static ......................................................................
+
+		/**
+		 * TODO
+		 * @param {edb.Object} object
+		 * @param {edb.IChangeHandler} handler
+		 * @returns {edb.Object}
+		 */
+		observe : function ( object, handler ) {
+			var id = object.$instanceid || object._instanceid;
+			var obs = this._observers;
+			var handlers = obs [ id ] || ( obs [ id ] = []);
+			if ( handlers.indexOf ( handler ) === -1 ) {
+				handlers.push ( handler );
+			}
+			return object;
+		},
+
+		/**
+		 * TODO
+		 * @param {edb.Object} object
+		 * @param {edb.IChangeHandler} handler
+		 * @returns {edb.Object}
+		 */
+		unobserve : function ( object, handler ) {
+			var id = object.$instanceid || object._instanceid;
+			var obs = this._observers;
+			var index, handlers = obs [ id ];
+			if ( handlers ) {
+				if (( index = handlers.indexOf ( handler )) >-1 ) {
+					if ( gui.Array.remove ( handlers, index ) === 0	) {
+						delete obs [ id ];
 					}
 				}
-			}	
-		});
-		return keys;
-	}
-});
+			}
+			return object;
+		},
+
+		/**
+		 * Publishing change summaries async.
+		 * @TODO: clean this up...
+		 * @TODO: move to edb.Type (edb.Type.observe)
+		 * @param {gui.Tick} tick
+		 */
+		ontick : function ( tick ) {
+			var snapshot, changes, change, handlers, observers = this._observers;
+			if ( tick.type === edb.TICK_PUBLISH_CHANGES ) {
+				snapshot = gui.Object.copy ( this._changes );
+				this._changes = Object.create ( null );
+				gui.Object.each ( snapshot, function ( instanceid, propdef ) {
+					if (( handlers = observers [ instanceid ])) {
+						changes = gui.Object.each ( snapshot, function ( id, propdef ) {
+							change = propdef [ Object.keys ( propdef )[ 0 ]];
+							return id === instanceid ? change : null;
+						}).filter ( function ( change ) {
+							return change !== null;
+						});
+						handlers.forEach ( function ( handler ) {
+							handler.onchange ( changes );
+						});
+					}
+					gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
+				});
+			}
+		},
+
+
+		// Private static ....................................................................
+
+		/**
+		 * Object observers.
+		 * @type {}
+		 */
+		_observers : Object.create ( null ),
+
+		/**
+		 * Create getter for key.
+		 * @param {String} key
+		 * @param {function} base
+		 * @returns {function}
+		 */
+		_getter : function ( key, base ) {
+			return function () {
+				var result = base.apply ( this );
+				edb.Object._onaccess ( this, key );
+				return result;
+			};
+		},
+
+		/**
+		 * Create setter for key.
+		 * @param {String} key
+		 * @param {function} base
+		 * @returns {function}
+		 */
+		_setter : function ( key, base ) {
+			return function ( newval ) {
+				var oldval = this [ key ]; // @TODO suspend something?
+				base.apply ( this, arguments );
+				edb.Object._onchange ( this, key, oldval, newval );
+				oldval = newval;
+			};
+		},
+
+		/**
+		 * Primarily for iternal use: Publish a notification on property 
+		 * accessors so that {edb.Script} may register change observers.
+		 * @param {String} instanceid
+		 * @param {edb.ObjectAccess} access
+		 */
+		_onaccess : function ( object, name ) {
+			var access = new edb.ObjectAccess ( object, name );
+			gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_ACCESS, access.instanceid );
+		},
+
+		/**
+		 * Register change summary for publication in next tick.
+		 * @param {edb.Object} object
+		 * @param {String} name
+		 * @param {object} oldval
+		 * @param {object} newval
+		 */
+		_onchange : function ( object, name, oldval, newval ) {
+			var all = this._changes, id = object._instanceid;
+			var set = all [ id ] = all [ id ] || ( all [ id ] = Object.create ( null ));
+			set [ name ] = new edb.ObjectChange ( object, name, edb.ObjectChange.TYPE_UPDATED, oldval, newval );
+			gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
+		},
+
+		/**
+		 * Mapping instanceids to maps that map property names to change summaries.
+		 * @type {Map<String,Map<String,edb.ObjectChange>>}
+		 */
+		_changes : Object.create ( null ),
+
+		/**
+		 * Servers two purposes:
+		 * 
+		 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
+		 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
+		 * 
+		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
+		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
+		 */
+		/**
+		 * Servers two purposes:
+		 * 
+		 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
+		 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
+		 * 
+		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
+		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
+		 */
+		_approximate : function ( handler, proxy ) {
+			var name = handler.constructor.$classname;
+			var Def, def, val, types = Object.create ( null );
+			this._definitions ( handler ).forEach ( function ( key ) {
+				def = handler [ key ];
+				val = proxy [ key ];
+				if ( isdefined ( val )) {
+					if ( isdefined ( def )) {
+						if ( iscomplex ( def )) {
+							if ( isfunction ( def )) {
+								if ( !isconstructor ( def )) {
+									def = def ( val );
+								}
+								if ( isconstructor ( def )) {
+									Def = def;
+									types [ key ] = new Def ( proxy [ key ]);
+								} else {
+									throw new TypeError ( name + " \"" + key + "\" must resolve to a constructor" );
+								}
+							} else {
+								types [ key ] = edb.Type.cast ( isdefined ( val ) ? val : def );
+							}
+						} else {
+							// ??????????????????????
+							//proxy [ key ] = def;
+						}
+					} else {
+						throw new TypeError ( name + " declares \"" + key + "\" as something undefined" );
+					}
+				} else {
+					proxy [ key ] = def;
+				}
+			});
+
+			/* 
+			 * Setup property accessors for handler.
+			 *
+			 * 1. Objects by default convert to edb.Object
+			 * 2. Arrays by default convert to edb.Array
+			 * 3. Simple properties get proxy accessors
+			 */
+			gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
+				def = proxy [ key ];
+				if ( gui.Type.isComplex ( def )) {
+					if ( !types [ key ]) {
+						types [ key ] = edb.Type.cast ( def );
+					}
+				}
+				gui.Property.accessor ( handler, key, {
+					getter : edb.Object._getter ( key, function () {
+						return types [ key ] || proxy [ key ];
+					}),
+					setter : edb.Object._setter ( key, function ( value ) {
+						/*
+						 * TODO: when resetting array, make sure that 
+						 * it becomes xx.MyArray (not plain edb.Array)
+						 */
+						var target = types [ key ] ? types : proxy;
+						target [ key ] = edb.Type.cast ( value );
+					})
+				});
+			});
+		},
+
+		/**
+		 * List non-private fields names from handler that are not 
+		 * mixed in from {edb.Type} and not inherited from Object.
+		 * @param {edb.Object} handler
+		 * @returns {Array<String>}
+		 */
+		_definitions : function ( handler ) {
+			var keys = [];
+			gui.Object.all ( handler, function ( key ) {
+				if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
+					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
+						if ( !key.startsWith ( "_" )) {
+							keys.push ( key );
+						}
+					}
+				}	
+			});
+			return keys;
+		}
+	});
+
+}) ( 
+	gui.Type.isDefined, 
+	gui.Type.isComplex, 
+	gui.Type.isFunction, 
+	gui.Type.isConstructor
+);
 
 /*
- * Mixin methods and properties common 
- * to both {edb.Object} and {edb.Array}
+ * Mixin methods and properties common to both {edb.Object} and {edb.Array}
  */
 ( function setup () {
 	gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Object );
@@ -921,6 +969,7 @@ edb.Object = gui.Class.create ( Object.prototype, {
 			edb.Array.populate ( this, arguments );
 			edb.Array.approximate ( this );
 			this.onconstruct.call ( this, arguments );
+			this.$oninit ();
 		},
 
 		/**
@@ -1121,9 +1170,7 @@ edb.Object = gui.Class.create ( Object.prototype, {
  * @using {edb.Array.prototype}
  */
 ( function using ( proto ) {
-
-	"use strict";
-
+	
 	/*
 	 * Dispatch a broadcast whenever the list is inspected or traversed.
 	 */
@@ -1304,7 +1351,7 @@ edb.Output = {
 		var contxid = context.gui.$contextid;
 		var contmap = this._contexts [ contxid ];
 		var classid = Type.$classid;
-		return contmap && contmap [ classid ];
+		return contmap && contmap [ classid ] ? true : false;
 	},
 
 	/**
@@ -1338,6 +1385,7 @@ edb.Output = {
 		var classid = Type.$classid;
 		contmap [ classid ] = type;
 		type.$context = context;
+		//alert ( Type.$classname + ": "+ context.document.title );
 		type.$contextid = contxid;
 	},
 
@@ -1621,7 +1669,7 @@ edb.InputPlugin = gui.Tracker.extend ({
 		types.forEach ( function ( type ) {
 			var index = this._watches.indexOf ( type );
 			if ( index >-1 ) {
-				this._watches.remove ( index );
+				gui.Array.remove ( this._watches, ( index ));
 				this._removechecks ( type.$classid, [ handler ]);
 			}
 		}, this );
@@ -2344,7 +2392,7 @@ edb.Instruction.prototype = {
  * @returns {Array<edb.Instruction>}
  */
 edb.Instruction.from = function ( source ) {
-	var pis = [], pi = null, hit = null; 
+	var pis = [], hit = null; 
 	while (( hit = this._PIEXP.exec ( source ))) {
 			pis.push ( new edb.Instruction ( hit [ 0 ]));
 	}
@@ -2656,13 +2704,14 @@ edb.Result.format = function ( body ) {
 /**
  * An abstract storage stub. We've rigged this up to 
  * store {edb.Object} and {edb.Array} instances only.
+ * @TODO propagate "context" throughout all methods.
  */
 edb.Storage = gui.Class.create ( Object.prototype, {
 
-}, { // Recurring static ...............................
+}, { // Recurring static ...........................
 
 	/**
-	 * Let's make it async and on-demand.
+	 * Let's make this async and on-demand.
 	 * @throws {Error}
 	 */
 	length : {
@@ -2674,18 +2723,19 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 	/**
 	 * Get type.
 	 * @param {String} key
+	 * @param {Window|WorkerScope} context
 	 * @returns {gui.Then}
 	 */
-	getItem : function ( key ) {
+	getItem : function ( key, context ) {
 		var then = new gui.Then ();
 		var type = this [ key ];
-		if ( type ) {
-			then.now ( type );
+		if ( false && type ) { // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			then.now ( type || null );
 		} else {
-			this.$getItem ( key, function ( type ) {
+			this.$getItem ( key, context, function ( type ) {
 				this [ key ] = type;
 				gui.Tick.next ( function () { // @TODO bug in gui.Then!
-					then.now ( type );
+					then.now ( type || null );
 				});
 			});
 		}
@@ -2696,12 +2746,13 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 	 * Set type.
 	 * @param {String} key
 	 * @param {object} type
+	 * @param {Window|WorkerScope} context
 	 * @returns {object}
 	 */
-	setItem : function ( key, type ) {
+	setItem : function ( key, type, context ) {
 		var then = new gui.Then ();
 		if ( edb.Storage.$typecheck ( type )) {
-			this.$setItem ( key, type, function () {
+			this.$setItem ( key, type, context, function () {
 				this [ key ] = type;
 				then.now ( type );
 			});
@@ -2729,7 +2780,7 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 		var then = new gui.Then ();
 		this.$clear ( function () {
 			Object.keys ( this ).filter ( function ( key ) {
-				return this.prototype [ key ]	=== undefined;			
+				return this.prototype [ key ]	=== undefined;
 			}, this ).forEach ( function ( key ) {
 				delete this [ key ];
 			}, this );
@@ -2746,7 +2797,7 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 	 * @param {String} key
 	 * @param {edb.Model|edb.Collection} type
 	 */
-	$getItem : function ( key, callback ) {},
+	$getItem : function ( key, context, callback ) {},
 
 	/**
 	 * Set type.
@@ -2754,7 +2805,7 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 	 * @param {function} callback
 	 * @param {edb.Model|edb.Collection} type
 	 */
-	$setItem : function ( key, type, callback ) {},
+	$setItem : function ( key, type, context, callback ) {},
 
 	/**
 	 * Remove type.
@@ -2801,23 +2852,18 @@ edb.DOMStorage = edb.Storage.extend ({
 	/**
 	 * Write to storage blocking on top context shutdown.
 	 * @param {gui.Broadcast} b
-	 */
+	 *
 	onbroadcast : function ( b ) {
 		if ( b.type === gui.BROADCAST_UNLOAD ) {
 			if ( b.data === gui.$contextid ) {
-				this.$write ( true );
+				this.$write ( b.target.window, true );
 			}
 		}
 	},
+	*/
 
 
 	// Private static .....................................
-
-	/**
-	 * Target is either sessionStorage or localStorage.
-	 * @type {Storage}
-	 */
-	_domstorage : null,
 
 	/**
 	 * We're storing the whole thing under one single key. 
@@ -2832,22 +2878,35 @@ edb.DOMStorage = edb.Storage.extend ({
 	 */
 	_storagemap : null,
 
+	/**
+	 * Returns is either sessionStorage or localStorage.
+	 * @returns {Storage}
+	 */
+	_domstorage : function () {},
+
+	/**
+	 * Timeout key for async write to storage.
+	 * @type {number}
+	 */
+	_timeout : -1,
+
 
 	// Secret static ......................................
 
 	/**
 	 * Get item.
 	 * @param {String} key
-	 * @param {edb.Model|edb.Collection} item
+	 * @param @optional {Window|WorkerScope} context
+	 * @param {function} callback
 	 */
-	$getItem : function ( key, callback ) {
+	$getItem : function ( key, context, callback ) {
 		var json = null;
 		var type = null;
 		var Type = null;
-		var xxxx = this.$read ();
+		var xxxx = this.$read ( context );
 		if (( json = xxxx [ key ])) {
 			json = JSON.parse ( json );
-			Type = gui.Object.lookup ( key, self );
+			Type = gui.Object.lookup ( key, context || self );
 			type = Type ? new Type ( json ) : null;
 		}
 		callback.call ( this, type );
@@ -2858,11 +2917,12 @@ edb.DOMStorage = edb.Storage.extend ({
 	 * @param {String} key
 	 * @param {function} callback
 	 * @param {edb.Model|edb.Collection} item
+	 * @param @optional {boolean} now (temp mechanism)
 	 */
-	$setItem : function ( key, item, callback ) {
-		var xxxx = this.$read ();
+	$setItem : function ( key, item, context, callback, now ) {
+		var xxxx = this.$read ( context );
 		xxxx [ key ] = item.$stringify ();
-		this.$write ( false );
+		this.$write ( context, true );
 		callback.call ( this );
 	},
 
@@ -2871,10 +2931,10 @@ edb.DOMStorage = edb.Storage.extend ({
 	 * @param {String} key
 	 * @param {function} callback
 	 */
-	$removeItem : function ( key, callback ) {
-		var xxxx = this.$read ();
+	$removeItem : function ( key, context, callback ) {
+		var xxxx = this.$read ( context );
 		delete xxxx [ key ];
-		this.$write ( false );
+		this.$write ( context, false );
 		callback.call ( this );
 	},
 
@@ -2882,8 +2942,8 @@ edb.DOMStorage = edb.Storage.extend ({
 	 * Clear the store.
 	 * @param {function} callback
 	 */
-	$clear : function ( callback ) {
-		this._domstorage.removeItem ( this._storagekey );
+	$clear : function ( context, callback ) {
+		this._domstorage ( context ).removeItem ( this._storagekey );
 		this._storagemap = null;
 		callback.call ( this );
 	},
@@ -2892,9 +2952,10 @@ edb.DOMStorage = edb.Storage.extend ({
 	 * Read from storage sync and blocking.
 	 * @returns {Map<String,String>}
 	 */
-	$read : function () {
+	$read : function ( context ) {
+		context = window;
 		if ( !this._storagemap ) {
-			var map = this._domstorage.getItem ( this._storagekey );
+			var map = this._domstorage ( context ).getItem ( this._storagekey );
 			this._storagemap = map ? JSON.parse ( map ) : {};
 		}
 		return this._storagemap;
@@ -2902,21 +2963,27 @@ edb.DOMStorage = edb.Storage.extend ({
 
 	/**
 	 * We write continually in case the browser crashes, 
-	 * but async unless the top context is shutting down.
+	 * but async unless the (top???) context is shutting down.
 	 * @param {boolean} now
 	 */
-	$write : function ( now ) {
+	$write : function ( context, now ) {
+		clearTimeout ( this._timeout );
 		var map = this._storagemap;
-		var dom = this._domstorage;
 		var key = this._storagekey;
+		var dom = this._domstorage ( context );
+		context = window;
 		function write () {
-			dom.setItem ( key, JSON.stringify ( map ));
+			try {
+				dom.setItem ( key, JSON.stringify ( map ));
+			} catch ( x ) {
+				alert ( x );
+			}
 		}
 		if ( map ) {
-			if ( now ) {
+			if ( now || true ) {
 				write ();
 			} else {
-				setTimeout ( function unfreeze () {
+				this._timeout = setTimeout ( function unfreeze () {
 					write ();
 				}, 50 );
 			}
@@ -2936,9 +3003,11 @@ edb.SessionStorage = edb.DOMStorage.extend ({
 
 	/**
 	 * Storage target.
-	 * @type {LocalStorage}
+	 * @returns {SessionStorage}
 	 */
-	_domstorage : sessionStorage,
+	_domstorage : function ( context ) {
+		return context.sessionStorage;
+	},
 
 	/**
 	 * Storage key.
@@ -2950,13 +3019,14 @@ edb.SessionStorage = edb.DOMStorage.extend ({
 
 /**
  * Write sync on context shutdown.
- */
+ *
 ( function shutdown () {
 	gui.Broadcast.addGlobal ( 
 		gui.BROADCAST_UNLOAD, 
 		edb.SessionStorage 
 	);
 }());
+*/
 
 
 /**
@@ -2965,13 +3035,15 @@ edb.SessionStorage = edb.DOMStorage.extend ({
  */
 edb.LocalStorage = edb.DOMStorage.extend ({
 
-}, {  // Static ..............................
+}, {  // Static ............................
 
 	/**
 	 * Storage target.
-	 * @type {LocalStorage}
+	 * @returns {LocalStorage}
 	 */
-	_domstorage : localStorage,
+	_domstorage : function ( context ) {
+		return context.localStorage;
+	},
 
 	/**
 	 * Storage key.
@@ -2983,13 +3055,64 @@ edb.LocalStorage = edb.DOMStorage.extend ({
 
 /**
  * Write sync on context shutdown.
- */
+ *
 ( function shutdown () {
 	gui.Broadcast.addGlobal ( 
 		gui.BROADCAST_UNLOAD, 
 		edb.LocalStorage 
 	);
 }());
+*/
+
+
+/**
+ * States are a conceptual rebranding of edb.Objects to serve primarily as spirit viewstate.
+ */
+edb.State = edb.Object.extend ({
+
+}, { // Static ......................
+
+	/**
+	 * Non-persistant state. This is not particularly useful.
+	 * @see {edb.SessionState}
+	 * @see {edb.LocalState}
+	 * @type {String}
+	 */
+	storage : null
+
+});
+
+
+/**
+ * Session persistant state.
+ * @extends {edb.SessionState}
+ */
+edb.SessionState = edb.State.extend ({
+
+}, { // Static .............................
+
+	/**
+	 * @type {edb.Storage}
+	 */
+	storage : edb.SessionStorage
+
+});
+
+
+/**
+ * Device persistant state.
+ * @extends {edb.LocalState}
+ */
+edb.LocalState = edb.State.extend ({
+
+}, { // Static ...........................
+
+	/**
+	 * @type {edb.Storage}
+	 */
+	storage : edb.LocalStorage
+
+});
 
 
 /**
@@ -3049,7 +3172,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 				break;
 		}
 		if ( status.skip-- <= 0 ) {
-			if ( status.poke ) {
+			if ( status.poke || status.geek ) {
 				result.temp += c;
 			} else {
 				if ( !status.istag ()) {
@@ -3117,9 +3240,10 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 	 * @param {edb.Result} result
 	 */
 	_compilehtml : function ( c, runner, status, result ) {
+		var special = status.peek || status.poke || status.geek;
 		switch ( c ) {
 			case "{" :
-				if ( status.peek || status.poke ) {
+				if ( special ) {
 					status.curl ++;
 				}
 				break;
@@ -3139,18 +3263,33 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 						status.skip = 1;
 						status.curl = 0;
 					}
+					if ( status.geek ) {
+						this._geek ( status, result );
+						status.geek = false;
+						result.temp = null;
+						status.spot = -1;
+						status.skip = 1;
+						status.curl = 0;
+					}
 				}
 				break;
 			case "$" :
-				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
-					status.peek = true;
-					status.skip = 2;
-					status.curl = 0;
-					result.body += "' + (";
+				if ( !special && runner.ahead ( "{" )) {
+					if ( runner.behind ( "gui.test=\"" )) {
+						status.geek = true;
+						status.skip = 2;
+						status.curl = 0;
+						result.temp = "";
+					} else {
+						status.peek = true;
+						status.skip = 2;
+						status.curl = 0;
+						result.body += "' + (";
+					}			
 				}
 				break;
 			case "#" :
-				if ( !status.peek && !status.poke && runner.ahead ( "{" )) {
+				if ( !special && runner.ahead ( "{" )) {
 					status.poke = true;
 					status.skip = 2;
 					status.curl = 0;
@@ -3166,7 +3305,7 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 				}
 				break;
 			case "'" :
-				if ( !status.peek && !status.poke ) {
+				if ( !special ) {
 					result.body += "\\";
 				}
 				break;
@@ -3249,20 +3388,40 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 
 	/**
 	 * Generate poke at marked spot.
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
 	 */
 	_poke : function ( status, result ) {
-		var sig = this._$contextid ? ( ", &quot;" + this._$contextid + "&quot;" ) : "";
+		this._inject ( status, result, edb.Compiler._POKE );
+	},
+
+	/**
+	 * Generate geek at marked spot.
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
+	 */
+	_geek : function ( status, result ) {
+		this._inject ( status, result, edb.Compiler._GEEK );
+	},
+
+	/**
+	 * Inject JS (outline and inline combo) at marked spot.
+	 * @param {edb.Status} status
+	 * @param {edb.Result} result
+	 * @param {Map<String,String>} js
+	 */
+	_inject : function ( status, result, js ) {
 		var body = result.body,
 			temp = result.temp,
 			spot = status.spot,
 			prev = body.substring ( 0, spot ),
 			next = body.substring ( spot ),
-			name = gui.KeyMaster.generateKey ( "poke" );
-		result.body = prev + "\n" + 
-			"var " + name + " = edb.set ( function ( value, checked ) { \n" +
-			temp + ";\n}, this );" + next +
-			//"edb.Script.register ( event ).invoke ( &quot;\' + " + name + " + \'&quot;" + sig + " );";
-			"edb.go(event,&quot;\' + " + name + " + \'&quot;" + sig + ");";
+			name = gui.KeyMaster.generateKey ();
+		result.body = 
+			prev + "\n" + 
+			js.outline.replace ( "$name", name ).replace ( "$temp", temp ) + 
+			next +
+			js.inline.replace ( "$name", name );
 	}
 	
 
@@ -3355,9 +3514,27 @@ edb.Compiler = gui.Class.create ( Object.prototype, {
 }, {}, { // Static ............................................................................
 
 	/**
+	 * Poke.
+	 * @type {String}
+	 */
+	_POKE : {
+		outline : "var $name = edb.set ( function ( value, checked ) {\n$temp;\n}, this );",
+		inline: "edb.go(event,&quot;\' + $name + \'&quot;);"
+	},
+
+	/**
+	 * Geek.
+	 * @type {String}
+	 */
+	_GEEK : {
+		outline : "var $name = edb.set ( function () {\nreturn $temp;\n}, this );",
+		inline: "edb.get(&quot;\' + $name + \'&quot;);"
+	},
+
+	/**
 	 * Matches a qualified attribute name (class,id,src,href) allowing 
 	 * underscores, dashes and dots while not starting with a number. 
-	 * @TODO class and id may start with a number nowadays
+	 * @TODO class and id may start with a number nowadays!!!!!!!!!!!!
 	 * @TODO https://github.com/jshint/jshint/issues/383
 	 * @type {RegExp}
 	 */
@@ -4194,7 +4371,8 @@ edb.Function = gui.Class.create ( Object.prototype, {
 	 * @param {object} thisp
 	 */
 	compile : function ( context, url, source, directives, callback, thisp ) {
-		var Fun = this, fun = new Fun ( context, url, function onreadystatechange () {
+		var Fun = this;
+		new Fun ( context, url, function onreadystatechange () {
 			callback.call ( thisp, this );
 		}).compile ( source, directives );
 	},
@@ -4286,7 +4464,10 @@ edb.Script = edb.Function.extend ({
 		this.input = new edb.InputPlugin ();
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
-		console.warn ( "Bad: onconstruct should autoinvoke" );
+
+		// @TODO this!
+		// console.warn ( "Bad: onconstruct should autoinvoke" );
+
 		this._keys = new Set (); // tracking data changes
 
 		// @TODO this *must* be added before it can be removed ?
@@ -4431,7 +4612,7 @@ edb.Script = edb.Function.extend ({
 	 * Mapping compiled functions to keys.
 	 * @type {Map<String,function>}
 	 */
-	_invokables : new Map (),
+	_invokables : Object.create ( null ),
 
 	/**
 	 * Loggin event details.
@@ -4448,10 +4629,19 @@ edb.Script = edb.Function.extend ({
 	 */
 	$assign : function ( func, thisp ) {
 		var key = gui.KeyMaster.generateKey ();
-		edb.Script._invokables.set ( key, function ( value, checked ) {
-			func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
-		});
+		edb.Script._invokables [ key ] = function ( value, checked ) {
+			return func.apply ( thisp, [ gui.Type.cast ( value ), checked ]);
+		};
 		return key;
+	},
+
+	/**
+	 * Garbage collect function that isn't called by the 
+	 * GUI using whatever strategy they prefer nowadays.
+	 */
+	$revoke : function ( key ) {
+		edb.Script._invokables [ key ] = null; // garbage one
+		delete edb.Script._invokables [ key ]; // garbage two
 	},
 
 	/**
@@ -4478,9 +4668,9 @@ edb.Script = edb.Function.extend ({
 			 * Timeout is a cosmetic stunt to unfreeze a pressed 
 			 * button in case the function takes a while to complete. 
 			 */
-			if (( func = this._invokables.get ( key ))) {
+			if (( func = this._invokables [ key ])) {
 				if ( log.type === "click" ) {
-					setImmediate ( function () {
+					gui.Tick.next ( function () {
 						func ( log.value, log.checked );
 					});
 				} else {
@@ -4503,6 +4693,22 @@ edb.Script = edb.Function.extend ({
 			checked : e.target.checked
 		};
 		return this;
+	},
+
+	/**
+	 * Yerh.
+	 */
+	$tempname : function ( key, sig ) {
+		var func;
+		if ( sig ) {
+			console.error ( "TODO" );
+		} else {
+			if (( func = this._invokables [ key ])) {
+				return func ();
+			} else {
+				throw new Error ( "out of synch" );
+			}
+		}
 	}
 	
 });
@@ -4702,7 +4908,7 @@ edb.Att.prototype = gui.Object.create ( null, {
 	 * @returns {String} 
 	 */
 	_all : function () {
-		var type, html = "";
+		var html = "";
 		gui.Object.nonmethods ( this ).forEach ( function ( att ) {
 			html += this._out ( att );
 		}, this );
@@ -4748,10 +4954,7 @@ edb.Att.encode = function ( data ) {
  * Any methods added to this prototype will become 
  * available in EDBML scripts as: out.mymethod()
  */
-edb.Out = function Out () {
-
-	this.html = "";
-};
+edb.Out = function Out () {};
 
 edb.Out.prototype = {
 
@@ -4759,10 +4962,18 @@ edb.Out.prototype = {
 	 * HTML string (not well-formed while parsing).
 	 * @type {String}
 	 */
-	html : null,
+	html : "",
 
 	/**
-	 * Get HTML result. Do your output modification here.
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		return "[object edb.Out]";
+	},
+
+	/**
+	 * Get HTML result (output override scenario).
 	 * @returns {String}
 	 */
 	write : function () {
@@ -4880,15 +5091,24 @@ edb.UpdateManager.prototype = {
 	 */
 	update : function ( html ) {
 		this._updates = new edb.UpdateCollector ();
+		this._functions = {};
 		if ( !this._olddom ) {
 			this._first ( html );
 		} else {
 			this._next ( html );
+			this._updates.collect ( 
+				new edb.FunctionUpdate ( this._doc ).setup ( 
+					this._keyid, 
+					this._functions 
+				)
+			);
 		}
 		this._updates.eachRelevant ( function ( update ) {
 			update.update ();
 			update.dispose ();
 		});
+		//this._fisse ( this._functions );
+		//edb.FunctionUpdate.remap ( this._spirit, this._functions );
 		if ( this._updates ) { // huh? how can it be null?
 			this._updates.dispose ();
 		}
@@ -4942,6 +5162,34 @@ edb.UpdateManager.prototype = {
 	 */
 	_assistant : edb.UpdateAssistant,
 
+	/*
+	_fisse : function ( remappings ) {
+		var count = 0;
+		if ( Object.keys ( remappings ).length ) {
+			new gui.Crawler ( "John" ).descend ( this._spirit, {
+				handleElement : function ( elm ) {
+					Array.forEach ( elm.attributes, function ( att ) {
+						var oldkeys = gui.KeyMaster.extractKey ( att.value );
+						if ( oldkeys ) {
+							var newkey;
+							oldkeys.forEach ( function ( oldkey ) {
+								if (( newkey = remappings [ oldkey ])) {
+									att.value = att.value.replace ( oldkey, newkey );
+									edb.Script.$revoke ( oldkey );
+									count ++;
+								}
+							});
+						}
+					});
+				}
+			});
+		}
+		if ( count ) {
+			console.debug ( "Updated " + count + " function keys." );
+		}
+	},
+	*/
+
 	/**
 	 * First update (always a hard update).
 	 * @param {String} html
@@ -4986,16 +5234,15 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @returns {boolean}
 	 */
-	_crawl : function ( newchild, oldchild, lastnode, id, ids, css ) {
-		var result = true, n = 1;
+	_crawl : function ( newchild, oldchild, lastnode, id, ids ) {
+		var result = true;
 		while ( newchild && oldchild && !this._updates.hardupdates ( id )) {
 			switch ( newchild.nodeType ) {
 				case Node.TEXT_NODE :
-					result = this._check ( newchild, oldchild, lastnode, id, ids, css, n );
+					result = this._check ( newchild, oldchild, lastnode, id, ids );
 					break;
 				case Node.ELEMENT_NODE :
-					result = this._scan ( newchild, oldchild, lastnode, id, ids, css, n );
-					n ++;
+					result = this._scan ( newchild, oldchild, lastnode, id, ids );
 					break;
 			}
 			newchild = newchild.nextSibling;
@@ -5013,17 +5260,16 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @returns {boolean}
 	 */
-	_scan : function ( newnode, oldnode, lastnode, id, ids, css, n ) {
+	_scan : function ( newnode, oldnode, lastnode, id, ids ) {
 		var result = true, oldid = this._assistant.id ( oldnode );
-		css = css ? oldid ? "#" + oldid : css + ">" + oldnode.localName + ":nth-child(" + n + ")" : "this";
-		if (( result = this._check ( newnode, oldnode, lastnode, id, ids, css, n )))  {	
+		if (( result = this._check ( newnode, oldnode, lastnode, id, ids )))  {	
 			if ( oldid ) {
 				ids = gui.Object.copy ( ids );
 				lastnode = newnode;
 				ids [ oldid ] = true;
 				id = oldid;
 			}
-			result = this._crawl ( newnode.firstChild, oldnode.firstChild, lastnode, id, ids, css );
+			result = this._crawl ( newnode.firstChild, oldnode.firstChild, lastnode, id, ids );
 		}
 		return result;
 	},
@@ -5037,7 +5283,7 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @returns {boolean}
 	 */
-	_check : function ( newnode, oldnode, lastnode, id, ids, css, n ) {
+	_check : function ( newnode, oldnode, lastnode, id, ids ) {
 		var result = true;
 		var isSoftUpdate = false;
 		var isPluginUpdate = false; // TODO: plugins...
@@ -5052,10 +5298,10 @@ edb.UpdateManager.prototype = {
 					break;
 				case Node.ELEMENT_NODE :
 					if (( result = this._familiar ( newnode, oldnode ))) {
-						if (( result = this._checkatts ( newnode, oldnode, ids, css ))) {
+						if (( result = this._checkatts ( newnode, oldnode, ids ))) {
 							if ( this._maybesoft ( newnode, oldnode )) {
 								if ( this._confirmsoft ( newnode, oldnode )) {
-									this._updatesoft ( newnode, oldnode, ids, css, n );
+									this._updatesoft ( newnode, oldnode, ids );
 									isSoftUpdate = true; // prevents the replace update
 								}
 								result = false; // crawling continued in _updatesoft
@@ -5070,9 +5316,8 @@ edb.UpdateManager.prototype = {
 			}
 		}
 		if ( !result && !isSoftUpdate && !isPluginUpdate ) {
-			this._updates.collect ( 
-				new edb.HardUpdate ( this._doc ).setup ( id, lastnode )
-			);
+			this._updates.collect ( new edb.FunctionUpdate ( this._doc ).setup ( id ));
+			this._updates.collect ( new edb.HardUpdate ( this._doc ).setup ( id, lastnode ));
 		}
 		return result;
 	},
@@ -5097,10 +5342,10 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @returns {boolean} When false, replace "hard" and stop crawling.
 	 */
-	_checkatts : function ( newnode, oldnode, ids, css ) {
+	_checkatts : function ( newnode, oldnode, ids ) {
 		var result = true;
 		var update = null;
-		if ( this._attschanged ( newnode.attributes, oldnode.attributes, ids, css )) {
+		if ( this._attschanged ( newnode.attributes, oldnode.attributes, ids )) {
 			var newid = this._assistant.id ( newnode );
 			var oldid = this._assistant.id ( oldnode );
 			if ( newid && newid === oldid ) {
@@ -5122,10 +5367,9 @@ edb.UpdateManager.prototype = {
 	 * @param {NodeList} newatts
 	 * @param {NodeList} oldatts
 	 * @param {?} ids
-	 * @param {String} css
 	 * @returns {boolean}
 	 */
-	_attschanged : function ( newatts, oldatts, ids, css ) {
+	_attschanged : function ( newatts, oldatts, ids ) {
 		var changed = newatts.length !== oldatts.length;
 		if ( !changed ) {
 			changed = !Array.every ( newatts, function ischanged ( newatt ) {
@@ -5135,9 +5379,7 @@ edb.UpdateManager.prototype = {
 			if ( changed ) {
 				changed = !Array.every ( newatts, function isfunctionchanged ( newatt ) {
 					var oldatt = oldatts.getNamedItem ( newatt.name );
-					var fnkeys = this._functionchanged ( newatt.value, oldatt.value );
-					if ( fnkeys ) {
-						this._changefunction ( ids, css, oldatt.name, fnkeys.newkey, fnkeys.oldkey );
+					if ( this._functionchanged ( newatt.value, oldatt.value ) ) {
 						return true;
 					} else {
 						return newatt.value === oldatt.value;
@@ -5152,18 +5394,12 @@ edb.UpdateManager.prototype = {
 		var newkeys = gui.KeyMaster.extractKey ( newval );
 		var oldkeys = gui.KeyMaster.extractKey ( oldval );
 		if ( newkeys && oldkeys ) {
-			return {
-				newkey : newkeys [ 0 ],
-				oldkey : oldkeys [ 0 ]
-			};
+			oldkeys.forEach ( function ( oldkey, i ) {
+				this._functions [ oldkey ] = newkeys [ i ];
+			}, this );
+			return true;
 		}
-		return null;
-	},
-
-	_changefunction : function ( ids, css, oldname, newkey, oldkey ) {
-		this._updates.collect ( new edb.FunctionUpdate ( this._doc ).setup ( 
-			this._spirit, css, oldname, newkey, oldkey
-		), ids );
+		return false;
 	},
 	
 	/**
@@ -5228,7 +5464,7 @@ edb.UpdateManager.prototype = {
 	 * @param {Map<String,boolean>} ids
 	 * @return {boolean}
 	 */
-	_updatesoft : function ( newnode, oldnode, ids, css, n ) {
+	_updatesoft : function ( newnode, oldnode, ids ) {
 		var updates = [];
 		var news = this._assistant.index ( newnode.childNodes );
 		var olds = this._assistant.index ( oldnode.childNodes );
@@ -5265,10 +5501,13 @@ edb.UpdateManager.prototype = {
 				updates.push (
 					new edb.RemoveUpdate ( this._doc ).setup ( id ) 
 				);
+				updates.push (
+					new edb.FunctionUpdate ( this._doc ).setup ( id ) 
+				);
 			} else { // note that crawling continues here...
 				var n1 = news [ id ];
 				var n2 = olds [ id ];
-				this._scan ( n1, n2, n1, id, ids, css, n );
+				this._scan ( n1, n2, n1, id, ids );
 			}
 		}, this );
 		
@@ -5318,15 +5557,16 @@ edb.UpdateCollector.prototype = {
 	 * Collect update candidate. All updates may not be evaluated, see below.
 	 * @param {edb.Update} update
 	 * @param {Map<String,boolean>} ids Indexing ID of ancestor elements
-	 * @returns {[type]}
+	 * @returns {edb.UpdateCollector}
 	 */
 	collect : function ( update, ids ) {
 		this._updates.push ( update );
 		if ( update.type === edb.Update.TYPE_HARD ) {
 			this._hardupdates.add ( update.id );
 		} else {
-			update.ids = ids;
+			update.ids = ids || {};
 		}
+		return this;
 	},
 
 	/**
@@ -5388,6 +5628,13 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	 * @type {String}
 	 */
 	id : null,
+
+	/**
+	 * Tracking ancestor element IDs. We use this to regulate whether an 
+	 * update should be discarded because a hard replace has obsoleted it.
+	 * @type {Map<String,boolean>}
+	 */
+	ids : null,
 	
 	/**
 	 * Update context window.
@@ -5427,28 +5674,20 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	/**
 	 * Get element associated to this.id. Depending on update type, 
 	 * this element will be removed or added or updated and so on.
+	 * The root element (the one whose spirit is assigned the script) 
+	 * may be indexed by "$instanceid" if no ID attribute is specified.
 	 * @returns {Element}
 	 */
 	element : function () {
-		/*
-		 * The root element (the one whose spirit is assigned the script) 
-		 * may be indexed by "$instanceid" if no ID attribute is specified.
-		 */
 		var spirit, element = null;
 		if ( gui.KeyMaster.isKey ( this.id )) {
 			if (( spirit = this.window.gui.get ( this.id ))) {
 				element = spirit.element;
 			}
-		} else {
-			element = this.document.getElementById ( this.id );
 		}
+		element = element || this.document.getElementById ( this.id );
 		if ( !element ) {
 			console.error ( "No element to match @id: " + this.id );
-			var all = this.window.gui._spirits.inside;
-			Object.keys ( all ).forEach ( function ( key ) {
-				var elm = all [ key ].element;
-				console.debug ( key, elm.localName, elm.className );
-			});
 		}
 		return element;
 	},
@@ -5462,7 +5701,7 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	},
 	
 	
-	// PRIVATE ...................................................................
+	// Private ...................................................................
 	
 	/**
 	 * When something changed, dispatch pre-update event. 
@@ -5480,7 +5719,7 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	 * @return {boolean}
 	 */
 	_afterUpdate : function ( element ) {
-		var event = "x-aftrerupdate-" + this.type;
+		var event = "x-afterupdate-" + this.type;
 		return this._dispatch ( element, event );
 	},
 	
@@ -5513,7 +5752,6 @@ edb.Update = gui.Class.create ( Object.prototype, {
 }, {}, { // Static .......................................................
 	
 	/**
-	 * @static
 	 * Default replace update. A section of the DOM tree is replaced. 
 	 * {@see ReplaceUpdate}
 	 * @type {String}
@@ -5521,7 +5759,6 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	TYPE_HARD : "hard",
 
 	/**
-	 * @static
 	 * Attribute update. The element must have an ID specified.
 	 * {@see UpdateManager#hasSoftAttributes}
 	 * {@see AttributesUpdate}
@@ -5530,7 +5767,6 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	TYPE_ATTS : "atts",
 
 	/**
-	 * @static
 	 * Insertion update: Inserts a child without replacing the parent. Child 
 	 * siblings must all be Elements and they must all have an ID specified.
 	 * {@see SiblingUpdate}
@@ -5539,15 +5775,12 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	TYPE_INSERT : "insert",
 
 	/**
-	 * @static
-	 * TODO...
 	 * {@see SiblingUpdate}
 	 * @type {String}
 	 */
 	TYPE_APPEND : "append",
 
 	/**
-	 * @static
 	 * Removal update: Removes a child without replacing the parent. Child 
 	 * siblings must all be Elements and they must all have an ID specified.
 	 * {@see SiblingUpdate}
@@ -5556,7 +5789,8 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	TYPE_REMOVE : "remove",
 
 	/**
-	 * EDB function update.
+	 * EDB function update. Dereferencing functions bound to GUI 
+	 * events that are no longer associated to any DOM element.
 	 * @type {String}
 	 */
 	TYPE_FUNCTION : "function"
@@ -5992,122 +6226,110 @@ edb.RemoveUpdate = edb.SoftUpdate.extend ({
 
 
 /**
- * TODO: check if softupdate could mistarget the edb.FunctionUpdate.
- * TODO: move to updates folder.
+ * Updating the functions it is.
+ * @TODO: revoke all functions in context on window.unload (if portalled)
  */
 edb.FunctionUpdate = edb.Update.extend ({
-	
+
 	/**
 	 * Update type.
 	 * @type {String}
 	 */
-	type : "function",
+	type : edb.Update.TYPE_FUNCTION,
 
-	/**
-	 * Construct.
-	 * @param {Document} doc
-	 */
-	onconstruct : function ( doc ) {
-		this._super.onconstruct ( doc );
-		this._summary = [];
-	},
-	
 	/**
 	 * Setup update.
-	 * @param {gui.Spirit} spirit
-	 * @param {String} selector
-	 * @param {String} name
-	 * @param {String} value
-	 * @param {String} key
-	 * @returns {edb.FunctionUpdate}
+	 * @param {String} id
+	 * @param @optional {Map<String,String>} map
 	 */
-	setup : function ( spirit, selector, attname, newkey, oldkey ) {
-		this._super.setup ();
-		this._spirit = spirit;
-		this._selector = selector;
-		this._attname = attname;
-		this._newkey = newkey;
-		this._oldkey = oldkey;
+	setup : function ( id, map ) {
+		this.id = id;
+		this._map = map || null;
 		return this;
 	},
-	
+
 	/**
-	 * Update :)
+	 * Do the update.
 	 */
 	update : function () {
-		this._super.update ();
-		var element = null;
-		try {
-			element = this._spirit.dom.q ( this._selector );
-		} catch ( domexception ) {
-			throw new Error ( "Bad selector: " + this._selector );
-		} finally {
-			if ( element ) {
-				if ( this._beforeUpdate ( element )) {
-					this._update ( element, this._attname, this._newkey, this._oldkey );
-					this._afterUpdate ( element );
-					this._report ();
-				}
-			} else {
-				throw new Error ( "No such element: " + this._selector );
+		var count = 0, elm = this.element ();
+		if ( this._map ) {
+			if (( count = edb.FunctionUpdate._remap ( elm, this._map ))) {
+				this._report ( "remapped " + count + " keys" );
 			}
-		} 
-	},
-
-
-	// PRIVATE ....................................................................
-	
-	/**
-	 * Spirit who runs the EDB template (has the script element childnode).
-	 * @type {[type]}
-	 */
-	_spirit : null,
-
-	/**
-	 * CSS selector to match the updated element.
-	 * @type {String}
-	 */
-	_selector : null,
-
-	/**
-	 * Attribute name.
-	 * @type {String}
-	 */
-	_attname : null,
-
-	/**
-	 * Old function lookup key.
-	 * TODO: use this to garbage collect unusable assignments.
-	 * @type {String}
-	 */
-	_oldkey : null,
-
-	/**
-	 * New function lookup key.
-	 * @type {String}
-	 */
-	_newkey : null,
-
-	/**
-	 * Update element.
-	 * @param {Element} element
-	 */
-	_update : function ( element, attname, newkey, oldkey ) {
-		var newval, oldval = element.getAttribute ( attname );
-		if ( oldval && oldval.contains ( oldkey )) {
-			newval = oldval.replace ( oldkey, newkey );
-			element.setAttribute ( attname, newval );
 		} else {
-			// perhaps there's an ID and we already performed an attribute update, could that be it?
-			console.warn ( "Softupdate dysfunction or what?" );
+			if (( count = edb.FunctionUpdate._revoke ( elm ))) {
+				this._report ( "revoked " + count + " keys" );
+			}
 		}
 	},
 
 	/**
-	 * Debug changes.
+	 * Report the update.
+	 * @param {String} report
 	 */
-	_report : function () {
-		this._super._report ( "edb.FunctionUpdate " + this._selector );
+	_report : function ( report ) {
+		this._super._report ( "edb.FunctionUpdate " + report );
+	}
+
+}, { // Static ......................................................
+
+	/**
+	 * @param {Element} element
+	 */
+	_revoke : function ( element ) {
+		var count = 0, keys;
+		this._getatts ( element ).forEach ( function ( att ) {
+			keys = gui.KeyMaster.extractKey ( att.value );
+			if ( keys ) {
+				keys.forEach ( function ( key ) {
+					edb.Script.$revoke ( key );
+					count ++;
+				});
+			}
+		});
+		return count;
+	},
+
+	/**
+	 * @param {Element} element
+	 * @param {Map<String,String>} map
+	 */
+	_remap : function ( element, map ) {
+		var count = 0, oldkeys, newkey;
+		if ( Object.keys ( map ).length ) {
+			this._getatts ( element ).forEach ( function ( att ) {
+				if (( oldkeys = gui.KeyMaster.extractKey ( att.value ))) {
+					oldkeys.forEach ( function ( oldkey ) {
+						if (( newkey = map [ oldkey ])) {
+							att.value = att.value.replace ( oldkey, newkey );
+							edb.Script.$revoke ( oldkey );
+							count ++;
+						}
+					});
+				}
+			});
+		}
+		return count;
+	},
+
+	/**
+	 * Collect attributes from DOM subtree that 
+	 * somewhat resemble EDBML poke statements.
+	 * @returns {Array<Attribute>}
+	 */
+	_getatts : function ( element ) {
+		var atts = [];
+		new gui.Crawler ().descend ( element, {
+			handleElement : function ( elm ) {
+				Array.forEach ( elm.attributes, function ( att ) {
+					if ( att.value.contains ( "edb.go" )) {
+						atts.push ( att );
+					}
+				});
+			}
+		});
+		return atts;
 	}
 
 });
@@ -6116,7 +6338,7 @@ edb.FunctionUpdate = edb.Update.extend ({
 /*
  * Register module.
  */
-window.edb.EDBModule = gui.module ( "edb", {
+edb.EDBModule = gui.module ( "edb", {
 	
 	/**
 	 * CSS selector for currently focused form field.
@@ -6135,7 +6357,83 @@ window.edb.EDBModule = gui.module ( "edb", {
 		 * Handle input.
 		 * @param {edb.Input} input
 		 */
-		oninput : function ( input ) {},
+		oninput : function ( input ) {
+			if ( input.data instanceof edb.State ) {
+				if ( this._statesstarted ( input.type, input.data )) {
+					gui.Spirit.$oninit ( this );
+				}
+			}
+		},
+
+		/**
+		 * Optional State instance.
+		 * @type {edb.Controller.State}
+		 */
+		_state : null,
+
+		/**
+		 * Optional SessionState instance.
+		 * @type {edb.Controller.SessionState}
+		 */
+		_sessionstate : null,
+
+		/**
+		 * Optional LocalState instance.
+		 * @type {edb.Controller.LocalState}
+		 */
+		_localstate : null,
+
+		/**
+		 * Fire up potential state models. Returns 
+		 * `true` if any state models are declared.
+		 * @returns {boolean}
+		 */
+		_startstates : function () {
+			var State;
+
+			// @TODO: don't use some here!!!
+			return Object.keys ( gui.Spirit.$states ).some ( function ( state ) {
+				if (( State = this.constructor [ state ])) {
+					this._startstate ( State );
+					return true;
+				} else {
+					return false;
+				}
+			}, this );
+		},
+
+		/**
+		 * Output state model only when the first 
+		 * instance of this spirit is constructed. 
+		 * Attempt to restore the stage from storage.
+		 * @param {function} State
+		 */
+		_startstate : function ( State ) {
+			this.input.add ( State );
+			if ( !State.out ( this.window )) {
+				State.restore ( this.window ).then ( function ( state ) {
+					state = state || new State ();
+					state.$output ( this.window );
+				}, this );
+			}
+		},
+
+		/**
+		 * Assign state instance to private property name. 
+		 * Returns true when all expected states are done.
+		 * @param {function} State constructor
+		 * @param {edb.State} state instance
+		 * @returns {boolean}
+		 */
+		_statesstarted : function ( State, state ) {
+			var MyState, propname, states = gui.Spirit.$states;
+			return Object.keys ( states ).every ( function ( typename ) {
+				MyState = this.constructor [ typename ];
+				propname = states [ typename ];
+				this [ propname ] = State === MyState ? state : null;
+				return !MyState || this [ propname ] !== null;
+			}, this ); 
+		},
 
 		/**
 		 * Handle changes.
@@ -6160,6 +6458,23 @@ window.edb.EDBModule = gui.module ( "edb", {
 		[ "script[type='text/edbml']", "edb.ScriptSpirit" ],
 		[ "link[rel='service']", "edb.ServiceSpirit" ]
 	],
+
+	oncontextinitialize : function ( context ) {
+		var plugin, proto, method;
+		if ( !context.gui.portalled ) {
+			if (( plugin = context.gui.AttConfigPlugin )) {
+				proto = plugin.prototype;
+				method = proto.$evaluate;
+				proto.$evaluate = function ( name, value, fix ) {
+					if ( value.startsWith ( "edb.get" )) {
+						var key = gui.KeyMaster.extractKey ( value )[ 0 ];
+						value = key ? context.edb.get ( key ) : key;
+					}
+					return method.call ( this, name, value, fix );
+				};
+			}
+		}
+	},
 
 	/**
 	 * Context spiritualized.
@@ -6219,12 +6534,20 @@ window.edb.EDBModule = gui.module ( "edb", {
 				parts.push ( "#" + elm.id );
 				elm = null;
 			} else {
-				index = gui.DOMPlugin.ordinal ( elm ) + 1;
-				parts.push ( ">" + elm.localName + ":nth-child(" + index + ")" );
-				elm = elm.parentNode;
+				if ( elm.localName === "body" ) {
+					parts.push ( "body" );
+					elm = null;
+				} else {
+					index = gui.DOMPlugin.ordinal ( elm ) + 1;
+					parts.push ( ">" + elm.localName + ":nth-child(" + index + ")" );
+					elm = elm.parentNode;
+				}
 			}
 		}
 		return parts.reverse ().join ( "" );
 	}
 
 });
+
+
+}( this ));

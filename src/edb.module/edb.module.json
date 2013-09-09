@@ -1,0 +1,63 @@
+[
+	"edb.js",
+
+	"types/edb.Type.js",
+	"types/edb.Object.js",
+	"types/edb.Array.js",
+
+	"observers/edb.ObjectAccess.js",
+	"observers/edb.ObjectChange.js",
+	"observers/edb.ArrayAccess.js",
+	"observers/edb.ArrayChange.js",
+
+	"plugins/output.plugin/edb.Output.js",
+	"plugins/output.plugin/edb.OutputPlugin.js",
+	"plugins/input.plugin/edb.Input.js",
+	"plugins/input.plugin/edb.InputPlugin.js",
+	"plugins/script.plugin/edb.ScriptPlugin.js",
+
+	"spirits/edb.ScriptSpirit.js",
+	"spirits/edb.ServiceSpirit.js",
+
+	"scripts/utils/edb.Instruction.js",
+	"scripts/utils/edb.Runner.js",
+	"scripts/utils/edb.Status.js",
+	"scripts/utils/edb.Result.js",
+
+	"storage/edb.Storage.js",
+	"storage/edb.DOMStorage.js",
+	"storage/edb.SessionStorage.js",
+	"storage/edb.LocalStorage.js",
+
+	"states/edb.State.js",
+	"states/edb.SessionState.js",
+	"states/edb.LocalState.js",
+
+	"scripts/compiler/edb.Compiler.js",
+	"scripts/compiler/edb.FunctionCompiler.js",
+	"scripts/compiler/edb.ScriptCompiler.js",
+	"scripts/compiler/edb.TagCompiler.js",
+
+	"scripts/setup/edb.Loader.js",
+	"scripts/setup/edb.Function.js",
+	"scripts/setup/edb.Script.js",
+	"scripts/setup/edb.Tag.js",
+	"scripts/setup/edb.Import.js",
+
+	"scripts/runtime/edb.Att.js",
+	"scripts/runtime/edb.Out.js",
+
+	"updates/edb.UpdateAssistant.js",
+	"updates/edb.UpdateManager.js",
+	"updates/edb.UpdateCollector.js",
+	"updates/types/edb.Update.js",
+	"updates/types/atts/edb.AttsUpdate.js",
+	"updates/types/hard/edb.HardUpdate.js",
+	"updates/types/soft/edb.SoftUpdate.js",
+	"updates/types/soft/edb.InsertUpdate.js",
+	"updates/types/soft/edb.AppendUpdate.js",
+	"updates/types/soft/edb.RemoveUpdate.js",
+	"updates/types/functions/edb.FunctionUpdate.js",
+	
+	"edb.module.js"
+]

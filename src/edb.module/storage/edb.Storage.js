@@ -1,13 +1,14 @@
 /**
  * An abstract storage stub. We've rigged this up to 
  * store {edb.Object} and {edb.Array} instances only.
+ * @TODO propagate "context" throughout all methods.
  */
 edb.Storage = gui.Class.create ( Object.prototype, {
 
-}, { // Recurring static ...............................
+}, { // Recurring static ...........................
 
 	/**
-	 * Let's make it async and on-demand.
+	 * Let's make this async and on-demand.
 	 * @throws {Error}
 	 */
 	length : {
@@ -19,18 +20,19 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 	/**
 	 * Get type.
 	 * @param {String} key
+	 * @param {Window|WorkerScope} context
 	 * @returns {gui.Then}
 	 */
-	getItem : function ( key ) {
+	getItem : function ( key, context ) {
 		var then = new gui.Then ();
 		var type = this [ key ];
-		if ( type ) {
-			then.now ( type );
+		if ( false && type ) { // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			then.now ( type || null );
 		} else {
-			this.$getItem ( key, function ( type ) {
+			this.$getItem ( key, context, function ( type ) {
 				this [ key ] = type;
 				gui.Tick.next ( function () { // @TODO bug in gui.Then!
-					then.now ( type );
+					then.now ( type || null );
 				});
 			});
 		}
@@ -41,12 +43,13 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 	 * Set type.
 	 * @param {String} key
 	 * @param {object} type
+	 * @param {Window|WorkerScope} context
 	 * @returns {object}
 	 */
-	setItem : function ( key, type ) {
+	setItem : function ( key, type, context ) {
 		var then = new gui.Then ();
 		if ( edb.Storage.$typecheck ( type )) {
-			this.$setItem ( key, type, function () {
+			this.$setItem ( key, type, context, function () {
 				this [ key ] = type;
 				then.now ( type );
 			});
@@ -74,7 +77,7 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 		var then = new gui.Then ();
 		this.$clear ( function () {
 			Object.keys ( this ).filter ( function ( key ) {
-				return this.prototype [ key ]	=== undefined;			
+				return this.prototype [ key ]	=== undefined;
 			}, this ).forEach ( function ( key ) {
 				delete this [ key ];
 			}, this );
@@ -91,7 +94,7 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 	 * @param {String} key
 	 * @param {edb.Model|edb.Collection} type
 	 */
-	$getItem : function ( key, callback ) {},
+	$getItem : function ( key, context, callback ) {},
 
 	/**
 	 * Set type.
@@ -99,7 +102,7 @@ edb.Storage = gui.Class.create ( Object.prototype, {
 	 * @param {function} callback
 	 * @param {edb.Model|edb.Collection} type
 	 */
-	$setItem : function ( key, type, callback ) {},
+	$setItem : function ( key, type, context, callback ) {},
 
 	/**
 	 * Remove type.

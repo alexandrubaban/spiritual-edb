@@ -238,7 +238,7 @@ gui.Object.each ({ // static mixins edb.Type
 
 	/**
 	 * Type constructed. Validate persistance OK.
-	 * @param {ts.edb.Model|ts.edb.Collection} type
+	 * @param {edb.Model|edb.Collection} type
 	 */
 	$confirmpersist : function ( type ) {
 		var Type = type.constructor;
@@ -254,12 +254,12 @@ gui.Object.each ({ // static mixins edb.Type
 
 	/**
 	 * Type destructed. Persist if required.
-	 * @param {ts.edb.Model|ts.edb.Collection} type
+	 * @param {edb.Model|edb.Collection} type
 	 */
 	$maybepersist : function ( type ) {
 		var Type = type.constructor;
 		if ( Type.storage ) {
-			Type.$store ( type );
+			Type.$store ( type, true );
 		}
 	}
 
@@ -278,7 +278,7 @@ gui.Object.each ({ // static mixins edb.Type
 	var iomixins = { // input-output methods
 
 		/**
-		 * Instance of Type has been output to context?
+		 * Instance of this Type has been output to context?
 		 * @param @optional {Window|WorkerGlobalScope} context
 		 * @returns {boolean}
 		 */
@@ -299,16 +299,16 @@ gui.Object.each ({ // static mixins edb.Type
 		 * (this constructor) will be called with only one single argument.
 		 * @returns {gui.Then}
 		 */
-		restore : function () {
-			return this.storage.getItem ( this.$classname );
+		restore : function ( context ) {
+			return this.storage.getItem ( this.$classname, context || self );
 		},
 
 		/**
 		 * Persist instance. Managed by the framework via instance.$ondestruct.
 		 * @param {edb.Object|edb.Array} type
 		 */
-		$store : function ( type ) {
-			this.storage.setItem ( this.$classname, type );
+		$store : function ( type, now ) {
+			this.storage.setItem ( this.$classname, type, type.$context, now );
 		}
 	};
 

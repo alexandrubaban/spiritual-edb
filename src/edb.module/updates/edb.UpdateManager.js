@@ -132,7 +132,7 @@ edb.UpdateManager.prototype = {
 	 */
 	_next : function ( html ) {
 		this._newdom = this._parse ( html );
-		this._crawl ( this._newdom, this._olddom, this._newdom, this._keyid, {}, null );
+		this._crawl ( this._newdom, this._olddom, this._newdom, this._keyid, {});
 		this._olddom = this._newdom;
 	},
 
@@ -233,6 +233,10 @@ edb.UpdateManager.prototype = {
 							} else {
 								if ( oldnode.localName !== "textarea" ) { // TODO: better forms support!
 									result = newnode.childNodes.length === oldnode.childNodes.length;
+									if ( !result && oldnode.id ) {
+										lastnode = newnode;
+										id = oldnode.id;
+									}
 								}
 							}
 						}

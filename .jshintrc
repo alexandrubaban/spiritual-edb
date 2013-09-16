@@ -4,14 +4,15 @@
 	"globals": {
 		"module" : true,
 		"require" : true,
-		"console" : true
+		"console" : true,
+		"gui" : true,
+		"edb" : true
 	},
 	"globalstrict": false,
 	"quotmark": false,
 	"smarttabs": true,
-	"trailing": true,
+	"trailing": false,
 	"undef": true,
 	"unused": "vars",
-	"trailing": true,
 	"sub": true
 }

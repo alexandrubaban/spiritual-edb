@@ -14,7 +14,7 @@ module.exports = function ( grunt ) {
 					banner : (
 						'/**\n' +
 						' * Spiritual EDB\n' +
-						' * 2013 Wunderbyte\n' +
+						' * (c) 2013 Wunderbyte\n' +
 						' * Spiritual is freely distributable under the MIT license.\n' +
 						' */\n'
 					 )

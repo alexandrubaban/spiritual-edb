@@ -1,4 +1,5 @@
 /**
+ * @see http://wiki.ecmascript.org/doku.php?id=harmony:observe#array.observe
  * @param {edb.Array} array
  */
 edb.ArrayChange = function ( array ) {

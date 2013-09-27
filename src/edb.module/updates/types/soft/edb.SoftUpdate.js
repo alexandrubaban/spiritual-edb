@@ -34,7 +34,7 @@ edb.SoftUpdate = edb.Update.extend ({
 	 */
 	_import : function ( parent ) {
 		var temp = this.document.createElement ( parent.nodeName );
-		temp.innerHTML = new XMLSerializer ().serializeToString ( this.xelement );
+		temp.innerHTML = this.xelement.outerHTML;
 		return temp.firstChild;
 	}
 });

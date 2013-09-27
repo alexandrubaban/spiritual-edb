@@ -28,6 +28,9 @@ edb.UpdateAssistant = {
 	 * @returns {Element}
 	 */
 	parse : function ( doc, markup, id, element ) { // gonna need to know the parent element type here...
+		/*
+		 * TODO: run this by the gui.HTMLParser for maximum backwards lameness with TABLE and friends
+		 */
 		element = doc.createElement ( element.localName );
 		element.innerHTML = markup;
 		element.id = id;

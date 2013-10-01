@@ -129,7 +129,7 @@ edb.EDBModule = gui.module ( "edb", {
 				proto = plugin.prototype;
 				method = proto.$evaluate;
 				proto.$evaluate = function ( name, value, fix ) {
-					if ( value.startsWith ( "edb.get" )) {
+					if ( gui.Type.isString ( value ) && value.startsWith ( "edb.get" )) {
 						var key = gui.KeyMaster.extractKey ( value )[ 0 ];
 						value = key ? context.edb.get ( key ) : key;
 					}

@@ -129,11 +129,13 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 	 * points to a script embedded in the spirits own document 
 	 * (and unless script has already been loaded into context).
 	 * @param {String} src (directives resolved on target SCRIPT)
+	 * @returns {gui.Then}
 	 */
 	load : function ( src ) {
 		var win = this.context;
 		var doc = win.document;
 		var abs = gui.URL.absolute ( doc, src );
+		var then = this._then = new gui.Then ();
 		if ( this.spirit.life.entered ) {
 			if ( abs !== this._src ) {
 				edb.Script.load ( win, doc, src, function onreadystatechange ( script ) {
@@ -145,6 +147,7 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 			this.spirit.life.add ( gui.LIFE_ENTER, this );
 			this._dosrc = src;
 		}
+		return then;
 	},
 
 	/**
@@ -249,6 +252,12 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 	_script : null,
 
 	/**
+	 * Experimental....
+	 * @type {gui.Then}
+	 */
+	_then : null,
+
+	/**
 	 * Update manager. 
 	 * @type {edb.UpdateManager}
 	 */
@@ -300,12 +309,16 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 					if ( this.debug ) {
 						script.debug ();
 					}
+					if ( this._then ) {
+						this._then.now ();
+						this._then = null;
+					}
 				}
 				if ( this._dorun ) {
 					this.run.apply ( this, this._dorun );
 					this._dorun = null;
 				} else if ( this.autorun ) {
-					this.run (); // @TODO: only if an when entered!
+					this.run (); // @TODO: only if and when entered!
 				}
 				break;
 		}

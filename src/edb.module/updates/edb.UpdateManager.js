@@ -9,6 +9,14 @@ edb.UpdateManager = function UpdateManager ( spirit ) {
 };
 
 edb.UpdateManager.prototype = {
+
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		return "[object edb.UpdateManager]";
+	},
 	
 	/**
 	 * Update.

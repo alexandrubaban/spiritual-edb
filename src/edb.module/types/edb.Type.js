@@ -63,6 +63,7 @@ edb.Type.prototype = {
 	/**
 	 * Called by {edb.Output} when the output context shuts down 
 	 * (when the window unloads or the web worker is terminated).
+	 * @TODO: recursively nuke descendant types :)
 	 */
 	$ondestruct : function () {
 		edb.Type.$maybepersist ( this );

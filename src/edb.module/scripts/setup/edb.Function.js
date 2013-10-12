@@ -182,14 +182,17 @@ edb.Function = gui.Class.create ( Object.prototype, {
 	},
 
 	/**
-	 * Use blob files?
+	 * Use blob files? Temp disabled in Firefox due to sandbox issues.
 	 * @TODO: Investigate potential overheads and asyncness
 	 */
 	_useblob : function () {
+		return this.context.gui.debug && gui.Client.isWebKit;
+		/*
 		return this.context.edb.useblobs && 
 			gui.Client.hasBlob && 
 			!gui.Client.isExplorer && 
 			!gui.Client.isOpera;
+		*/
 	},
 	
 	/**

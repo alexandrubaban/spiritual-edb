@@ -4,6 +4,11 @@
 window.edb = gui.namespace ( "edb", {
 	
 	/**
+	 * 
+	 */
+	debug : true,
+
+	/**
 	 * Although it should probably be false until we have full support...
 	 * @type {boolean}
 	 */

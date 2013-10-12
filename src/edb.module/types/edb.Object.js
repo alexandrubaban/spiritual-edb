@@ -176,6 +176,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		_onaccess : function ( object, name ) {
 			var access = new edb.ObjectAccess ( object, name );
 			gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_ACCESS, access.instanceid );
+			// console.log ( this.$context );
 		},
 
 		/**
@@ -207,16 +208,8 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
 		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 		 */
-		/**
-		 * Servers two purposes:
-		 * 
-		 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
-		 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
-		 * 
-		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
-		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
-		 */
 		_approximate : function ( handler, proxy ) {
+			//console.log ( handler.$context );
 			var name = handler.constructor.$classname;
 			var Def, def, val, types = Object.create ( null );
 			this._definitions ( handler ).forEach ( function ( key ) {
@@ -270,7 +263,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 					}),
 					setter : edb.Object._setter ( key, function ( value ) {
 						/*
-						 * TODO: when resetting array, make sure that 
+						 * @TODO: when resetting array, make sure that 
 						 * it becomes xx.MyArray (not plain edb.Array)
 						 */
 						var target = types [ key ] ? types : proxy;

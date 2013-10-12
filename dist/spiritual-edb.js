@@ -1,6 +1,6 @@
 /**
  * Spiritual EDB
- * 2013 Wunderbyte
+ * (c) 2013 Wunderbyte
  * Spiritual is freely distributable under the MIT license.
  */
 ( function ( window ) {
@@ -1292,6 +1292,7 @@ edb.ArrayAccess.prototype = {
 
 
 /**
+ * @see http://wiki.ecmascript.org/doku.php?id=harmony:observe#array.observe
  * @param {edb.Array} array
  */
 edb.ArrayChange = function ( array ) {
@@ -5012,6 +5013,9 @@ edb.UpdateAssistant = {
 	 * @returns {Element}
 	 */
 	parse : function ( doc, markup, id, element ) { // gonna need to know the parent element type here...
+		/*
+		 * TODO: run this by the gui.HTMLParser for maximum backwards lameness with TABLE and friends
+		 */
 		element = doc.createElement ( element.localName );
 		element.innerHTML = markup;
 		element.id = id;
@@ -5161,35 +5165,7 @@ edb.UpdateManager.prototype = {
 	 * @type {edb.UpdateAssistant}
 	 */
 	_assistant : edb.UpdateAssistant,
-
-	/*
-	_fisse : function ( remappings ) {
-		var count = 0;
-		if ( Object.keys ( remappings ).length ) {
-			new gui.Crawler ( "John" ).descend ( this._spirit, {
-				handleElement : function ( elm ) {
-					Array.forEach ( elm.attributes, function ( att ) {
-						var oldkeys = gui.KeyMaster.extractKey ( att.value );
-						if ( oldkeys ) {
-							var newkey;
-							oldkeys.forEach ( function ( oldkey ) {
-								if (( newkey = remappings [ oldkey ])) {
-									att.value = att.value.replace ( oldkey, newkey );
-									edb.Script.$revoke ( oldkey );
-									count ++;
-								}
-							});
-						}
-					});
-				}
-			});
-		}
-		if ( count ) {
-			console.debug ( "Updated " + count + " function keys." );
-		}
-	},
-	*/
-
+	
 	/**
 	 * First update (always a hard update).
 	 * @param {String} html
@@ -5207,7 +5183,7 @@ edb.UpdateManager.prototype = {
 	 */
 	_next : function ( html ) {
 		this._newdom = this._parse ( html );
-		this._crawl ( this._newdom, this._olddom, this._newdom, this._keyid, {}, null );
+		this._crawl ( this._newdom, this._olddom, this._newdom, this._keyid, {});
 		this._olddom = this._newdom;
 	},
 
@@ -5308,6 +5284,10 @@ edb.UpdateManager.prototype = {
 							} else {
 								if ( oldnode.localName !== "textarea" ) { // TODO: better forms support!
 									result = newnode.childNodes.length === oldnode.childNodes.length;
+									if ( !result && oldnode.id ) {
+										lastnode = newnode;
+										id = oldnode.id;
+									}
 								}
 							}
 						}
@@ -5998,7 +5978,7 @@ edb.HardUpdate = edb.Update.extend ({
 		this._super.update ();
 		var element = this.element ();
 		if ( element && this._beforeUpdate ( element )) {
-			gui.DOMPlugin.html ( element, this._serialize ());
+			gui.DOMPlugin.html ( element, this.xelement.outerHTML );
 			this._afterUpdate ( element );
 			this._report ();
 		}
@@ -6014,19 +5994,6 @@ edb.HardUpdate = edb.Update.extend ({
 	
 	
 	// PRIVATE ..........................................................................
-	
-	/**
-	 * Serialize XML element to XHTML string.
-	 * TODO: Probably prefer DOM methods to innerHTML.
-	 * @returns {String}
-	 */
-	_serialize : function () {
-		var xhtml = new XMLSerializer ().serializeToString ( this.xelement );
-		if ( xhtml.contains ( "</" )) {
-			xhtml = xhtml.slice ( xhtml.indexOf ( ">" ) + 1, xhtml.lastIndexOf ( "<" ));
-		}
-		return xhtml;
-	},
 	
 	/**
 	 * Hello.
@@ -6073,7 +6040,7 @@ edb.SoftUpdate = edb.Update.extend ({
 	 */
 	_import : function ( parent ) {
 		var temp = this.document.createElement ( parent.nodeName );
-		temp.innerHTML = new XMLSerializer ().serializeToString ( this.xelement );
+		temp.innerHTML = this.xelement.outerHTML;
 		return temp.firstChild;
 	}
 });
@@ -6466,7 +6433,7 @@ edb.EDBModule = gui.module ( "edb", {
 				proto = plugin.prototype;
 				method = proto.$evaluate;
 				proto.$evaluate = function ( name, value, fix ) {
-					if ( value.startsWith ( "edb.get" )) {
+					if ( gui.Type.isString ( value ) && value.startsWith ( "edb.get" )) {
 						var key = gui.KeyMaster.extractKey ( value )[ 0 ];
 						value = key ? context.edb.get ( key ) : key;
 					}
@@ -6529,7 +6496,7 @@ edb.EDBModule = gui.module ( "edb", {
 			}
 			return false;
 		}
-		while ( elm !== null ) {
+		while ( elm && elm.nodeType === Node.ELEMENT_NODE ) {
 			if ( hasid ( elm )) {
 				parts.push ( "#" + elm.id );
 				elm = null;

@@ -21,6 +21,9 @@ edb.EDBModule = gui.module ( "edb", {
 		 * @param {edb.Input} input
 		 */
 		oninput : function ( input ) {
+			/* 
+			 * @TODO: get this out of here...
+			 */
 			if ( input.data instanceof edb.State ) {
 				if ( this._statesstarted ( input.type, input.data )) {
 					gui.Spirit.$oninit ( this );

@@ -194,10 +194,13 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 				if ( this.diff ) {
 					this._updater.update ( html );
 				} else {
-					this.spirit.dom.html ( html ); // TODO: forms markup make valid!
+					this.spirit.dom.html ( html ); // @TODO: forms markup make valid!
 				}
 			});
-			this.ran = true;
+			this.spirit.onrender ({ // @TODO: some kind of RenderSummary...
+				changed : changed,
+				first : !this.ran
+			});
 			this.spirit.life.dispatch ( 
 				edb.LIFE_SCRIPT_DID_RUN, changed // @TODO Support this kind of arg...
 			);
@@ -207,6 +210,7 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 				gui.Tick.one ( tick, this, id ).dispatch ( tick, 0, id );
 			}
 		}
+		this.ran = true;
 	},
 
 	/**

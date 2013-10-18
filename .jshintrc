@@ -8,8 +8,7 @@
 		"gui" : true,
 		"edb" : true,
 		"alert" : true,
-		"self" : true,
-		"ActiveXObject" : true
+		"self" : true
 	},
 	"globalstrict": false,
 	"quotmark": false,

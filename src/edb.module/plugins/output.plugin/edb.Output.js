@@ -13,36 +13,23 @@ edb.Output = {
 	},
 
 	/**
-	 * Output Type instance in context. @TODO: some complicated argument combos to explain here
-	 * @param {Window|WorkerGlobalScope|IInputHandler} context @TODO input handler!
-	 * @param {Object|Array|edb.Object|edb.Array} data Raw JSON or Type instance
-	 * @param @optional {function|string} Type Optional edb.Type constructor
+	 * Output Type instance.
 	 * @returns {edb.Object|edb.Array}
 	 */
-	dispatch : function ( type, context ) {
-		context = context || self;
-		this._configure ( type.constructor, type, context );
-		gui.Broadcast.dispatch ( 
-			null, 
-			edb.BROADCAST_OUTPUT, 
-			new edb.Input ( type ), 
-			context.gui.$contextid 
-		);
-		gui.Broadcast.addGlobal ( gui.BROADCAST_WILL_UNLOAD, this );
+	dispatch : function ( type ) {
+		var input = this._configure ( type.constructor, type );
+		gui.Broadcast.dispatch ( null, edb.BROADCAST_OUTPUT, input );
 	},
 
 	/**
 	 * Instance of given Type has been output to context?
 	 * @param {function} type Type constructor
-	 * @param {Window|WorkerGlobalScope} context
 	 * @returns {boolean}
 	 */
-	out : function ( Type, context ) {
-		context = context || self;
-		var contxid = context.gui.$contextid;
-		var contmap = this._contexts [ contxid ];
+	out : function ( Type ) {
 		var classid = Type.$classid;
-		return contmap && contmap [ classid ] ? true : false;
+		var typeobj = this._map [ classid ];
+		return typeobj ? true : false;
 	},
 
 	/**
@@ -51,69 +38,55 @@ edb.Output = {
 	 */
 	onbroadcast : function ( b ) {
 		if ( b.type === gui.BROADCAST_WILL_UNLOAD ) {
-			this._onunload ( b.data );
+			this._onunload ();
 		}
 	},
 
 
 	// Private ............................................................................
-
+	
 	/**
-	 * Mapping contextid to map mapping Type classname to Type instance.
-	 * @type {Map<String,Map<String,edb.Object|edb.Array>>}
+	 * Mapping Type classname to Type instance.
+	 * @type {Map<String,edb.Object|edb.Array>}
 	 */
-	_contexts : {},
+	_map : {},
 
 	/**
 	 * Configure Type instance for output.
 	 * @param {function} Type constructor
 	 * @param {edb.Object|edb.Array} type instance
-	 * @param {Window|WorkerGlobalScope} context
+	 * @returns {edb.Input}
 	 */
-	_configure : function ( Type, type, context ) {
-		var contxid = context.gui.$contextid;
-		var contmap = this._contexts [ contxid ] || ( this._contexts [ contxid ] = {});
+	_configure : function ( Type, type ) {
 		var classid = Type.$classid;
-		contmap [ classid ] = type;
-		type.$context = context;
-		//alert ( Type.$classname + ": "+ context.document.title );
-		type.$contextid = contxid;
+		this._map [ classid ] = type;
+		return new edb.Input ( type );
 	},
 
 	/**
 	 * Stop tracking output for expired context.
 	 * @param {String} contextid
 	 */
-	_onunload : function ( contextid ) {
-		var context = this._contexts [ contextid ];
-		if ( context ) {
-			gui.Object.each ( context, function ( classid, type ) {
-				type.$ondestruct ();
-			}, this );
-			delete this._contexts [ contextid ];
-		}
+	_onunload : function () {
+		gui.Object.each ( this._map, function ( classid, type ) {
+			type.$ondestruct ();
+		});
+		this._map = null;
 	},
 
 
 	// Secrets .................................................................
 
 	/**
-	 * Get output of type in given context. Note that this returns an edb.Input. 
+	 * Get output of given type. Note that this returns an edb.Input. 
 	 * @TODO Officially this should be supported via methods "add" and "remove".
-	 * @param {Window|WorkerGlobalScope} context
 	 * @param {function} Type
 	 * @returns {edb.Input}
 	 */
 	$get : function ( Type, context ) {
-		context = context || self;
-		if ( Type.out ( context )) {
-			var contxid = context.gui.$contextid;
-			var contmap = this._contexts [ contxid ];
-			var classid = Type.$classid;
-			var typeobj = contmap [ classid ];
-			return new edb.Input ( typeobj );
-		}
-		return null;
+		var classid = Type.$classid;
+		var typeobj = this._map [ classid ];
+		return typeobj ? new edb.Input ( typeobj ) : null;
 	}
 
 };

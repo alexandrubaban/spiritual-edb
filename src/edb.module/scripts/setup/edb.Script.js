@@ -28,14 +28,11 @@ edb.Script = edb.Function.extend ({
 		this.input = new edb.InputPlugin ();
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
-
 		// @TODO this!
 		// console.warn ( "Bad: onconstruct should autoinvoke" );
-
 		this._keys = new Set (); // tracking data changes
-
 		// @TODO this *must* be added before it can be removed ?
-		gui.Broadcast.addGlobal ( edb.BROADCAST_CHANGE, this );
+		gui.Broadcast.add ( edb.BROADCAST_CHANGE, this );
 	},
 
 	/**
@@ -164,8 +161,8 @@ edb.Script = edb.Function.extend ({
 	 * @param {boolean} isBuilding
 	 */
 	_subscribe : function ( isBuilding ) {
-		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_ACCESS, this );
-		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_CHANGE, this );
+		gui.Broadcast [ isBuilding ? "add" : "remove" ] ( edb.BROADCAST_ACCESS, this );
+		gui.Broadcast [ isBuilding ? "remove" : "add" ] ( edb.BROADCAST_CHANGE, this );
 	}
 
 
@@ -233,12 +230,16 @@ edb.Script = edb.Function.extend ({
 			 * button in case the function takes a while to complete. 
 			 */
 			if (( func = this._invokables [ key ])) {
-				if ( log.type === "click" ) {
-					gui.Tick.next ( function () {
+				if ( log ) {
+					if ( log.type === "click" ) {
+						gui.Tick.next ( function () {
+							func ( log.value, log.checked );
+						});
+					} else {
 						func ( log.value, log.checked );
-					});
+					}
 				} else {
-					func ( log.value, log.checked );
+					func ();
 				}
 			} else {
 				throw new Error ( "Invokable does not exist: " + key );
@@ -251,11 +252,11 @@ edb.Script = edb.Function.extend ({
 	 * @param {Event} e
 	 */
 	$register : function ( e ) {
-		this._log = {
+		this._log = e ? {
 			type : e.type,
 			value : e.target.value,
 			checked : e.target.checked
-		};
+		} : null;
 		return this;
 	},
 

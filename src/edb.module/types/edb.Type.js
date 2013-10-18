@@ -21,15 +21,16 @@ edb.Type.prototype = {
 	/**
 	 * Output context (for cross-context cornercases).
 	 * @type {Window|WorkerGlobalScope}
-	 */
+	 *
 	$context : null,
 
 	/**
 	 * Output context ID equivalent to 'this.$context.gui.$contextid'. 
 	 * The ID is not persistable (generated random on session startup).
 	 * @type {String}
-	 */
+	 *
 	$contextid : null,
+	*/
 		
 	/**
 	 * Instance key (clientside session only).
@@ -137,14 +138,14 @@ gui.Object.each ({ // static mixins edb.Type
 	 * Dispatch a getter broadcast before base function.
 	 */
 	getter : gui.Combo.before ( function () {
-		gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_ACCESS, this._instanceid );
+		gui.Broadcast.dispatch ( this, edb.BROADCAST_ACCESS, this._instanceid );
 	}),
 
 	/*
 	 * Dispatch a setter broadcast after base function.
 	 */
 	setter : gui.Combo.after ( function () {
-		gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_CHANGE, this._instanceid );
+		gui.Broadcast.dispatch ( this, edb.BROADCAST_CHANGE, this._instanceid );
 	}),
 
 	/**
@@ -279,12 +280,11 @@ gui.Object.each ({ // static mixins edb.Type
 	var iomixins = { // input-output methods
 
 		/**
-		 * Instance of this Type has been output to context?
-		 * @param @optional {Window|WorkerGlobalScope} context
+		 * Instance of this Type has been output?
 		 * @returns {boolean}
 		 */
-		out : function ( context ) {
-			return edb.Output.out ( this, context || self );
+		out : function () {
+			return edb.Output.out ( this );
 		}
 	};
 

@@ -6,7 +6,6 @@ edb.EDBModule = gui.module ( "edb", {
 	/**
 	 * CSS selector for currently focused form field.
 	 * @TODO: Support links and buttons as well
-	 * @TODO: Migrate to (future) EDBMLModule
 	 * @type {String}
 	 */
 	fieldselector : null,
@@ -30,6 +29,12 @@ edb.EDBModule = gui.module ( "edb", {
 				}
 			}
 		},
+
+		/**
+		 * Called whenever the EDBML script was evaluated.
+		 * @param {TODOTHING} summary
+		 */
+		onrender : function ( summary ) {},
 
 		/**
 		 * Optional State instance.
@@ -127,6 +132,16 @@ edb.EDBModule = gui.module ( "edb", {
 
 	oncontextinitialize : function ( context ) {
 		var plugin, proto, method;
+		/*
+		 * @TODO: Nasty hack to circumvent that we 
+		 * hardcode "event" into inline poke events, 
+		 * this creates an undesired global variable.
+		 */
+		if ( !context.event ) {
+			try {
+				context.event = null;
+			} catch ( ieexception ) {}
+		}
 		if ( !context.gui.portalled ) {
 			if (( plugin = context.gui.AttConfigPlugin )) {
 				proto = plugin.prototype;

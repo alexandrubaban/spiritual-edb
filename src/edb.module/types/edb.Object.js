@@ -124,7 +124,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 							handler.onchange ( changes );
 						});
 					}
-					gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
+					gui.Broadcast.dispatch ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
 				});
 			}
 		},
@@ -175,8 +175,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 */
 		_onaccess : function ( object, name ) {
 			var access = new edb.ObjectAccess ( object, name );
-			gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_ACCESS, access.instanceid );
-			// console.log ( this.$context );
+			gui.Broadcast.dispatch ( null, edb.BROADCAST_ACCESS, access.instanceid );
 		},
 
 		/**
@@ -209,7 +208,6 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 		 */
 		_approximate : function ( handler, proxy ) {
-			//console.log ( handler.$context );
 			var name = handler.constructor.$classname;
 			var Def, def, val, types = Object.create ( null );
 			this._definitions ( handler ).forEach ( function ( key ) {

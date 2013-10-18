@@ -12,7 +12,7 @@ window.edb = gui.namespace ( "edb", {
 	 * Although it should probably be false until we have full support...
 	 * @type {boolean}
 	 */
-	portals : true,
+	portals : false,
 
 	/**
 	 * Mount compiled functions as blob files 

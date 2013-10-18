@@ -14,10 +14,15 @@
 window.edb = gui.namespace ( "edb", {
 	
 	/**
+	 * 
+	 */
+	debug : true,
+
+	/**
 	 * Although it should probably be false until we have full support...
 	 * @type {boolean}
 	 */
-	portals : true,
+	portals : false,
 
 	/**
 	 * Mount compiled functions as blob files 
@@ -92,15 +97,16 @@ edb.Type.prototype = {
 	/**
 	 * Output context (for cross-context cornercases).
 	 * @type {Window|WorkerGlobalScope}
-	 */
+	 *
 	$context : null,
 
 	/**
 	 * Output context ID equivalent to 'this.$context.gui.$contextid'. 
 	 * The ID is not persistable (generated random on session startup).
 	 * @type {String}
-	 */
+	 *
 	$contextid : null,
+	*/
 		
 	/**
 	 * Instance key (clientside session only).
@@ -134,6 +140,7 @@ edb.Type.prototype = {
 	/**
 	 * Called by {edb.Output} when the output context shuts down 
 	 * (when the window unloads or the web worker is terminated).
+	 * @TODO: recursively nuke descendant types :)
 	 */
 	$ondestruct : function () {
 		edb.Type.$maybepersist ( this );
@@ -207,14 +214,14 @@ gui.Object.each ({ // static mixins edb.Type
 	 * Dispatch a getter broadcast before base function.
 	 */
 	getter : gui.Combo.before ( function () {
-		gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_ACCESS, this._instanceid );
+		gui.Broadcast.dispatch ( this, edb.BROADCAST_ACCESS, this._instanceid );
 	}),
 
 	/*
 	 * Dispatch a setter broadcast after base function.
 	 */
 	setter : gui.Combo.after ( function () {
-		gui.Broadcast.dispatchGlobal ( this, edb.BROADCAST_CHANGE, this._instanceid );
+		gui.Broadcast.dispatch ( this, edb.BROADCAST_CHANGE, this._instanceid );
 	}),
 
 	/**
@@ -349,12 +356,11 @@ gui.Object.each ({ // static mixins edb.Type
 	var iomixins = { // input-output methods
 
 		/**
-		 * Instance of this Type has been output to context?
-		 * @param @optional {Window|WorkerGlobalScope} context
+		 * Instance of this Type has been output?
 		 * @returns {boolean}
 		 */
-		out : function ( context ) {
-			return edb.Output.out ( this, context || self );
+		out : function () {
+			return edb.Output.out ( this );
 		}
 	};
 
@@ -686,7 +692,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 							handler.onchange ( changes );
 						});
 					}
-					gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
+					gui.Broadcast.dispatch ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
 				});
 			}
 		},
@@ -737,7 +743,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 */
 		_onaccess : function ( object, name ) {
 			var access = new edb.ObjectAccess ( object, name );
-			gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_ACCESS, access.instanceid );
+			gui.Broadcast.dispatch ( null, edb.BROADCAST_ACCESS, access.instanceid );
 		},
 
 		/**
@@ -760,15 +766,6 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 */
 		_changes : Object.create ( null ),
 
-		/**
-		 * Servers two purposes:
-		 * 
-		 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
-		 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
-		 * 
-		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
-		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
-		 */
 		/**
 		 * Servers two purposes:
 		 * 
@@ -832,7 +829,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 					}),
 					setter : edb.Object._setter ( key, function ( value ) {
 						/*
-						 * TODO: when resetting array, make sure that 
+						 * @TODO: when resetting array, make sure that 
 						 * it becomes xx.MyArray (not plain edb.Array)
 						 */
 						var target = types [ key ] ? types : proxy;
@@ -1323,36 +1320,23 @@ edb.Output = {
 	},
 
 	/**
-	 * Output Type instance in context. @TODO: some complicated argument combos to explain here
-	 * @param {Window|WorkerGlobalScope|IInputHandler} context @TODO input handler!
-	 * @param {Object|Array|edb.Object|edb.Array} data Raw JSON or Type instance
-	 * @param @optional {function|string} Type Optional edb.Type constructor
+	 * Output Type instance.
 	 * @returns {edb.Object|edb.Array}
 	 */
-	dispatch : function ( type, context ) {
-		context = context || self;
-		this._configure ( type.constructor, type, context );
-		gui.Broadcast.dispatch ( 
-			null, 
-			edb.BROADCAST_OUTPUT, 
-			new edb.Input ( type ), 
-			context.gui.$contextid 
-		);
-		gui.Broadcast.addGlobal ( gui.BROADCAST_WILL_UNLOAD, this );
+	dispatch : function ( type ) {
+		var input = this._configure ( type.constructor, type );
+		gui.Broadcast.dispatch ( null, edb.BROADCAST_OUTPUT, input );
 	},
 
 	/**
 	 * Instance of given Type has been output to context?
 	 * @param {function} type Type constructor
-	 * @param {Window|WorkerGlobalScope} context
 	 * @returns {boolean}
 	 */
-	out : function ( Type, context ) {
-		context = context || self;
-		var contxid = context.gui.$contextid;
-		var contmap = this._contexts [ contxid ];
+	out : function ( Type ) {
 		var classid = Type.$classid;
-		return contmap && contmap [ classid ] ? true : false;
+		var typeobj = this._map [ classid ];
+		return typeobj ? true : false;
 	},
 
 	/**
@@ -1361,69 +1345,55 @@ edb.Output = {
 	 */
 	onbroadcast : function ( b ) {
 		if ( b.type === gui.BROADCAST_WILL_UNLOAD ) {
-			this._onunload ( b.data );
+			this._onunload ();
 		}
 	},
 
 
 	// Private ............................................................................
-
+	
 	/**
-	 * Mapping contextid to map mapping Type classname to Type instance.
-	 * @type {Map<String,Map<String,edb.Object|edb.Array>>}
+	 * Mapping Type classname to Type instance.
+	 * @type {Map<String,edb.Object|edb.Array>}
 	 */
-	_contexts : {},
+	_map : {},
 
 	/**
 	 * Configure Type instance for output.
 	 * @param {function} Type constructor
 	 * @param {edb.Object|edb.Array} type instance
-	 * @param {Window|WorkerGlobalScope} context
+	 * @returns {edb.Input}
 	 */
-	_configure : function ( Type, type, context ) {
-		var contxid = context.gui.$contextid;
-		var contmap = this._contexts [ contxid ] || ( this._contexts [ contxid ] = {});
+	_configure : function ( Type, type ) {
 		var classid = Type.$classid;
-		contmap [ classid ] = type;
-		type.$context = context;
-		//alert ( Type.$classname + ": "+ context.document.title );
-		type.$contextid = contxid;
+		this._map [ classid ] = type;
+		return new edb.Input ( type );
 	},
 
 	/**
 	 * Stop tracking output for expired context.
 	 * @param {String} contextid
 	 */
-	_onunload : function ( contextid ) {
-		var context = this._contexts [ contextid ];
-		if ( context ) {
-			gui.Object.each ( context, function ( classid, type ) {
-				type.$ondestruct ();
-			}, this );
-			delete this._contexts [ contextid ];
-		}
+	_onunload : function () {
+		gui.Object.each ( this._map, function ( classid, type ) {
+			type.$ondestruct ();
+		});
+		this._map = null;
 	},
 
 
 	// Secrets .................................................................
 
 	/**
-	 * Get output of type in given context. Note that this returns an edb.Input. 
+	 * Get output of given type. Note that this returns an edb.Input. 
 	 * @TODO Officially this should be supported via methods "add" and "remove".
-	 * @param {Window|WorkerGlobalScope} context
 	 * @param {function} Type
 	 * @returns {edb.Input}
 	 */
 	$get : function ( Type, context ) {
-		context = context || self;
-		if ( Type.out ( context )) {
-			var contxid = context.gui.$contextid;
-			var contmap = this._contexts [ contxid ];
-			var classid = Type.$classid;
-			var typeobj = contmap [ classid ];
-			return new edb.Input ( typeobj );
-		}
-		return null;
+		var classid = Type.$classid;
+		var typeobj = this._map [ classid ];
+		return typeobj ? new edb.Input ( typeobj ) : null;
 	}
 
 };
@@ -1969,11 +1939,13 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 	 * points to a script embedded in the spirits own document 
 	 * (and unless script has already been loaded into context).
 	 * @param {String} src (directives resolved on target SCRIPT)
+	 * @returns {gui.Then}
 	 */
 	load : function ( src ) {
 		var win = this.context;
 		var doc = win.document;
 		var abs = gui.URL.absolute ( doc, src );
+		var then = this._then = new gui.Then ();
 		if ( this.spirit.life.entered ) {
 			if ( abs !== this._src ) {
 				edb.Script.load ( win, doc, src, function onreadystatechange ( script ) {
@@ -1985,6 +1957,7 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 			this.spirit.life.add ( gui.LIFE_ENTER, this );
 			this._dosrc = src;
 		}
+		return then;
 	},
 
 	/**
@@ -2089,6 +2062,12 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 	_script : null,
 
 	/**
+	 * Experimental....
+	 * @type {gui.Then}
+	 */
+	_then : null,
+
+	/**
 	 * Update manager. 
 	 * @type {edb.UpdateManager}
 	 */
@@ -2140,12 +2119,16 @@ edb.ScriptPlugin = gui.Plugin.extend ({
 					if ( this.debug ) {
 						script.debug ();
 					}
+					if ( this._then ) {
+						this._then.now ();
+						this._then = null;
+					}
 				}
 				if ( this._dorun ) {
 					this.run.apply ( this, this._dorun );
 					this._dorun = null;
 				} else if ( this.autorun ) {
-					this.run (); // @TODO: only if an when entered!
+					this.run (); // @TODO: only if and when entered!
 				}
 				break;
 		}
@@ -4256,14 +4239,17 @@ edb.Function = gui.Class.create ( Object.prototype, {
 	},
 
 	/**
-	 * Use blob files?
+	 * Use blob files? Temp disabled in Firefox due to sandbox issues.
 	 * @TODO: Investigate potential overheads and asyncness
 	 */
 	_useblob : function () {
+		return this.context.gui.debug && gui.Client.isWebKit;
+		/*
 		return this.context.edb.useblobs && 
 			gui.Client.hasBlob && 
 			!gui.Client.isExplorer && 
 			!gui.Client.isOpera;
+		*/
 	},
 	
 	/**
@@ -4465,14 +4451,11 @@ edb.Script = edb.Function.extend ({
 		this.input = new edb.InputPlugin ();
 		this.input.context = this.context; // as constructor arg?
 		this.input.onconstruct (); // huh?
-
 		// @TODO this!
 		// console.warn ( "Bad: onconstruct should autoinvoke" );
-
 		this._keys = new Set (); // tracking data changes
-
 		// @TODO this *must* be added before it can be removed ?
-		gui.Broadcast.addGlobal ( edb.BROADCAST_CHANGE, this );
+		gui.Broadcast.add ( edb.BROADCAST_CHANGE, this );
 	},
 
 	/**
@@ -4601,8 +4584,8 @@ edb.Script = edb.Function.extend ({
 	 * @param {boolean} isBuilding
 	 */
 	_subscribe : function ( isBuilding ) {
-		gui.Broadcast [ isBuilding ? "addGlobal" : "removeGlobal" ] ( edb.BROADCAST_ACCESS, this );
-		gui.Broadcast [ isBuilding ? "removeGlobal" : "addGlobal" ] ( edb.BROADCAST_CHANGE, this );
+		gui.Broadcast [ isBuilding ? "add" : "remove" ] ( edb.BROADCAST_ACCESS, this );
+		gui.Broadcast [ isBuilding ? "remove" : "add" ] ( edb.BROADCAST_CHANGE, this );
 	}
 
 
@@ -4670,12 +4653,16 @@ edb.Script = edb.Function.extend ({
 			 * button in case the function takes a while to complete. 
 			 */
 			if (( func = this._invokables [ key ])) {
-				if ( log.type === "click" ) {
-					gui.Tick.next ( function () {
+				if ( log ) {
+					if ( log.type === "click" ) {
+						gui.Tick.next ( function () {
+							func ( log.value, log.checked );
+						});
+					} else {
 						func ( log.value, log.checked );
-					});
+					}
 				} else {
-					func ( log.value, log.checked );
+					func ();
 				}
 			} else {
 				throw new Error ( "Invokable does not exist: " + key );
@@ -4688,11 +4675,11 @@ edb.Script = edb.Function.extend ({
 	 * @param {Event} e
 	 */
 	$register : function ( e ) {
-		this._log = {
+		this._log = e ? {
 			type : e.type,
 			value : e.target.value,
 			checked : e.target.checked
-		};
+		} : null;
 		return this;
 	},
 
@@ -5088,6 +5075,14 @@ edb.UpdateManager = function UpdateManager ( spirit ) {
 };
 
 edb.UpdateManager.prototype = {
+
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		return "[object edb.UpdateManager]";
+	},
 	
 	/**
 	 * Update.
@@ -5978,7 +5973,8 @@ edb.HardUpdate = edb.Update.extend ({
 		this._super.update ();
 		var element = this.element ();
 		if ( element && this._beforeUpdate ( element )) {
-			gui.DOMPlugin.html ( element, this.xelement.outerHTML );
+			//gui.DOMPlugin.html ( element, this.xelement.outerHTML );
+			gui.DOMPlugin.html ( element, this.xelement.innerHTML );
 			this._afterUpdate ( element );
 			this._report ();
 		}
@@ -6325,6 +6321,9 @@ edb.EDBModule = gui.module ( "edb", {
 		 * @param {edb.Input} input
 		 */
 		oninput : function ( input ) {
+			/* 
+			 * @TODO: get this out of here...
+			 */
 			if ( input.data instanceof edb.State ) {
 				if ( this._statesstarted ( input.type, input.data )) {
 					gui.Spirit.$oninit ( this );
@@ -6428,6 +6427,16 @@ edb.EDBModule = gui.module ( "edb", {
 
 	oncontextinitialize : function ( context ) {
 		var plugin, proto, method;
+		/*
+		 * @TODO: Nasty hack to circumvent that we 
+		 * hardcode "event" into inline poke events, 
+		 * this creates an undesired global variable.
+		 */
+		if ( !context.event ) {
+			try {
+				context.event = null;
+			} catch ( ieexception ) {}
+		}
 		if ( !context.gui.portalled ) {
 			if (( plugin = context.gui.AttConfigPlugin )) {
 				proto = plugin.prototype;

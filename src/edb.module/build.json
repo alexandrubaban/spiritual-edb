@@ -17,13 +17,7 @@
 	"plugins/script.plugin/edb.ScriptPlugin.js",
 
 	"spirits/edb.ScriptSpirit.js",
-	"spirits/edb.ServiceSpirit.js",
-
-	"scripts/utils/edb.Instruction.js",
-	"scripts/utils/edb.Runner.js",
-	"scripts/utils/edb.Status.js",
-	"scripts/utils/edb.Result.js",
-
+	
 	"storage/edb.Storage.js",
 	"storage/edb.DOMStorage.js",
 	"storage/edb.SessionStorage.js",
@@ -32,20 +26,10 @@
 	"states/edb.State.js",
 	"states/edb.SessionState.js",
 	"states/edb.LocalState.js",
-
-	"scripts/compiler/edb.Compiler.js",
-	"scripts/compiler/edb.FunctionCompiler.js",
-	"scripts/compiler/edb.ScriptCompiler.js",
-	"scripts/compiler/edb.TagCompiler.js",
-
-	"scripts/setup/edb.Loader.js",
-	"scripts/setup/edb.Function.js",
-	"scripts/setup/edb.Script.js",
-	"scripts/setup/edb.Tag.js",
-	"scripts/setup/edb.Import.js",
-
-	"scripts/runtime/edb.Att.js",
-	"scripts/runtime/edb.Out.js",
+	
+	"runtime/edb.Att.js",
+	"runtime/edb.Out.js",
+	"runtime/edb.Script.js",
 
 	"updates/edb.UpdateAssistant.js",
 	"updates/edb.UpdateManager.js",

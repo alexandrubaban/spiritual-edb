@@ -77,7 +77,7 @@ edb.DOMStorage = edb.Storage.extend ({
 	 */
 	$setItem : function ( key, item, context, callback, now ) {
 		var xxxx = this.$read ( context );
-		xxxx [ key ] = item.$stringify ();
+		xxxx [ key ] = item.stringify ();
 		this.$write ( context, true );
 		callback.call ( this );
 	},

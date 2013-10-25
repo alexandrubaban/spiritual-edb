@@ -14,6 +14,21 @@ edb.EDBModule = gui.module ( "edb", {
 	 * Extending {gui.Spirit}
 	 */
 	mixins : {
+
+		/**
+		 * @TODO: support accessor and implement as property
+		 * @param {String|function} script
+		 */
+		src : function ( script ) {
+			if ( gui.Type.isString ( script )) {
+				script = gui.Object.lookup ( script );	
+			}
+			if ( gui.Type.isFunction ( script )) {
+				this.script.load ( script );
+			} else {
+				throw new TypeError ();
+			}
+		},
 		
 		/**
 		 * Handle input.
@@ -121,15 +136,17 @@ edb.EDBModule = gui.module ( "edb", {
 		input : edb.InputPlugin,
 		output : edb.OutputPlugin
 	},
-	
+
 	/*
 	 * Channeling spirits to CSS selectors.
 	 */
 	channels : [
-		[ "script[type='text/edbml']", "edb.ScriptSpirit" ],
-		[ "link[rel='service']", "edb.ServiceSpirit" ]
+		[ ".gui-script", "edb.ScriptSpirit" ]
 	],
-
+	
+	/* 
+	 * @param {Window} context
+	 */
 	oncontextinitialize : function ( context ) {
 		var plugin, proto, method;
 		/*

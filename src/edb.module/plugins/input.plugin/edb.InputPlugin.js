@@ -9,13 +9,14 @@ edb.InputPlugin = gui.Tracker.extend ({
 	 * @type {boolean}
 	 */
 	done : true,
-	
+
 	/**
 	 * Construction time.
 	 * @overrides {gui.Tracker#construct}
 	 */
 	onconstruct : function () {
 		this._super.onconstruct ();
+		this.context = self; // @TODO: deprecate this whole thing...
 		this._watches = [];
 		this._matches = [];
 	},
@@ -73,11 +74,6 @@ edb.InputPlugin = gui.Tracker.extend ({
 		var input = best ? this._matches.filter ( function ( input ) {
 			return input.type === best;
 		}).shift () : null;
-		/*
-		if ( input ) {
-			console.log ( "Bestmatch: " + input.data );
-		}
-		*/
 		return input ? input.data : null;
 	},
 
@@ -87,7 +83,7 @@ edb.InputPlugin = gui.Tracker.extend ({
 	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
 	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
 	 * @returns {edb.Object|edb.Array}
-	 */
+	 *
 	dispatch : function ( data, Type ) {
 		if ( this.spirit ) {
 			return this.spirit.script.input ( data, Type );
@@ -95,6 +91,7 @@ edb.InputPlugin = gui.Tracker.extend ({
 			console.error ( "TODO: not implemented (private sandbox input)" );
 		}
 	},
+	*/
 	
 	/**
 	 * Evaluate new input.
@@ -131,8 +128,6 @@ edb.InputPlugin = gui.Tracker.extend ({
 
 	/**
 	 * Add input handler for types.
-	 * @TODO Are we sure that tick works synch in all browsers 
-	 * (FF)? If not, better to wait for this.spirit.life.ready
 	 * @param {Array<function>} types
 	 * @param {IInputHandler} handler
 	 */
@@ -141,20 +136,13 @@ edb.InputPlugin = gui.Tracker.extend ({
 			if ( gui.Type.isDefined ( Type )) {
 				this._watches.push ( Type );
 				this._addchecks ( Type.$classid, [ handler ]);
-				if ( Type.out ( this.context )) { // type has been output already?
-					// alert ( edb.Output.$get ( this.context, Type ));
-
-					this._maybeinput ( edb.Output.$get ( Type, this.context ));
-					/*
-					 * TODO: this tick was needed at some point (perhaps in Spiritual Dox?)
-					 */
-					// gui.Tick.next(function(){ // allow nested {edb.ScriptSpirit} to spiritualize first
-						//this._todoname ();
-					// }, this );
-
-				}
 			} else {
 				throw new TypeError ( "Could not register input for undefined Type" );
+			}
+		}, this );
+		types.forEach ( function ( Type ) {
+			if ( Type.out ( this.context )) { // type has been output already?
+				this._maybeinput ( edb.Output.$get ( Type, this.context ));
 			}
 		}, this );
 	},

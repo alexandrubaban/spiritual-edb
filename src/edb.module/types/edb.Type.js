@@ -43,9 +43,79 @@ edb.Type.prototype = {
 	
 	/**
 	 * Called after $onconstruct (by gui.Class convention).
-	 * @TODO kill this and use $onconstruct only ($-prefixes only)
 	 */
 	onconstruct : function () {},
+
+	/**
+	 * Hello.
+	 */
+	oninit : function () {},
+
+	/**
+	 * Hello again.
+	 */
+	ondestruct : function () {},
+
+	/**
+	 * Output to context.
+	 * @param @optional {edb.IInputHandler} target
+	 * @returns {edb.Type}
+	 */
+	output : function ( target ) {
+		edb.Output.dispatch ( this, target );
+		return this;
+	},
+	
+	/**
+	 * Serialize to JSON string without private and expando properties.
+	 * @todo Declare $normalize as a method stub here (and stull work in subclass)
+	 * @param {function} filter
+	 * @param {String|number} tabber
+	 * @returns {String}
+	 */
+	stringify : function ( filter, tabber ) {
+		return JSON.stringify ( this.$normalize (), filter, tabber );
+	},
+
+
+	// CRUD .............................................................................
+
+	/**
+	 * Warning to use some kind of factory pattern.
+	 */
+	GET : function () {
+		throw new Error ( "Not supported. Use " + this.constructor + ".GET(optionalid)" );
+	},
+
+	/**
+	 * PUT resource.
+	 * @param @optional {Map<String,object>} options
+	 * @returns {gui.Then}
+	 */
+	PUT : function ( options ) {
+		return this.constructor.PUT ( this, options );
+	},
+
+	/**
+	 * POST resource.
+	 * @param @optional {Map<String,object>} options
+	 * @returns {gui.Then}
+	 */
+	POST : function ( options ) {
+		return this.constructor.POST ( this, options );
+	},
+
+	/**
+	 * DELETE resource.
+	 * @param @optional {Map<String,object>} options
+	 * @returns {gui.Then}
+	 */
+	DELETE : function ( options ) {
+		return this.constructor.DELETE ( this, options );
+	},
+
+
+	// Secret ...........................................................................
 
 	/**
 	 * Validate persistance on startup.
@@ -57,80 +127,17 @@ edb.Type.prototype = {
 	},
 
 	/**
-	 * Hello.
-	 */
-	$oninit : function () {},
-
-	/**
 	 * Called by {edb.Output} when the output context shuts down 
 	 * (when the window unloads or the web worker is terminated).
 	 * @TODO: recursively nuke descendant types :)
 	 */
 	$ondestruct : function () {
 		edb.Type.$maybepersist ( this );
-	},
-
-	/**
-	 * Output to context.
-	 * @param @optional {Window|WorkerGlobalScope} context
-	 * @returns {edb.Type}
-	 */
-	$output : function ( context ) {
-		edb.Output.dispatch ( this, context || self );
-		return this;
-	},
-	
-	/**
-	 * Serialize to JSON string without private and expando properties.
-	 * @todo Declare $normalize as a method stub here (and stull work in subclass)
-	 * @param {function} filter
-	 * @param {String|number} tabber
-	 * @returns {String}
-	 */
-	$stringify : function ( filter, tabber ) {
-		return JSON.stringify ( this.$normalize (), filter, tabber );
-	},
-
-
-	// CRUD .............................................................................
-
-	/**
-	 * Use some kind of factory pattern.
-	 */
-	$GET : function () {
-		throw new Error ( "Not supported. Use " + this.constructor + ".$GET(optionalid)" );
-	},
-
-	/**
-	 * PUT resource.
-	 * @param @optional {Map<String,object>} options
-	 * @returns {gui.Then}
-	 */
-	$PUT : function ( options ) {
-		return this.constructor.PUT ( this, options );
-	},
-
-	/**
-	 * POST resource.
-	 * @param @optional {Map<String,object>} options
-	 * @returns {gui.Then}
-	 */
-	$POST : function ( options ) {
-		return this.constructor.POST ( this, options );
-	},
-
-	/**
-	 * DELETE resource.
-	 * @param @optional {Map<String,object>} options
-	 * @returns {gui.Then}
-	 */
-	$DELETE : function ( options ) {
-		return this.constructor.DELETE ( this, options );
 	}
 };
 
 
-// Static ........................................................................
+// Static .............................................................................
 
 gui.Object.each ({ // static mixins edb.Type
 
@@ -270,7 +277,7 @@ gui.Object.each ({ // static mixins edb.Type
 });
 
 
-// Mixins .............................................................
+// Mixins .............................................................................
 
 /**
  * Setup for mixin to {edb.Object} and {edb.Array}.

@@ -28,7 +28,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 					);
 			}
 			this.onconstruct.apply ( this, arguments ); // @TODO do we want this?
-			this.$oninit ();
+			this.oninit ();
 		},
 		
 		/**
@@ -268,6 +268,13 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 						target [ key ] = edb.Type.cast ( value );
 					})
 				});
+			});
+
+			/**
+			 * Experimental...
+			 */
+			gui.Object.ownmethods ( proxy ).forEach ( function ( key ) {
+				handler [ key ] = proxy [ key ];
 			});
 		},
 

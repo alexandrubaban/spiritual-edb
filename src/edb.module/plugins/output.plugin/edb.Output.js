@@ -15,10 +15,17 @@ edb.Output = {
 	/**
 	 * Output Type instance.
 	 * @returns {edb.Object|edb.Array}
+	 * @param @optional {object} target
 	 */
-	dispatch : function ( type ) {
-		var input = this._configure ( type.constructor, type );
-		gui.Broadcast.dispatch ( null, edb.BROADCAST_OUTPUT, input );
+	dispatch : function ( type, target ) {
+		var plugin, input = this._configure ( type.constructor, type );
+		if ( target ) { // @TODO: test for target interface
+			if (( plugin = target.input ) instanceof edb.InputPlugin ) {
+				plugin.match ( input ); // @TODO: pass extra arg for auto-destruct?
+			}
+		} else {
+			gui.Broadcast.dispatch ( null, edb.BROADCAST_OUTPUT, input );
+		}
 	},
 
 	/**

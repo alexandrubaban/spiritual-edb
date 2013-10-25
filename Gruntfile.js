@@ -20,7 +20,7 @@ module.exports = function ( grunt ) {
 					 )
 				},
 				files : {
-					"dist/spiritual-edb.js" : [ "src/edb.module/edb.module.json" ]
+					"dist/spiritual-edb.js" : [ "src/edb.module/build.json" ]
 				}
 			}
 		}

@@ -35,7 +35,8 @@ edb.HardUpdate = edb.Update.extend ({
 		this._super.update ();
 		var element = this.element ();
 		if ( element && this._beforeUpdate ( element )) {
-			gui.DOMPlugin.html ( element, this._serialize ());
+			//gui.DOMPlugin.html ( element, this.xelement.outerHTML );
+			gui.DOMPlugin.html ( element, this.xelement.innerHTML );
 			this._afterUpdate ( element );
 			this._report ();
 		}
@@ -51,19 +52,6 @@ edb.HardUpdate = edb.Update.extend ({
 	
 	
 	// PRIVATE ..........................................................................
-	
-	/**
-	 * Serialize XML element to XHTML string.
-	 * TODO: Probably prefer DOM methods to innerHTML.
-	 * @returns {String}
-	 */
-	_serialize : function () {
-		var xhtml = new XMLSerializer ().serializeToString ( this.xelement );
-		if ( xhtml.contains ( "</" )) {
-			xhtml = xhtml.slice ( xhtml.indexOf ( ">" ) + 1, xhtml.lastIndexOf ( "<" ));
-		}
-		return xhtml;
-	},
 	
 	/**
 	 * Hello.

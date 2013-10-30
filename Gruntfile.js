@@ -14,13 +14,13 @@ module.exports = function ( grunt ) {
 					banner : (
 						'/**\n' +
 						' * Spiritual EDB\n' +
-						' * 2013 Wunderbyte\n' +
+						' * (c) 2013 Wunderbyte\n' +
 						' * Spiritual is freely distributable under the MIT license.\n' +
 						' */\n'
 					 )
 				},
 				files : {
-					"dist/spiritual-edb.js" : [ "src/edb.module/edb.module.json" ]
+					"dist/spiritual-edb.js" : [ "src/edb.module/build.json" ]
 				}
 			}
 		}

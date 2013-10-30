@@ -9,6 +9,14 @@ edb.UpdateManager = function UpdateManager ( spirit ) {
 };
 
 edb.UpdateManager.prototype = {
+
+	/**
+	 * Identification.
+	 * @returns {String}
+	 */
+	toString : function () {
+		return "[object edb.UpdateManager]";
+	},
 	
 	/**
 	 * Update.
@@ -86,35 +94,7 @@ edb.UpdateManager.prototype = {
 	 * @type {edb.UpdateAssistant}
 	 */
 	_assistant : edb.UpdateAssistant,
-
-	/*
-	_fisse : function ( remappings ) {
-		var count = 0;
-		if ( Object.keys ( remappings ).length ) {
-			new gui.Crawler ( "John" ).descend ( this._spirit, {
-				handleElement : function ( elm ) {
-					Array.forEach ( elm.attributes, function ( att ) {
-						var oldkeys = gui.KeyMaster.extractKey ( att.value );
-						if ( oldkeys ) {
-							var newkey;
-							oldkeys.forEach ( function ( oldkey ) {
-								if (( newkey = remappings [ oldkey ])) {
-									att.value = att.value.replace ( oldkey, newkey );
-									edb.Script.$revoke ( oldkey );
-									count ++;
-								}
-							});
-						}
-					});
-				}
-			});
-		}
-		if ( count ) {
-			console.debug ( "Updated " + count + " function keys." );
-		}
-	},
-	*/
-
+	
 	/**
 	 * First update (always a hard update).
 	 * @param {String} html
@@ -132,7 +112,7 @@ edb.UpdateManager.prototype = {
 	 */
 	_next : function ( html ) {
 		this._newdom = this._parse ( html );
-		this._crawl ( this._newdom, this._olddom, this._newdom, this._keyid, {}, null );
+		this._crawl ( this._newdom, this._olddom, this._newdom, this._keyid, {});
 		this._olddom = this._newdom;
 	},
 
@@ -233,6 +213,10 @@ edb.UpdateManager.prototype = {
 							} else {
 								if ( oldnode.localName !== "textarea" ) { // TODO: better forms support!
 									result = newnode.childNodes.length === oldnode.childNodes.length;
+									if ( !result && oldnode.id ) {
+										lastnode = newnode;
+										id = oldnode.id;
+									}
 								}
 							}
 						}

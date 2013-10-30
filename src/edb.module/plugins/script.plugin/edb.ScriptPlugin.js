@@ -1,374 +1,314 @@
 /**
  * The ScriptPlugin shall render the spirits HTML.
- * @extends {gui.Plugin} (should perhaps extend some kind of genericscriptplugin)
+ * @extends {gui.Plugin}
+ * @using {gui.Arguments.confirmed}
  */
-edb.ScriptPlugin = gui.Plugin.extend ({
+edb.ScriptPlugin = ( function using ( confirmed ) {
 
-	/**
-	 * Script has been loaded and compiled?
-	 * @type {boolean}
-	 */
-	loaded : false,
+	return gui.Plugin.extend ({
 
-	/**
-	 * Automatically run the script on spirit.onenter()? 
-	 * @TODO implement 'required' attribute on params instead...
-	 *
-	 * - any added <?param?> value will be undefined at this point
-	 * - adding <?input?> will delay run until all input is loaded
-	 * @type {boolean}
-	 */
-	autorun : true,
+		/**
+		 * Script has been loaded?
+		 * @type {boolean}
+		 */
+		loaded : false,
 
-	/**
-	 * Script has been run? Flipped after first run.
-	 * @type {boolean}
-	 */
-	ran : false,
+		/**
+		 * Script has been run? Flipped after first run.
+		 * @type {boolean}
+		 */
+		ran : false,
 
-	/**
-	 * Use minimal updates (let's explain exactly what this is)?
-	 * If false, we write the entire HTML subtree on all updates. 
-	 * @type {boolean}
-	 */
-	diff : true,
+		/**
+		 * Log development stuff to console?
+		 * @type {boolean}
+		 */
+		debug : false,
 
-	/**
-	 * Log development stuff to console?
-	 * @type {boolean}
-	 */
-	debug : false,
+		/**
+		 * Hijacking the {edb.InputPlugin} which has been 
+		 * designed to work without an associated spirit.
+		 * @type {edb.InputPlugin}
+		 */
+		input : null,
 
-	/**
-	 * Hm...
-	 * @type {Map<String,object>}
-	 */
-	extras : null,
-
-	/**
-	 * Script SRC. Perhaps this should be implemented as a method.
-	 * @type {String}
-	 */
-	src : {
-		getter : function () {
-			return this._src;
+		/**
+		 * Construction time.
+		 */
+		onconstruct : function () {
+			this._super.onconstruct ();
+			this.inputs = this.inputs.bind ( this );
 		},
-		setter : function ( src ) {
-			this.load ( src );
-		}
-	},
-	
-	/**
-	 * Construction time.
-	 *
-	 * 1. don't autorun service scripts
-	 * 2. use minimal updating system?
-	 * 3. import script on startup 
-	 */
-	onconstruct : function () {
-		this._super.onconstruct ();
-		var spirit = this.spirit;
-		this.inputs = this.inputs.bind ( this );
-		spirit.life.add ( gui.LIFE_DESTRUCT, this );
-		if ( spirit instanceof edb.ScriptSpirit ) {
-			this.autorun = false;
-		} else if ( this.diff ) {
-			this._updater = new edb.UpdateManager ( spirit );
-		}
-	},
 
-	/**
-	 * Destruction time.
-	 */
-	ondestruct : function () {
-		this._super.ondestruct ();
-		if ( this._script ) {
-			this._script.dispose ();
-		}
-	},
-
-	/**
-	 * Handle attribute update.
-	 * @param {gui.Att} att
-	 */
-	onatt : function ( att ) {
-		if ( att.name === "src" ) {
-			this.src = att.value;
-		}
-	},
-
-	/**
-	 * If in an iframe, now is the time to fit the iframe 
-	 * to potential new content (emulating seamless iframes).
-	 * @TODO: at least make sure IframeSpirit consumes this if not set to fit
-	 * @param {gui.Tick} tick
-	 */
-	ontick : function ( tick ) {
-		if ( tick.type === gui.TICK_DOC_FIT ) {
-			this.spirit.action.dispatchGlobal ( gui.ACTION_DOC_FIT );
-		}
-	},
-	
-	/**
-	 * @TODO: The issue here is that the {ui.UpdateManager} can't diff propertly unless we 
-	 * wait for enter because it looks up the spirit via {gui.Spiritual#_spirits.inside}...
-	 * @param {gui.Life} life
-	 */
-	onlife : function ( life ) {
-		if ( life.type ===  gui.LIFE_ENTER ) {
-			this.spirit.life.remove ( life.type, this );
-			if ( this._dosrc ) {
-				this.load ( this._dosrc );
-				this._dosrc = null;
+		/**
+		 * Destruction time.
+		 */
+		ondestruct : function () {
+			this._super.ondestruct ();
+			if ( this.loaded && this.input ) {
+				this.input.ondestruct ();
 			}
-		}
-	},
+		},
 
-	/**
-	 * Load script from SRC. This happens async unless the SRC 
-	 * points to a script embedded in the spirits own document 
-	 * (and unless script has already been loaded into context).
-	 * @param {String} src (directives resolved on target SCRIPT)
-	 */
-	load : function ( src ) {
-		var win = this.context;
-		var doc = win.document;
-		var abs = gui.URL.absolute ( doc, src );
-		if ( this.spirit.life.entered ) {
-			if ( abs !== this._src ) {
-				edb.Script.load ( win, doc, src, function onreadystatechange ( script ) {
-					this._onreadystatechange ( script );
-				}, this );
-				this._src = abs;
+		/**
+		 * Load script.
+		 * @param {function} script
+		 */
+		load : confirmed ( "function" ) ( function ( script ) {
+			this.loaded = true;
+			this._script = script;
+			this._updater = new edb.UpdateManager ( this.spirit );
+			this._process ( script.$instructions );
+			if ( !this.input ) {
+				this.run ();
 			}
-		} else { // {edb.UpdateManager} needs to diff
-			this.spirit.life.add ( gui.LIFE_ENTER, this );
-			this._dosrc = src;
-		}
-	},
+		}),
 
-	/**
-	 * Compile script from source TEXT and run it when ready.
-	 * @param {String} source Script source code
-	 * @param @optional {HashMap<String,object>} directives Optional compiler directives
-	 */
-	compile : function ( source, directives ) {
-		var win = this.context, url = new gui.URL ( this.context.document );
-		edb.Script.compile ( win, url, source, directives, function onreadystatechange ( script ) {
-			this._onreadystatechange ( script );
-		}, this );
-	},
+		/**
+		 * Handle input.
+		 * @param {edb.Input} input
+		 */
+		oninput : function ( input ) {
+			if ( this.input.done ) {
+				this.run ();
+			}
+		},
 
-	/**
-	 * Run script (with implicit arguments) and write result to DOM.
-	 * @see {gui.SandBoxView#render}
-	 */
-	run : function ( /* arguments */ ) {
-		if ( this.loaded ) {
-			this._script.pointer = this.spirit; // TODO!
-			this.write ( 
-				this._script.execute.apply ( 
-					this._script, 
-					arguments 
-				)	
-			);
-		} else {
-			this._dorun = arguments;
-		}
-	},
-	
-	/**
-	 * Write the actual HTML to screen. You should probably only 
-	 * call this method if you are producing your own markup 
-	 * somehow, ie. not using EDBML templates out of the box. 
-	 * @param {String} html
-	 */
-	write : function ( html ) {
-		var changed = this._html !== html;
-		if ( changed ) {
-			this._html = html;
-			this._stayfocused ( function () {
-				if ( this.diff ) {
-					this._updater.update ( html );
+		/**
+		 * Run script and write result to DOM.
+		 */
+		run : function ( /* arguments */ ) {
+			if ( this.loaded ) {
+				if ( this.spirit.life.entered ) {
+					this.write ( this._run.apply ( this, arguments ));
 				} else {
-					this.spirit.dom.html ( html ); // TODO: forms markup make valid!
+					this.spirit.life.add ( gui.LIFE_ENTER, this );
+					this._arguments = arguments;
 				}
-			});
+			} else {
+				console.error ( this.spirit, "No script loaded" );
+			}
+		},
+		
+		/**
+		 * Write the actual HTML to screen. You should probably only 
+		 * call this method if you are producing your own markup 
+		 * somehow, ie. not using EDBML templates out of the box. 
+		 * @param {String} html
+		 */
+		write : function ( html ) {
+			var changed = this._html !== html;
+			if ( changed ) {
+				this._html = html;
+				this._stayfocused ( function () {
+					this._updater.update ( html );
+				});
+				this.spirit.onrender ({ // @TODO: some kind of RenderSummary...
+					changed : changed,
+					first : !this.ran
+				});
+			}
 			this.ran = true;
-			this.spirit.life.dispatch ( 
-				edb.LIFE_SCRIPT_DID_RUN, changed // @TODO Support this kind of arg...
-			);
-			if ( this.context.gui.hosted ) { // fit any containing iframe in next tick.
-				var tick = gui.TICK_DOC_FIT;
-				var id = this.context.gui.$contextid;
-				gui.Tick.one ( tick, this, id ).dispatch ( tick, 0, id );
+		},
+
+		/**
+		 * Get input of type.
+		 * @param {function} Type
+		 * @returns {object}
+		 */
+		inputs : function ( Type ) {
+			return this.input.get ( Type );
+		},
+
+		/**
+		 * Handle broadcast.
+		 * @param {gui.Broadcast} broadcast
+		 */
+		onbroadcast : function ( b ) {
+			var keys = this._triggers;
+			switch ( b.type ) {
+				case edb.BROADCAST_ACCESS :
+					keys [ b.data ] = true;
+					break;
+				case edb.BROADCAST_CHANGE :
+					if ( keys [ b.data ]) {
+						var tick = edb.TICK_SCRIPT_UPDATE;
+						gui.Tick.one ( tick, this ).dispatch ( tick, 0 );	
+					}
+					break;
 			}
-		}
-	},
+		},
 
-	/**
-	 * Private input for this script only.
-	 * @see {edb.InputPlugin#dispatch}
-	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
-	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
-	 * @returns {edb.Object|edb.Array}
-	 */
-	input : function ( data, Type ) {
-		var input = edb.Input.format ( this.context, data, Type );
-		if ( this._script ) {
-			this._script.input.match ( input );
-		} else {
-			this._doinput = this._doinput || [];
-			this._doinput.push ( input );
-		}
-		return input.data;
-	},
+		/**
+		 * Tick allows for multiple model updates to trigger a single rendering.
+		 * @param {gui.Tick} tick
+		 */
+		ontick : function ( tick ) {
+			switch ( tick.type ) {
+				case edb.TICK_SCRIPT_UPDATE :
+					this.run ();
+					break;
+			}
+		},
 
-	/**
-	 * Return data for input of type.
-	 * @param {function} type
-	 * @returns {object}
-	 */
-	inputs : function ( type ) {
-		return this._script.input.get ( type );
-	},
+		/**
+		 * @param {gui.Life} life
+		 */
+		onlife : function ( l ) {
+			if ( l.type === gui.LIFE_ENTER ) {
+				this.spirit.life.remove ( l.type, this );
+				if ( this._arguments ) {
+					this.run.apply ( this, this._arguments );
+				}
+			}
+		},
 
 
-	// PRIVATES ...........................................................................
+		// PRIVATES .......................................................
 
-	/**
-	 * Script SRC.
-	 * @type {String}
-	 */
-	_src : null,
+		/**
+		 * Script SRC.
+		 * @type {String}
+		 */
+		_src : null,
 
-	/**
-	 * Script thing.
-	 * @type {edb.Script}
-	 */
-	_script : null,
+		/**
+		 * Script thing.
+		 * @type {edb.Script}
+		 */
+		_script : null,
 
-	/**
-	 * Update manager. 
-	 * @type {edb.UpdateManager}
-	 */
-	_updater : null,
+		/**
+		 * Update manager. 
+		 * @type {edb.UpdateManager}
+		 */
+		_updater : null,
 
-	/*
-	 * Listing private input to be injected into script once loaded.
-	 * @type {Array<edb.Input>}
-	 */
-	_doinput : null,
+		/**
+		 * Mapping keys broadcasted from edb.Objects to trigger repaint.
+		 * @type {Map<String,boolean>} 
+		 */
+		_triggers : null,
 
-	/**
-	 * @type {String}
-	 */
-	_dosrc : null,
+		/**
+		 * Cache arguments for postponed execution.
+		 * @type {Arguments}
+		 */
+		_arguments : null,
 
-	/**
-	 * Run arguments on script loaded.
-	 * @type {Arguments}
-	 */
-	_dorun : null,
+		/**
+		 * Snapshot latest HTML to avoid parsing duplicates.
+		 * @type {String}
+		 */
+		_html : null,
 
-	/**
-	 * Snapshot latest HTML to avoid parsing duplicates.
-	 * @type {String}
-	 */
-	_html : null,
+		/**
+		 * Parse processing instructions.
+		 * @param {Array<object>} pis
+		 */
+		_process : function ( pis ) {
+			if ( pis ) {
+				var inputs = []; // batch multiple inputs to prevent early resolve
+				pis.forEach ( function ( pi ) {
+					switch ( pi.type ) {
+						case "input" :
+							inputs.push ( 
+								gui.Object.lookup ( pi.atts.type )
+							);
+							break;
+					}
+				});
+				if ( inputs.length ) {
+					this.input = new edb.InputPlugin ();
+					this.input.add ( inputs, this );
+				}
+			}
+		},
 
-	/**
-	 * Handle script state change.
-	 * @param {edb.Script} script
-	 */
-	_onreadystatechange : function ( script ) {
-		this._script = this._script || script;
-		switch ( script.readyState ) {
-			case edb.Function.WAITING :
-				if ( this._doinput ) {
-					if ( this._doinput.length ) { // strange bug...
-						while ( this._doinput.length ) {
-							this.input ( this._doinput.shift ());
+		/**
+		 * Add-remove broadcast handlers.
+		 * @param {boolean} isBuilding
+		 */
+		_subscribe : function ( isBuilding ) {
+			gui.Broadcast [ isBuilding ? "add" : "remove" ] ( edb.BROADCAST_ACCESS, this );
+			gui.Broadcast [ isBuilding ? "remove" : "add" ] ( edb.BROADCAST_CHANGE, this );
+		},
+
+		/**
+		 * Run the script while maintaining broadcast setup.
+		 * @returns {String}
+		 */
+		_run : function ( /* arguments */ ) {
+			this._triggers = {};
+			this._subscribe ( true );
+			var html = this._script.apply ( this.spirit, arguments );
+			this._subscribe ( false );
+			return html;
+		},
+
+		// @TODO: move below elsewhere ..................................................
+
+		/**
+		 * Preserve form field focus before and after action.
+		 * @param {function} action
+		 */
+		_stayfocused : function ( action ) {
+			var field, selector = edb.EDBModule.fieldselector;
+			action.call ( this );
+			if ( selector ) {
+				field = gui.DOMPlugin.q ( this.spirit.document, selector );
+				if ( field && "#" + field.id !== selector ) {
+					if ( field && gui.DOMPlugin.contains ( this.spirit, field )) {
+						field.focus ();
+						var text = "textarea,input:not([type=checkbox]):not([type=radio])";
+						if ( gui.CSSPlugin.matches ( field, text )) {
+							field.setSelectionRange ( 
+								field.value.length, 
+								field.value.length 
+							);
 						}
-						this._doinput = null;
+						this._restorefocus ( field );
+						this._debugwarning ();
 					}
-				}
-				break;
-			case edb.Function.READY :
-				if ( !this.loaded ) {
-					this.loaded = true;
-					if ( this.debug ) {
-						script.debug ();
-					}
-				}
-				if ( this._dorun ) {
-					this.run.apply ( this, this._dorun );
-					this._dorun = null;
-				} else if ( this.autorun ) {
-					this.run (); // @TODO: only if an when entered!
-				}
-				break;
-		}
-	},
-
-	/**
-	 * Preserve form field focus before and after action.
-	 * @param {function} action
-	 */
-	_stayfocused : function ( action ) {
-		var field, selector = edb.EDBModule.fieldselector;
-		action.call ( this );
-		if ( selector ) {
-			field = gui.DOMPlugin.q ( this.spirit.document, selector );
-			if ( field && "#" + field.id !== selector ) {
-				if ( field && gui.DOMPlugin.contains ( this.spirit, field )) {
-					field.focus ();
-					var text = "textarea,input:not([type=checkbox]):not([type=radio])";
-					if ( gui.CSSPlugin.matches ( field, text )) {
-						field.setSelectionRange ( 
-							field.value.length, 
-							field.value.length 
-						);
-					}
-					this._restorefocus ( field );
-					this._debugwarning ();
 				}
 			}
+		},
+
+		/**
+		 * Focus form field.
+		 * @param {Element} field
+		 */
+		_restorefocus : function ( field ) {
+			var text = "textarea,input:not([type=checkbox]):not([type=radio])";
+			field.focus ();
+			if ( gui.CSSPlugin.matches ( field, text )) {
+				field.setSelectionRange ( 
+					field.value.length, 
+					field.value.length 
+				);
+			}
+		},
+
+		/**
+		 * We're only gonna say this once.
+		 */
+		_debugwarning : function () {
+			var This = edb.ScriptPlugin;
+			if ( This._warning && this.spirit.window.gui.debug ) {
+				console.debug ( This._warning );
+				This._warning = null;
+			}
 		}
-	},
 
-	/**
-	 * Focus form field.
-	 * @param {Element} field
-	 */
-	_restorefocus : function ( field ) {
-		var text = "textarea,input:not([type=checkbox]):not([type=radio])";
-		field.focus ();
-		if ( gui.CSSPlugin.matches ( field, text )) {
-			field.setSelectionRange ( 
-				field.value.length, 
-				field.value.length 
-			);
-		}
-	},
 
-	/**
-	 * We're only gonna say this once.
-	 */
-	_debugwarning : function () {
-		var This = edb.ScriptPlugin;
-		if ( This._warning && this.spirit.window.gui.debug ) {
-			console.debug ( This._warning );
-			This._warning = null;
-		}
-	}
+	}, {}, { // Static .......................................................
 
-}, {}, { // Static .......................................................
+		/**
+		 * @TODO: STACK LOST ANYWAY!
+		 * @type {String}
+		 */
+		_warning : "Spiritual: Form elements with a unique @id may be updated without losing the undo-redo stack (now gone)."
 
-	/**
-	 * TODO: STACK LOST ANYWAY!
-	 * @type {String}
-	 */
-	_warning : "Spiritual: Form elements with a unique @id may be updated without losing the undo-redo stack (now gone)."
+	});
 
-});
+}( gui.Arguments.confirmed ));

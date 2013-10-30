@@ -28,7 +28,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 					);
 			}
 			this.onconstruct.apply ( this, arguments ); // @TODO do we want this?
-			this.$oninit ();
+			this.oninit ();
 		},
 		
 		/**
@@ -124,7 +124,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 							handler.onchange ( changes );
 						});
 					}
-					gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
+					gui.Broadcast.dispatch ( null, edb.BROADCAST_CHANGE, instanceid ); // @TODO deprecate
 				});
 			}
 		},
@@ -175,7 +175,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 */
 		_onaccess : function ( object, name ) {
 			var access = new edb.ObjectAccess ( object, name );
-			gui.Broadcast.dispatchGlobal ( null, edb.BROADCAST_ACCESS, access.instanceid );
+			gui.Broadcast.dispatch ( null, edb.BROADCAST_ACCESS, access.instanceid );
 		},
 
 		/**
@@ -198,15 +198,6 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 */
 		_changes : Object.create ( null ),
 
-		/**
-		 * Servers two purposes:
-		 * 
-		 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
-		 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
-		 * 
-		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
-		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
-		 */
 		/**
 		 * Servers two purposes:
 		 * 
@@ -270,13 +261,20 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 					}),
 					setter : edb.Object._setter ( key, function ( value ) {
 						/*
-						 * TODO: when resetting array, make sure that 
+						 * @TODO: when resetting array, make sure that 
 						 * it becomes xx.MyArray (not plain edb.Array)
 						 */
 						var target = types [ key ] ? types : proxy;
 						target [ key ] = edb.Type.cast ( value );
 					})
 				});
+			});
+
+			/**
+			 * Experimental...
+			 */
+			gui.Object.ownmethods ( proxy ).forEach ( function ( key ) {
+				handler [ key ] = proxy [ key ];
 			});
 		},
 

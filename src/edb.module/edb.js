@@ -4,30 +4,37 @@
 window.edb = gui.namespace ( "edb", {
 	
 	/**
-	 * Although it should probably be false until we have full support...
+	 * Logging some debug messages? This can be flipped via meta tag:
+	 * `<meta name="edb.debug" content="true"/>`
 	 * @type {boolean}
 	 */
-	portals : true,
+	debug : false,
 
 	/**
 	 * Mount compiled functions as blob files 
 	 * (if at all supported) to aid debugging?
+	 * This whole feature is disabled for now.
 	 * @type {boolean}
 	 */
-	useblobs : true, // @TODO: somehow map to local gui.debug
+	useblobs : false,
 
 	/**
-	 * Constants.
+	 * Broadcasts.
 	 */
 	BROADCAST_ACCESS : "edb-broadcast-access",
 	BROADCAST_CHANGE : "edb-broadcast-change",
 	BROADCAST_OUTPUT : "edb-broadcast-output",
 	BROADCAST_SCRIPT_INVOKE : "edb-broadcast-script-invoke",
-	LIFE_SCRIPT_WILL_RUN : "edb-life-script-will-run",
-	LIFE_SCRIPT_DID_RUN : "edb-life-script-did-run",
+
+	/**
+	 * Ticks.
+	 */
 	TICK_SCRIPT_UPDATE : "edb-tick-script-update",
 	TICK_COLLECT_INPUT : "edb-tick-collect-input",
 	TICK_PUBLISH_CHANGES : "edb-tick-update-changes",
+
+
+	// @TODO: cleanup below somehow ..........................................
 
 	/**
 	 * Register action to execute later.

@@ -6,7 +6,6 @@ edb.EDBModule = gui.module ( "edb", {
 	/**
 	 * CSS selector for currently focused form field.
 	 * @TODO: Support links and buttons as well
-	 * @TODO: Migrate to (future) EDBMLModule
 	 * @type {String}
 	 */
 	fieldselector : null,
@@ -15,18 +14,42 @@ edb.EDBModule = gui.module ( "edb", {
 	 * Extending {gui.Spirit}
 	 */
 	mixins : {
+
+		/**
+		 * @TODO: support accessor and implement as property
+		 * @param {String|function} script
+		 */
+		src : function ( script ) {
+			if ( gui.Type.isString ( script )) {
+				script = gui.Object.lookup ( script );	
+			}
+			if ( gui.Type.isFunction ( script )) {
+				this.script.load ( script );
+			} else {
+				throw new TypeError ();
+			}
+		},
 		
 		/**
 		 * Handle input.
 		 * @param {edb.Input} input
 		 */
 		oninput : function ( input ) {
+			/* 
+			 * @TODO: get this out of here...
+			 */
 			if ( input.data instanceof edb.State ) {
 				if ( this._statesstarted ( input.type, input.data )) {
 					gui.Spirit.$oninit ( this );
 				}
 			}
 		},
+
+		/**
+		 * Called whenever the EDBML script was evaluated.
+		 * @param {TODOTHING} summary
+		 */
+		onrender : function ( summary ) {},
 
 		/**
 		 * Optional State instance.
@@ -113,23 +136,35 @@ edb.EDBModule = gui.module ( "edb", {
 		input : edb.InputPlugin,
 		output : edb.OutputPlugin
 	},
-	
+
 	/*
 	 * Channeling spirits to CSS selectors.
 	 */
 	channels : [
-		[ "script[type='text/edbml']", "edb.ScriptSpirit" ],
-		[ "link[rel='service']", "edb.ServiceSpirit" ]
+		[ ".gui-script", "edb.ScriptSpirit" ]
 	],
-
+	
+	/* 
+	 * @param {Window} context
+	 */
 	oncontextinitialize : function ( context ) {
 		var plugin, proto, method;
+		/*
+		 * @TODO: Nasty hack to circumvent that we 
+		 * hardcode "event" into inline poke events, 
+		 * this creates an undesired global variable.
+		 */
+		if ( !context.event ) {
+			try {
+				context.event = null;
+			} catch ( ieexception ) {}
+		}
 		if ( !context.gui.portalled ) {
 			if (( plugin = context.gui.AttConfigPlugin )) {
 				proto = plugin.prototype;
 				method = proto.$evaluate;
 				proto.$evaluate = function ( name, value, fix ) {
-					if ( value.startsWith ( "edb.get" )) {
+					if ( gui.Type.isString ( value ) && value.startsWith ( "edb.get" )) {
 						var key = gui.KeyMaster.extractKey ( value )[ 0 ];
 						value = key ? context.edb.get ( key ) : key;
 					}
@@ -192,7 +227,7 @@ edb.EDBModule = gui.module ( "edb", {
 			}
 			return false;
 		}
-		while ( elm !== null ) {
+		while ( elm && elm.nodeType === Node.ELEMENT_NODE ) {
 			if ( hasid ( elm )) {
 				parts.push ( "#" + elm.id );
 				elm = null;

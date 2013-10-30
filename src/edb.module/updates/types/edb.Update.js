@@ -115,6 +115,7 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	
 	/**
 	 * Dispatch bubbling DOM event for potential handlers to intercept the update.
+	 * @TODO: Investigate CustomEvent support in our browser stack...
 	 * @param {Element} element
 	 * @param {String} name
 	 * @return {boolean} False if event was canceled
@@ -130,7 +131,7 @@ edb.Update = gui.Class.create ( Object.prototype, {
 	 * @param {String} report
 	 */
 	_report : function ( report ) {
-		if ( this.window.gui.debug ) {
+		if ( edb.debug ) {
 			if ( gui.KeyMaster.isKey ( this.id )) {
 				report = report.replace ( this.id, "(anonymous)" );
 			}

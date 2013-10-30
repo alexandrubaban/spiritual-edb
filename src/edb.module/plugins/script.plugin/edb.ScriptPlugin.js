@@ -79,7 +79,12 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 		 */
 		run : function ( /* arguments */ ) {
 			if ( this.loaded ) {
-				this.write ( this._run.apply ( this, arguments ));
+				if ( this.spirit.life.entered ) {
+					this.write ( this._run.apply ( this, arguments ));
+				} else {
+					this.spirit.life.add ( gui.LIFE_ENTER, this );
+					this._arguments = arguments;
+				}
 			} else {
 				console.error ( this.spirit, "No script loaded" );
 			}
@@ -146,6 +151,18 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 			}
 		},
 
+		/**
+		 * @param {gui.Life} life
+		 */
+		onlife : function ( l ) {
+			if ( l.type === gui.LIFE_ENTER ) {
+				this.spirit.life.remove ( l.type, this );
+				if ( this._arguments ) {
+					this.run.apply ( this, this._arguments );
+				}
+			}
+		},
+
 
 		// PRIVATES .......................................................
 
@@ -172,6 +189,12 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 		 * @type {Map<String,boolean>} 
 		 */
 		_triggers : null,
+
+		/**
+		 * Cache arguments for postponed execution.
+		 * @type {Arguments}
+		 */
+		_arguments : null,
 
 		/**
 		 * Snapshot latest HTML to avoid parsing duplicates.

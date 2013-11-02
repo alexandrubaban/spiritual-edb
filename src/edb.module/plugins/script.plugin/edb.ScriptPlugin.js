@@ -45,8 +45,16 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 		 */
 		ondestruct : function () {
 			this._super.ondestruct ();
-			if ( this.loaded && this.input ) {
-				this.input.ondestruct ();
+			if ( this.loaded ) {
+				this.spirit.life.remove ( gui.LIFE_ENTER, this );
+				gui.Tick.remove ( edb.TICK_SCRIPT_UPDATE, this );
+				gui.Broadcast.remove ([
+					edb.BROADCAST_ACCESS,
+					edb.BROADCAST_CHANGE
+				], this );
+				if ( this.input ) {
+					this.input.ondestruct ();
+				}
 			}
 		},
 
@@ -268,7 +276,7 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 							);
 						}
 						this._restorefocus ( field );
-						this._debugwarning ();
+						// this._debugwarning (); TODO: this fires when it shouldn't!
 					}
 				}
 			}

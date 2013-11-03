@@ -18,15 +18,6 @@
 
 	"spirits/edb.ScriptSpirit.js",
 	
-	"storage/edb.Storage.js",
-	"storage/edb.DOMStorage.js",
-	"storage/edb.SessionStorage.js",
-	"storage/edb.LocalStorage.js",
-
-	"states/edb.State.js",
-	"states/edb.SessionState.js",
-	"states/edb.LocalState.js",
-	
 	"runtime/edb.Att.js",
 	"runtime/edb.Out.js",
 	"runtime/edb.Script.js",

@@ -3,6 +3,15 @@
  */
 ( function using ( proto ) {
 
+	function onchange ( array, index, removed, added ) {
+		edb.Array._onchange ( array, index, removed, added );
+	}
+
+	function observes ( array ) {
+		var key = array.$instanceid || array._instanceid;
+		return edb.Array._observers [ key ] ? true : false;
+	}
+
 	/**
 	 * edb.Array
 	 * @extends {edb.Type} ...although not really...
@@ -16,10 +25,12 @@
 		 * Push.
 		 */
 		push : function() {
+			var idx = this.length;
 			var res = proto.push.apply ( this, arguments );
-			Array.forEach ( arguments, function ( arg ) {
-				edb.Array._onchange ( this, 1, arg );
-			}, this );
+			if ( observes ( this )) {
+				var add = gui.Object.toArray ( arguments );
+				onchange ( this, idx, null, add );
+			}
 			return res;
 		},
 		
@@ -27,8 +38,11 @@
 		 * Pop.
 		 */
 		pop : function () {
+			var idx = this.length - 1;
 			var res = proto.pop.apply ( this, arguments );
-			edb.Array._onchange ( this, 0, res );
+			if ( observes ( this )) {
+				onchange ( this, idx, [ res ], null );
+			}
 			return res;
 		},
 		
@@ -37,7 +51,9 @@
 		 */
 		shift : function () {
 			var res = proto.shift.apply ( this, arguments );
-			edb.Array._onchange ( this, 0, res );
+			if ( observes ( this )) {
+				onchange ( this, 0, [ res ], null );
+			}
 			return res;
 		},
 
@@ -46,9 +62,10 @@
 		 */
 		unshift : function () {
 			var res = proto.unshift.apply ( this, arguments );
-			Array.forEach ( arguments, function ( arg ) {
-				edb.Array._onchange ( this, 1, arg );
-			}, this );
+			if ( observes ( this )) {
+				var add = gui.Object.toArray ( arguments );
+				onchange ( this, 0, null, add );
+			}
 			return res;
 		},
 
@@ -56,15 +73,25 @@
 		 * Splice.
 		 */
 		splice : function () {
-			var res = proto.splice.apply ( this, arguments );
-			var add = [].slice.call ( arguments, 2 );
-			res.forEach ( function ( r ) {
-				edb.Array._onchange ( this, 0, r );
-			}, this );
-			add.forEach ( function ( a ) {
-				edb.Array._onchange ( this, 1, a );
-			}, this );
-			return res;
+			var idx = arguments [ 0 ];
+			var out = proto.splice.apply ( this, arguments );
+			if ( observes ( this )) {
+				var add = [].slice.call ( arguments, 2 );
+				onchange ( this, idx, out, add );
+			}
+			return out;
+		},
+
+		/**
+		 * Reverse.
+		 */
+		reverse : function () {
+			if ( observes ( this )) {
+				var out = this.$normalize ();
+				var add = proto.reverse.apply ( out.slice ());
+				onchange ( this, 0, out, add );	
+			}
+			return proto.reverse.apply ( this );
 		},
 
 
@@ -85,8 +112,8 @@
 		 */
 		$onconstruct : function () {
 			edb.Type.prototype.$onconstruct.apply ( this, arguments );
-			edb.Array.populate ( this, arguments );
-			edb.Array.approximate ( this );
+			edb.Array.$populate ( this, arguments );
+			edb.Array.$approximate ( this );
 			this.onconstruct.call ( this, arguments );
 			this.oninit ();
 		},
@@ -119,23 +146,58 @@
 	}()), { // Static ......................................................................
 
 		/**
+		 * Observe.
+		 */
+		observe : edb.Type.$observe,
+
+		/**
+		 * Unobserve.
+		 */
+		unobserve : edb.Type.$unobserve,
+
+		/**
+		 * Publishing change summaries async.
+		 * @param {gui.Tick} tick
+		 */
+		ontick : function ( tick ) {
+			var snapshot, handlers, observers = this._observers;
+			if ( tick.type === edb.TICK_PUBLISH_CHANGES ) {
+				snapshot = gui.Object.copy ( this._changes );
+				this._changes = Object.create ( null );
+				gui.Object.each ( snapshot, function ( instanceid, changes ) {
+					if (( handlers = observers [ instanceid ])) {
+						handlers.forEach ( function ( handler ) {
+							handler.onchange ( changes );
+						});
+					}
+				});
+			}
+		},
+
+
+		// Static secret .....................................................................
+
+		/**
 		 * Populate {edb.Array} from constructor arguments.
 		 *
 		 * 1. Populate as normal array, one member for each argument
-		 * 2. If the first argument is an array, populate using this.
-		 *
-		 * For case number two, we ignore the remaining arguments. 
+		 * 2. If the first argument is an array, populate 
+		 *    using this and ignore the remaining arguments.
+		 *    
 		 * @TODO read something about http://www.2ality.com/2011/08/spreading.html
 		 * @param {edb.Array}
 		 * @param {Arguments} args
 		 */
-		populate : function ( array, args ) {
+		$populate : function ( array, args ) {
 			var members;
 			if ( args.length ) {
 				members = [];
 				if ( gui.Type.isArray ( args [ 0 ])) {
 					members = args [ 0 ];
 				} else {
+					if ( args [ 0 ] instanceof edb.Array ) {
+						args = args [ 0 ];
+					}
 					members = Array.prototype.slice.call ( args );
 				}
 				if ( gui.Type.isFunction ( array.$of )) {
@@ -152,7 +214,7 @@
 		 * @param {object} handler The object that intercepts properties (the edb.Array)
 		 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
 		 */
-		approximate : function ( handler, proxy ) {
+		$approximate : function ( handler, proxy ) {
 			var def = null;
 			proxy = proxy || Object.create ( null );	
 			this._definitions ( handler ).forEach ( function ( key ) {
@@ -191,6 +253,18 @@
 
 
 		// Private static .........................................................
+
+		/**
+		 * Array observers.
+		 * @type {}
+		 */
+		_observers : Object.create ( null ),
+
+		/**
+		 * Mapping instanceids to lists of changes.
+		 * @type {Map<String,Array<edb.ArrayChange>>}
+		 */
+		_changes : Object.create ( null ),
 
 		/**
 		 * Collect list of definitions to transfer from proxy to handler.
@@ -268,17 +342,18 @@
 
 		/**
 		 * Register change summary for publication in next tick.
+		 * @todo http://stackoverflow.com/questions/11919065/sort-an-array-by-the-levenshtein-distance-with-best-performance-in-javascript
 		 * @param {edb.Array} array
 		 * @param {number} type
 		 * @param {object} item
 		 */
-		_onchange : function ( array, type, item ) {
-			type = {
-				0 : edb.ArrayChange.TYPE_REMOVED,
-				1 : edb.ArrayChange.TYPE_ADDED
-			}[ type ];
-			// console.log ( array, type, item ); TODO :)
-		}
+		_onchange : function ( array, index, removed, added ) {
+			var key = array.$instanceid || array._instanceid;
+			var all = this._changes;
+			var set = all [ key ] || ( all [ key ] = []);
+			set.push ( new edb.ArrayChange ( array, index, removed, added ));
+			gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
+		},
 
 	});
 
@@ -316,23 +391,6 @@
 		"reverse" // reversed (copies???????)
 	]);
 	
-	/*
-	 * TODO: This is wrong on so many...
-	 * @param {edb.Array} other
-	 */
-	proto.concat = function ( other ) {
-		var clone = new this.constructor (); // must not construct() the instance!
-		this.forEach ( function ( o ) {
-			clone.push ( o );
-		});
-		other.forEach ( function ( o ) {
-			clone.push ( o );
-		});
-		return clone;
-	};
-
-	// @TODO "sort", "reverse", "join"
-	
 }( edb.Array.prototype ));
 
 /*
@@ -340,6 +398,6 @@
  * to both {edb.Object} and {edb.Array}
  */
 ( function setup () {
-	// TODO gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Array );
+	gui.Tick.add ( edb.TICK_PUBLISH_CHANGES, edb.Array );
 	gui.Object.extendmissing ( edb.Array.prototype, edb.Type.prototype );
 }());

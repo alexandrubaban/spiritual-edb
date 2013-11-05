@@ -246,6 +246,42 @@ gui.Object.each ({ // static mixins edb.Type
 	},
 
 	/**
+	 * TODO
+	 * @param {edb.Object|edb.Array} type
+	 * @param {edb.IChangeHandler} handler
+	 * @returns {edb.Object}
+	 */
+	$observe : function ( type, handler ) {
+		var id = type.$instanceid || type._instanceid;
+		var obs = this._observers;
+		var handlers = obs [ id ] || ( obs [ id ] = []);
+		if ( handlers.indexOf ( handler ) === -1 ) {
+			handlers.push ( handler );
+		}
+		return type;
+	},
+
+	/**
+	 * TODO
+	 * @param {edb.Object} type
+	 * @param {edb.IChangeHandler} handler
+	 * @returns {edb.Object|edb.Array}
+	 */
+	$unobserve : function ( type, handler ) {
+		var id = type.$instanceid || type._instanceid;
+		var obs = this._observers;
+		var index, handlers = obs [ id ];
+		if ( handlers ) {
+			if (( index = handlers.indexOf ( handler )) >-1 ) {
+				if ( gui.Array.remove ( handlers, index ) === 0	) {
+					delete obs [ id ];
+				}
+			}
+		}
+		return type;
+	},
+
+	/**
 	 * Type constructed. Validate persistance OK.
 	 * @param {edb.Model|edb.Collection} type
 	 */
@@ -292,31 +328,6 @@ gui.Object.each ({ // static mixins edb.Type
 		 */
 		out : function () {
 			return edb.Output.out ( this );
-		}
-	};
-
-	var persistancemixins = {
-
-		/**
-		 * @type {edb.Storage}
-		 */
-		storage : null,
-
-		/**
-		 * Restore instance from client storage. Note that the constructor 
-		 * (this constructor) will be called with only one single argument.
-		 * @returns {gui.Then}
-		 */
-		restore : function ( context ) {
-			return this.storage.getItem ( this.$classname, context || self );
-		},
-
-		/**
-		 * Persist instance. Managed by the framework via instance.$ondestruct.
-		 * @param {edb.Object|edb.Array} type
-		 */
-		$store : function ( type, now ) {
-			this.storage.setItem ( this.$classname, type, type.$context, now );
 		}
 	};
 
@@ -473,7 +484,7 @@ gui.Object.each ({ // static mixins edb.Type
 	/**
 	 * Declare the fields on edb.Type.
 	 */
-	[ iomixins, persistancemixins, httpmixins ].forEach ( function ( mixins ) {
+	[ iomixins, httpmixins ].forEach ( function ( mixins ) {
 		gui.Object.each ( mixins, function mixin ( key, value ) {
 			edb.Type [ key ] = value;
 		});
@@ -486,7 +497,7 @@ gui.Object.each ({ // static mixins edb.Type
 	 */
 	edb.Type.$staticmixins = function () {
 		var mixins = {};
-		[ httpmixins, iomixins, persistancemixins ].forEach ( function ( set ) {
+		[ httpmixins, iomixins ].forEach ( function ( set ) {
 			Object.keys ( set ).forEach ( function ( key ) {
 				mixins [ key ] = this [ key ];
 			}, this );

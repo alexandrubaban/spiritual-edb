@@ -66,41 +66,15 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 	}()), { // Static ......................................................................
 
 		/**
-		 * TODO
-		 * @param {edb.Object} object
-		 * @param {edb.IChangeHandler} handler
-		 * @returns {edb.Object}
+		 * Observe.
 		 */
-		observe : function ( object, handler ) {
-			var id = object.$instanceid || object._instanceid;
-			var obs = this._observers;
-			var handlers = obs [ id ] || ( obs [ id ] = []);
-			if ( handlers.indexOf ( handler ) === -1 ) {
-				handlers.push ( handler );
-			}
-			return object;
-		},
+		observe : edb.Type.$observe,
 
 		/**
-		 * TODO
-		 * @param {edb.Object} object
-		 * @param {edb.IChangeHandler} handler
-		 * @returns {edb.Object}
+		 * Unobserve.
 		 */
-		unobserve : function ( object, handler ) {
-			var id = object.$instanceid || object._instanceid;
-			var obs = this._observers;
-			var index, handlers = obs [ id ];
-			if ( handlers ) {
-				if (( index = handlers.indexOf ( handler )) >-1 ) {
-					if ( gui.Array.remove ( handlers, index ) === 0	) {
-						delete obs [ id ];
-					}
-				}
-			}
-			return object;
-		},
-
+		unobserve : edb.Type.$unobserve,
+		
 		/**
 		 * Publishing change summaries async.
 		 * @TODO: clean this up...
@@ -137,6 +111,12 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * @type {}
 		 */
 		_observers : Object.create ( null ),
+
+		/**
+		 * Mapping instanceids to maps that map property names to change summaries.
+		 * @type {Map<String,Map<String,edb.ObjectChange>>}
+		 */
+		_changes : Object.create ( null ),
 
 		/**
 		 * Create getter for key.
@@ -188,15 +168,9 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		_onchange : function ( object, name, oldval, newval ) {
 			var all = this._changes, id = object._instanceid;
 			var set = all [ id ] = all [ id ] || ( all [ id ] = Object.create ( null ));
-			set [ name ] = new edb.ObjectChange ( object, name, edb.ObjectChange.TYPE_UPDATED, oldval, newval );
+			set [ name ] = new edb.ObjectChange ( object, name, edb.ObjectChange.TYPE_UPDATE, oldval, newval );
 			gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
 		},
-
-		/**
-		 * Mapping instanceids to maps that map property names to change summaries.
-		 * @type {Map<String,Map<String,edb.ObjectChange>>}
-		 */
-		_changes : Object.create ( null ),
 
 		/**
 		 * Servers two purposes:

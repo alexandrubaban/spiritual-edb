@@ -7,7 +7,6 @@
  * @param {object} newval
  */
 edb.ObjectChange = function ( object, name, type, oldval, newval ) {
-	//this.instanceid = object._instanceid;
 	this.object = object;
 	this.name = name;
 	this.type = type;
@@ -16,7 +15,6 @@ edb.ObjectChange = function ( object, name, type, oldval, newval ) {
 };
 
 edb.ObjectChange.prototype = {
-	//instanceid : null,
 	object: null,
 	name: null,
 	type: null,
@@ -29,4 +27,4 @@ edb.ObjectChange.prototype = {
  * native 'Object.observe' comes along.
  * @type {String}
  */
-edb.ObjectChange.TYPE_UPDATED = "updated";
+edb.ObjectChange.TYPE_UPDATE = "update";

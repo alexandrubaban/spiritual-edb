@@ -1,9 +1,10 @@
 /**
  * The ScriptPlugin shall render the spirits HTML.
  * @extends {gui.Plugin}
+ * @using {gui.Combo.chained}
  * @using {gui.Arguments.confirmed}
  */
-edb.ScriptPlugin = ( function using ( confirmed ) {
+edb.ScriptPlugin = ( function using ( chained, confirmed ) {
 
 	return gui.Plugin.extend ({
 
@@ -60,17 +61,18 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 
 		/**
 		 * Load script.
-		 * @param {function} script
+		 * @param {function|String} script
+		 * @returns {edb.ScriptPlugin}
 		 */
-		load : confirmed ( "function" ) ( function ( script ) {
+		load : chained ( confirmed ( "function|string" ) ( function ( script ) {
 			this.loaded = true;
-			this._script = script;
+			this._script = script.bind ? script : gui.Object.lookup ( script );
 			this._updater = new edb.UpdateManager ( this.spirit );
 			this._process ( script.$instructions );
 			if ( !this.input ) {
 				this.run ();
 			}
-		}),
+		})),
 
 		/**
 		 * Handle input.
@@ -319,4 +321,4 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 
 	});
 
-}( gui.Arguments.confirmed ));
+}( gui.Combo.chained, gui.Arguments.confirmed ));

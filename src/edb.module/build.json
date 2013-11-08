@@ -6,8 +6,10 @@
 	"types/edb.Array.js",
 
 	"observers/edb.ObjectAccess.js",
-	"observers/edb.ObjectChange.js",
 	"observers/edb.ArrayAccess.js",
+
+	"observers/edb.Change.js",
+	"observers/edb.ObjectChange.js",
 	"observers/edb.ArrayChange.js",
 
 	"plugins/output.plugin/edb.Output.js",

@@ -1,34 +1,23 @@
 /**
  * @using {Array.prototype}
+ * @using {gui.Type.isConstructor}
  */
-( function using ( proto ) {
-
-	function onchange ( array, index, removed, added ) {
-		edb.Array._onchange ( array, index, removed, added );
-	}
-
-	function observes ( array ) {
-		var key = array.$instanceid || array._instanceid;
-		return edb.Array._observers [ key ] ? true : false;
-	}
+( function using ( proto, isconstructor ) {
 
 	/**
 	 * edb.Array
-	 * @extends {edb.Type} ...although not really...
+	 * @extends {edb.Type} (although not really)
 	 */
 	edb.Array = gui.Class.create ( proto, {
 
-		
-		// Overrides ...........................................................................
-		
 		/**
 		 * Push.
 		 */
 		push : function() {
 			var idx = this.length;
-			var res = proto.push.apply ( this, arguments );
+			var add = convert ( this, arguments );
+			var res = proto.push.apply ( this, add );
 			if ( observes ( this )) {
-				var add = gui.Object.toArray ( arguments );
 				onchange ( this, idx, null, add );
 			}
 			return res;
@@ -39,7 +28,7 @@
 		 */
 		pop : function () {
 			var idx = this.length - 1;
-			var res = proto.pop.apply ( this, arguments );
+			var res = proto.pop.apply ( this );
 			if ( observes ( this )) {
 				onchange ( this, idx, [ res ], null );
 			}
@@ -50,7 +39,7 @@
 		 * Shift.
 		 */
 		shift : function () {
-			var res = proto.shift.apply ( this, arguments );
+			var res = proto.shift.apply ( this );
 			if ( observes ( this )) {
 				onchange ( this, 0, [ res ], null );
 			}
@@ -61,9 +50,9 @@
 		 * Unshift.
 		 */
 		unshift : function () {
-			var res = proto.unshift.apply ( this, arguments );
+			var add = convert ( this, arguments );
+			var res = proto.unshift.apply ( this, add );
 			if ( observes ( this )) {
-				var add = gui.Object.toArray ( arguments );
 				onchange ( this, 0, null, add );
 			}
 			return res;
@@ -73,10 +62,12 @@
 		 * Splice.
 		 */
 		splice : function () {
-			var idx = arguments [ 0 ];
-			var out = proto.splice.apply ( this, arguments );
+			var arg = arguments;
+			var idx = arg [ 0 ];
+			var add = convert ( this, [].slice.call ( arg, 2 ));
+			var fix = [ idx, arg [ 1 ]].concat ( add );
+			var out = proto.splice.apply ( this, fix );
 			if ( observes ( this )) {
-				var add = [].slice.call ( arguments, 2 );
 				onchange ( this, idx, out, add );
 			}
 			return out;
@@ -200,11 +191,7 @@
 					}
 					members = Array.prototype.slice.call ( args );
 				}
-				if ( gui.Type.isFunction ( array.$of )) {
-					members = edb.Array._populatefunction ( members, array.$of );
-				} else {
-					members = edb.Array._populatedefault ( members );
-				}
+				members = convert ( array, members );
 				Array.prototype.push.apply ( array, members );
 			}
 		},
@@ -300,41 +287,6 @@
 		},
 
 		/**
-		 * Parse field declared via constructor or via 
-		 * filter function (which returns a constructor).
-		 */
-		_populatefunction : function ( members, func ) {
-			return members.map ( function ( o ) {
-				if ( o !== undefined && !o._instanceid ) {
-					var Type = func;
-					if ( !gui.Type.isConstructor ( Type )) {
-						Type = func ( o );
-					}
-					o = new Type ( o );
-				}
-				return o;
-			});
-		},
-
-		/**
-		 * Parse field default. Objects and arrays automatically  
-		 * converts to instances of {edb.Object} and {edb.Array}
-		 */
-		_populatedefault : function ( members ) {
-			return members.map ( function ( o ) {
-				if ( !edb.Type.isInstance ( o )) {
-					switch ( gui.Type.of ( o )) {
-						case "object" : 
-							return new edb.Object ( o );
-						case "array" :
-							return new edb.Array ( o );
-					}
-				}
-				return o;
-			});
-		},
-
-		/**
 		 * TODO.
 		 * @param {edb.Array} array
 		 */
@@ -357,7 +309,91 @@
 
 	});
 
-}( Array.prototype ));
+	
+	// Helpers ..........................................................
+
+	/**
+	 * Shorthand.
+	 * @param {edb.Array} array
+	 * @param {number} index
+	 * @param {Array} removed
+	 * @param {Array} added
+	 */
+	function onchange ( array, index, removed, added ) {
+		edb.Array._onchange ( array, index, removed, added );
+	}
+
+	/**
+	 * Array is being observed?
+	 * @param {edb.Array} array
+	 * @returns {boolean}
+	 */
+	function observes ( array ) {
+		var key = array.$instanceid || array._instanceid;
+		return edb.Array._observers [ key ] ? true : false;
+	}
+
+	/**
+	 * Convert arguments for edb.Array method.
+	 * @param {function} Type
+	 * @param {Arguments|array} args
+	 * @returns {Array}
+	 */
+	function convert ( Type, args ) {
+		args = gui.Object.toArray ( args );
+		if ( gui.Type.isFunction ( Type.$of )) {
+			return declareconvert ( args, Type.$of );
+		} else {
+			return defaultconvert ( args );
+		}
+	}
+
+	/**
+	 * Convert via constructor or via filter 
+	 * function which returns a constructor.
+	 * @param {Array} args
+	 * @param {function} func
+	 * @returns {Array<edb.Type>}
+	 */
+	function declareconvert ( args, func ) {
+		var Type = func, is = isconstructor ( Type );
+		return args.map ( function ( o ) {
+			if ( o !== undefined && !o._instanceid ) {
+				Type = is ? Type : func ( o );
+				if ( Type.$classid ) {
+					o = new Type ( o );
+				} else {
+					throw new TypeError ();
+				}
+			}
+			return o;
+		});
+	}
+
+	/**
+	 * Objects and arrays automatically converts 
+	 * to instances of {edb.Object} and {edb.Array} 
+	 * @param {Array} args
+	 * @returns {Array}
+	 */
+	function defaultconvert ( args ) {
+		return args.map ( function ( o ) {
+			if ( !edb.Type.isInstance ( o )) {
+				switch ( gui.Type.of ( o )) {
+					case "object" : 
+						return new edb.Object ( o );
+					case "array" :
+						return new edb.Array ( o );
+				}
+			}
+			return o;
+		});
+	}
+
+}( 
+	Array.prototype, 
+	gui.Type.isConstructor )
+);
 
 /*
  * Overloading array methods.

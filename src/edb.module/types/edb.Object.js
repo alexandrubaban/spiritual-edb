@@ -39,6 +39,9 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * @returns {object}
 		 */
 		$normalize : function () {
+			
+			throw new Error ( "Why?" );
+			/*
 			var c, o = {};
 			gui.Object.each ( this, function ( key, value ) {
 				c = key [ 0 ];
@@ -50,6 +53,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 				}
 			});
 			return o;
+			*/
 		}
 
 
@@ -259,14 +263,12 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * @returns {Array<String>}
 		 */
 		_definitions : function ( handler ) {
-			var keys = [];
+			var keys = [], classes = [ Object, edb.Type, edb.Object ];
 			gui.Object.all ( handler, function ( key ) {
-				if ( !gui.Type.isDefined ( Object.prototype [ key ])) {
-					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
-						if ( !key.startsWith ( "_" )) {
-							keys.push ( key );
-						}
-					}
+				if ( !key.startsWith ( "_" ) && classes.every ( function ( o ) {
+					return o.prototype [ key ] === undefined;
+				})) {
+					keys.push ( key );
 				}	
 			});
 			return keys;

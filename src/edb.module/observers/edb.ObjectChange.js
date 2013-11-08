@@ -1,5 +1,6 @@
 /**
  * edb.Object change summary.
+ * @extends {edb.Change}
  * @param {edb.Object} object
  * @param {String} name
  * @param {String} type
@@ -14,10 +15,10 @@ edb.ObjectChange = function ( object, name, type, oldval, newval ) {
 	this.newValue = newval;
 };
 
+// gui.Object.create ( edb.Change.prototype, {
+
 edb.ObjectChange.prototype = {
-	object: null,
 	name: null,
-	type: null,
 	oldValue: undefined,
 	newValue: undefined
 };

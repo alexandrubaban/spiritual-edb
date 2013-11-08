@@ -39,9 +39,6 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * @returns {object}
 		 */
 		$normalize : function () {
-			
-			throw new Error ( "Why?" );
-			/*
 			var c, o = {};
 			gui.Object.each ( this, function ( key, value ) {
 				c = key [ 0 ];
@@ -53,7 +50,6 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 				}
 			});
 			return o;
-			*/
 		}
 
 

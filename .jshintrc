@@ -8,7 +8,8 @@
 		"gui" : true,
 		"edb" : true,
 		"alert" : true,
-		"self" : true
+		"self" : true,
+		"Proxy" : true
 	},
 	"globalstrict": false,
 	"quotmark": false,

@@ -6,8 +6,8 @@ edb.ArrayChange = function ( array, index, removed, added ) {
 	this.type = edb.ArrayChange.TYPE_SPLICE; // hardcoded for now
 	this.object = array;
 	this.index = index;
-	this.removed = removed;
-	this.added = added;
+	this.removed = removed || [];
+	this.added = added || [];
 };
 
 edb.ArrayChange.prototype = gui.Object.create ( edb.Change.prototype, {

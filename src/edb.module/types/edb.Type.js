@@ -65,6 +65,13 @@ edb.Type.prototype = {
 		edb.Output.dispatch ( this, target );
 		return this;
 	},
+
+	/**
+	 * Garbage collect now. At least in theory.
+	 */
+	dispose : function () {
+		this.$ondestruct ();
+	},
 	
 	/**
 	 * Serialize to JSON string without private and expando properties.

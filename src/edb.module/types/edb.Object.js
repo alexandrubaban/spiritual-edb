@@ -19,7 +19,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 			switch ( gui.Type.of ( data )) {
 				case "object" : 
 				case "undefined" :
-					edb.Object._approximate ( this, data || Object.create ( null ));
+					edb.Object.$approximate ( this, data || Object.create ( null ));
 					break;
 				default :
 					throw new TypeError ( 
@@ -175,13 +175,13 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		/**
 		 * Servers two purposes:
 		 * 
-		 * 1. Simplistic proxy mechanism to dispatch {gui.Type} broadcasts on object setters and getters. 
-		 * 2. Supporting model hierarchy unfolding be newing up all that can be indentified as constructors.
+		 * 1. Simplistic proxy mechanism to dispatch broadcasts on object setters and getters. 
+		 * 2. Supporting model unfolding be newing up all that can be indentified as constructors.
 		 * 
 		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
 		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
 		 */
-		_approximate : function ( handler, proxy ) {
+		$approximate : function ( handler, proxy ) {
 			var name = handler.constructor.$classname;
 			var Def, def, val, types = Object.create ( null );
 			this._definitions ( handler ).forEach ( function ( key ) {
@@ -259,7 +259,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * @returns {Array<String>}
 		 */
 		_definitions : function ( handler ) {
-			var keys = [], classes = [ Object, edb.Type, edb.Object ];
+			var keys = [], classes = [ Object, edb.Type, edb.Object,             edb.Array ]; // ??
 			gui.Object.all ( handler, function ( key ) {
 				if ( !key.startsWith ( "_" ) && classes.every ( function ( o ) {
 					return o.prototype [ key ] === undefined;

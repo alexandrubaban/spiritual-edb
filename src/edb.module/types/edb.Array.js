@@ -105,6 +105,7 @@
 			edb.Type.prototype.$onconstruct.apply ( this, arguments );
 			edb.Array.$populate ( this, arguments );
 			edb.Array.$approximate ( this );
+			//edb.Object.$approximate ( this, Object.create ( null ));
 			this.onconstruct.call ( this, arguments );
 			this.oninit ();
 		},

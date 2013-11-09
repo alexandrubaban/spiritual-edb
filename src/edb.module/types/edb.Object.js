@@ -19,7 +19,9 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 			switch ( gui.Type.of ( data )) {
 				case "object" : 
 				case "undefined" :
-					edb.Object.$approximate ( this, data || Object.create ( null ));
+					data = data || {};
+					var types = edb.ObjectPopulator.populate ( data, this );
+					edb.ObjectProxy.approximate ( data, this, types );
 					break;
 				default :
 					throw new TypeError ( 
@@ -104,8 +106,35 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		},
 
 
-		// Private static ....................................................................
+		// Secret static .....................................................................
+		
+		/**
+		 * Publish a notification on property accessors.
+		 * @param {String} instanceid
+		 * @param {edb.ObjectAccess} access
+		 */
+		$onaccess : function ( object, name ) {
+			var access = new edb.ObjectAccess ( object, name );
+			gui.Broadcast.dispatch ( null, edb.BROADCAST_ACCESS, access.instanceid );
+		},
 
+		/**
+		 * Register change summary for publication (in next tick).
+		 * @param {edb.Object} object
+		 * @param {String} name
+		 * @param {object} oldval
+		 * @param {object} newval
+		 */
+		$onchange : function ( object, name, oldval, newval ) {
+			var all = this._changes, id = object._instanceid;
+			var set = all [ id ] = all [ id ] || ( all [ id ] = Object.create ( null ));
+			set [ name ] = new edb.ObjectChange ( object, name, edb.ObjectChange.TYPE_UPDATE, oldval, newval );
+			gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
+		},
+
+
+		// Private static ....................................................................
+		
 		/**
 		 * Object observers.
 		 * @type {}
@@ -116,159 +145,8 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * Mapping instanceids to maps that map property names to change summaries.
 		 * @type {Map<String,Map<String,edb.ObjectChange>>}
 		 */
-		_changes : Object.create ( null ),
+		_changes : Object.create ( null )
 
-		/**
-		 * Create getter for key.
-		 * @param {String} key
-		 * @param {function} base
-		 * @returns {function}
-		 */
-		_getter : function ( key, base ) {
-			return function () {
-				var result = base.apply ( this );
-				edb.Object._onaccess ( this, key );
-				return result;
-			};
-		},
-
-		/**
-		 * Create setter for key.
-		 * @param {String} key
-		 * @param {function} base
-		 * @returns {function}
-		 */
-		_setter : function ( key, base ) {
-			return function ( newval ) {
-				var oldval = this [ key ]; // @TODO suspend something?
-				base.apply ( this, arguments );
-				edb.Object._onchange ( this, key, oldval, newval );
-				oldval = newval;
-			};
-		},
-
-		/**
-		 * Primarily for iternal use: Publish a notification on property 
-		 * accessors so that {edb.Script} may register change observers.
-		 * @param {String} instanceid
-		 * @param {edb.ObjectAccess} access
-		 */
-		_onaccess : function ( object, name ) {
-			var access = new edb.ObjectAccess ( object, name );
-			gui.Broadcast.dispatch ( null, edb.BROADCAST_ACCESS, access.instanceid );
-		},
-
-		/**
-		 * Register change summary for publication in next tick.
-		 * @param {edb.Object} object
-		 * @param {String} name
-		 * @param {object} oldval
-		 * @param {object} newval
-		 */
-		_onchange : function ( object, name, oldval, newval ) {
-			var all = this._changes, id = object._instanceid;
-			var set = all [ id ] = all [ id ] || ( all [ id ] = Object.create ( null ));
-			set [ name ] = new edb.ObjectChange ( object, name, edb.ObjectChange.TYPE_UPDATE, oldval, newval );
-			gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
-		},
-
-		/**
-		 * Servers two purposes:
-		 * 
-		 * 1. Simplistic proxy mechanism to dispatch broadcasts on object setters and getters. 
-		 * 2. Supporting model unfolding be newing up all that can be indentified as constructors.
-		 * 
-		 * @param {edb.Object} handler The edb.Object instance that intercepts properties
-		 * @param {object} proxy The object whose properties are being intercepted (the JSON object)
-		 */
-		$approximate : function ( handler, proxy ) {
-			var name = handler.constructor.$classname;
-			var Def, def, val, types = Object.create ( null );
-			this._definitions ( handler ).forEach ( function ( key ) {
-				def = handler [ key ];
-				val = proxy [ key ];
-				if ( isdefined ( val )) {
-					if ( isdefined ( def )) {
-						if ( iscomplex ( def )) {
-							if ( isfunction ( def )) {
-								if ( !isconstructor ( def )) {
-									def = def ( val );
-								}
-								if ( isconstructor ( def )) {
-									Def = def;
-									types [ key ] = new Def ( proxy [ key ]);
-								} else {
-									throw new TypeError ( name + " \"" + key + "\" must resolve to a constructor" );
-								}
-							} else {
-								types [ key ] = edb.Type.cast ( isdefined ( val ) ? val : def );
-							}
-						} else {
-							// ??????????????????????
-							//proxy [ key ] = def;
-						}
-					} else {
-						throw new TypeError ( name + " declares \"" + key + "\" as something undefined" );
-					}
-				} else {
-					proxy [ key ] = def;
-				}
-			});
-
-			/* 
-			 * Setup property accessors for handler.
-			 *
-			 * 1. Objects by default convert to edb.Object
-			 * 2. Arrays by default convert to edb.Array
-			 * 3. Simple properties get proxy accessors
-			 */
-			gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-				def = proxy [ key ];
-				if ( gui.Type.isComplex ( def )) {
-					if ( !types [ key ]) {
-						types [ key ] = edb.Type.cast ( def );
-					}
-				}
-				gui.Property.accessor ( handler, key, {
-					getter : edb.Object._getter ( key, function () {
-						return types [ key ] || proxy [ key ];
-					}),
-					setter : edb.Object._setter ( key, function ( value ) {
-						/*
-						 * @TODO: when resetting array, make sure that 
-						 * it becomes xx.MyArray (not plain edb.Array)
-						 */
-						var target = types [ key ] ? types : proxy;
-						target [ key ] = edb.Type.cast ( value );
-					})
-				});
-			});
-
-			/**
-			 * Experimental...
-			 */
-			gui.Object.ownmethods ( proxy ).forEach ( function ( key ) {
-				handler [ key ] = proxy [ key ];
-			});
-		},
-
-		/**
-		 * List non-private fields names from handler that are not 
-		 * mixed in from {edb.Type} and not inherited from Object.
-		 * @param {edb.Object} handler
-		 * @returns {Array<String>}
-		 */
-		_definitions : function ( handler ) {
-			var keys = [], classes = [ Object, edb.Type, edb.Object,             edb.Array ]; // ??
-			gui.Object.all ( handler, function ( key ) {
-				if ( !key.startsWith ( "_" ) && classes.every ( function ( o ) {
-					return o.prototype [ key ] === undefined;
-				})) {
-					keys.push ( key );
-				}	
-			});
-			return keys;
-		}
 	});
 
 }) ( 

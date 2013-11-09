@@ -103,9 +103,10 @@
 		 */
 		$onconstruct : function () {
 			edb.Type.prototype.$onconstruct.apply ( this, arguments );
-			edb.Array.$populate ( this, arguments );
-			edb.Array.$approximate ( this );
-			//edb.Object.$approximate ( this, Object.create ( null ));
+			edb.ArrayPopulator.populate ( this, arguments );
+			var data = data || {};
+			var types = edb.ObjectPopulator.populate ( data, this );
+			edb.ObjectProxy.approximate ( data, this, types );
 			this.onconstruct.call ( this, arguments );
 			this.oninit ();
 		},
@@ -169,39 +170,13 @@
 
 		// Static secret .....................................................................
 
-		/**
-		 * Populate {edb.Array} from constructor arguments.
-		 *
-		 * 1. Populate as normal array, one member for each argument
-		 * 2. If the first argument is an array, populate 
-		 *    using this and ignore the remaining arguments.
-		 *    
-		 * @TODO read something about http://www.2ality.com/2011/08/spreading.html
-		 * @param {edb.Array}
-		 * @param {Arguments} args
-		 */
-		$populate : function ( array, args ) {
-			var members;
-			if ( args.length ) {
-				members = [];
-				if ( gui.Type.isArray ( args [ 0 ])) {
-					members = args [ 0 ];
-				} else {
-					if ( args [ 0 ] instanceof edb.Array ) {
-						args = args [ 0 ];
-					}
-					members = Array.prototype.slice.call ( args );
-				}
-				members = convert ( array, members );
-				Array.prototype.push.apply ( array, members );
-			}
-		},
+		
 
 		/**
 		 * Simplistic proxy mechanism. 
 		 * @param {object} handler The object that intercepts properties (the edb.Array)
 		 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
-		 */
+		 *
 		$approximate : function ( handler, proxy ) {
 			var def = null;
 			proxy = proxy || Object.create ( null );	
@@ -224,7 +199,7 @@
 			
 			/* 
 			 * Handler intercepts all accessors for simple properties.
-			 */
+			 *
 			gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
 				Object.defineProperty ( handler, key, {
 					enumerable : true,
@@ -238,6 +213,8 @@
 				});
 			});
 		},
+		*/
+		
 
 
 		// Private static .........................................................
@@ -313,6 +290,10 @@
 	
 	// Helpers ..........................................................
 
+	function convert ( array, args ) {
+		return edb.ArrayPopulator.convert ( array, args );
+	}
+
 	/**
 	 * Shorthand.
 	 * @param {edb.Array} array
@@ -332,63 +313,6 @@
 	function observes ( array ) {
 		var key = array.$instanceid || array._instanceid;
 		return edb.Array._observers [ key ] ? true : false;
-	}
-
-	/**
-	 * Convert arguments for edb.Array method.
-	 * @param {function} Type
-	 * @param {Arguments|array} args
-	 * @returns {Array}
-	 */
-	function convert ( Type, args ) {
-		args = gui.Object.toArray ( args );
-		if ( gui.Type.isFunction ( Type.$of )) {
-			return declareconvert ( args, Type.$of );
-		} else {
-			return defaultconvert ( args );
-		}
-	}
-
-	/**
-	 * Convert via constructor or via filter 
-	 * function which returns a constructor.
-	 * @param {Array} args
-	 * @param {function} func
-	 * @returns {Array<edb.Type>}
-	 */
-	function declareconvert ( args, func ) {
-		var Type = func, is = isconstructor ( Type );
-		return args.map ( function ( o ) {
-			if ( o !== undefined && !o._instanceid ) {
-				Type = is ? Type : func ( o );
-				if ( Type.$classid ) {
-					o = new Type ( o );
-				} else {
-					throw new TypeError ();
-				}
-			}
-			return o;
-		});
-	}
-
-	/**
-	 * Objects and arrays automatically converts 
-	 * to instances of {edb.Object} and {edb.Array} 
-	 * @param {Array} args
-	 * @returns {Array}
-	 */
-	function defaultconvert ( args ) {
-		return args.map ( function ( o ) {
-			if ( !edb.Type.isInstance ( o )) {
-				switch ( gui.Type.of ( o )) {
-					case "object" : 
-						return new edb.Object ( o );
-					case "array" :
-						return new edb.Array ( o );
-				}
-			}
-			return o;
-		});
 	}
 
 }( 

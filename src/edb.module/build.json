@@ -4,15 +4,14 @@
 	"types/edb.Type.js",
 	"types/edb.Object.js",
 	"types/edb.Array.js",
-
-	"observers/proxy/edb.Proxy.js",
-
-	"observers/access/edb.ObjectAccess.js",
-	"observers/access/edb.ArrayAccess.js",
-
-	"observers/change/edb.Change.js",
-	"observers/change/edb.ObjectChange.js",
-	"observers/change/edb.ArrayChange.js",
+	"types/populate/edb.ObjectPopulator.js",
+	"types/populate/edb.ArrayPopulator.js",
+	"types/proxy/edb.ObjectProxy.js",
+	"types/access/edb.ObjectAccess.js",
+	"types/access/edb.ArrayAccess.js",
+	"types/change/edb.Change.js",
+	"types/change/edb.ObjectChange.js",
+	"types/change/edb.ArrayChange.js",
 
 	"plugins/output.plugin/edb.Output.js",
 	"plugins/output.plugin/edb.OutputPlugin.js",
@@ -29,15 +28,14 @@
 	"rendering/edb.UpdateAssistant.js",
 	"rendering/edb.UpdateManager.js",
 	"rendering/edb.UpdateCollector.js",
-
-	"updates/edb.Update.js",
-	"updates/atts/edb.AttsUpdate.js",
-	"updates/hard/edb.HardUpdate.js",
-	"updates/soft/edb.SoftUpdate.js",
-	"updates/soft/edb.InsertUpdate.js",
-	"updates/soft/edb.AppendUpdate.js",
-	"updates/soft/edb.RemoveUpdate.js",
-	"updates/functions/edb.FunctionUpdate.js",
+	"rendering/updates/edb.Update.js",
+	"rendering/updates/atts/edb.AttsUpdate.js",
+	"rendering/updates/hard/edb.HardUpdate.js",
+	"rendering/updates/soft/edb.SoftUpdate.js",
+	"rendering/updates/soft/edb.InsertUpdate.js",
+	"rendering/updates/soft/edb.AppendUpdate.js",
+	"rendering/updates/soft/edb.RemoveUpdate.js",
+	"rendering/updates/functions/edb.FunctionUpdate.js",
 	
 	"edb.module.js"
 ]

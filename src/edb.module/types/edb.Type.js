@@ -1,6 +1,6 @@
 /**
- * Conceptual superclass for {edb.Object} and {edb.Array}, not a real 
- * superclass. We use the following only as a pool for mixin methods.
+ * Conceptual superclass for {edb.Object} and {edb.Array}.
+ * We use the following only as a pool for mixin methods.
  */
 edb.Type = function () {};
 
@@ -17,20 +17,6 @@ edb.Type.prototype = {
 	 * @type {String}
 	 */
 	$id : null,
-
-	/**
-	 * Output context (for cross-context cornercases).
-	 * @type {Window|WorkerGlobalScope}
-	 *
-	$context : null,
-
-	/**
-	 * Output context ID equivalent to 'this.$context.gui.$contextid'. 
-	 * The ID is not persistable (generated random on session startup).
-	 * @type {String}
-	 *
-	$contextid : null,
-	*/
 		
 	/**
 	 * Instance key (clientside session only).

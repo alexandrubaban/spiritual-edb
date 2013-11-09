@@ -89,6 +89,24 @@
 		// Custom ..............................................................................
 
 		/**
+		 * Observe array.
+		 * @param @optional {IChangeHandler} handler
+		 */
+		observe : function ( handler ) {
+			edb.Object.observe ( this, handler || this );
+			edb.Array.observe ( this, handler || this );
+		},
+
+		/**
+		 * Unobserve array.
+		 * @param @optional {IChangeHandler} handler
+		 */
+		unobserve : function ( handler ) {
+			edb.Object.unobserve ( this, handler || this );
+			edb.Array.observe ( this, handler || this );
+		},
+
+		/**
 		 * The content type can be declared as:
 		 *
 		 * 1. An edb.Type constructor function (my.ns.MyType)
@@ -107,8 +125,8 @@
 			var data = data || {};
 			var types = edb.ObjectPopulator.populate ( data, this );
 			edb.ObjectProxy.approximate ( data, this, types );
-			this.onconstruct.call ( this, arguments );
-			this.oninit ();
+			this.onconstruct ([].slice.call ( this ));
+			this.oninit (); // @deprecated
 		},
 
 		/**

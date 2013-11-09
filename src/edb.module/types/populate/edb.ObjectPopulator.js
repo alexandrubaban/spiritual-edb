@@ -32,7 +32,7 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 	return { // Public ...............................................................
 
 		populate : function ( json, type ) {
-
+			var base = type.constructor.prototype;
 			var name = type.constructor.$classname;
 			var Def, def, val, types = {};
 			definitions ( type ).forEach ( function ( key ) {
@@ -60,8 +60,12 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 					} else {
 						throw new TypeError ( name + " declares \"" + key + "\" as something undefined" );
 					}
-				} else {
-					json [ key ] = def;
+				} else { // was json [ key ] = def;
+					var desc = Object.getOwnPropertyDescriptor ( base, key );
+					if ( desc ) {
+						console.log ( key );
+						Object.defineProperty ( json, key, desc );
+					}
 				}
 			});
 

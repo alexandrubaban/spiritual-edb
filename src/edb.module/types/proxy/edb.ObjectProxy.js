@@ -24,8 +24,10 @@ edb.ObjectProxy = ( function () {
 		return function ( newval ) {
 			var oldval = this [ key ]; // @TODO suspend something?
 			base.apply ( this, arguments );
-			edb.Object.$onchange ( this, key, oldval, newval );
-			oldval = newval;
+			if ( newval !== oldval ) {
+				edb.Object.$onchange ( this, key, oldval, newval );
+				oldval = newval;
+			}
 		};
 	}
 
@@ -54,16 +56,18 @@ edb.ObjectProxy = ( function () {
 				if ( desc.hasOwnProperty ( "value" )) {
 					Object.defineProperty ( handler, key, {
 						enumerable : desc.enumerable,
-		        configurable : desc.configurable,
-		        get : getter ( key, function () {
+						configurable : desc.configurable,
+						get : getter ( key, function () {
 							return types [ key ] || target [ key ];
 						}),
-		        set : setter ( key, function ( value ) {
+						set : setter ( key, function ( value ) {
 							var x = types [ key ] ? types : target;
 							x [ key ] = edb.Type.cast ( value );
 						})
-		      });
-		    }
+					});
+				} else {
+					throw new TypeError ( "Accessor not supported: " + key );
+				}
 			});
 
 			/**

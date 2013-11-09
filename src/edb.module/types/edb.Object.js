@@ -11,6 +11,25 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 	return gui.Class.create ( Object.prototype, {
 		
 		/**
+		 * Observe object.
+		 * @param @optional {IChangeHandler} handler
+		 */
+		observe : function ( handler ) {
+			edb.Object.observe ( this, handler || this );
+		},
+
+		/**
+		 * Unobserve object.
+		 * @param @optional {IChangeHandler} handler
+		 */
+		unobserve : function ( handler ) {
+			edb.Object.unobserve ( this, handler || this );
+		},
+
+
+		// Secret ......................................................................
+
+		/**
 		 * Constructor.
 		 * @overrides {edb.Type#onconstruct}
 		 */

@@ -14,16 +14,16 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		 * Observe object.
 		 * @param @optional {IChangeHandler} handler
 		 */
-		observe : function ( handler ) {
-			edb.Object.observe ( this, handler || this );
+		addObserver : function ( handler ) {
+			edb.Object.observe ( this, handler );
 		},
 
 		/**
 		 * Unobserve object.
 		 * @param @optional {IChangeHandler} handler
 		 */
-		unobserve : function ( handler ) {
-			edb.Object.unobserve ( this, handler || this );
+		removeObserver : function ( handler ) {
+			edb.Object.unobserve ( this, handler );
 		},
 
 

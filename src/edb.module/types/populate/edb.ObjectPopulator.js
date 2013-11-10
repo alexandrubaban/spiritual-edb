@@ -1,5 +1,5 @@
 /**
- * Populates types on construction. Supports model unfolding 
+ * Populates instance properties. Supports model unfolding 
  * by newing up all that can be indentified as constructors.
  * @using {gui.Type.isDefined}
  * @using {gui.Type.isComplex}, 
@@ -28,6 +28,22 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 		return keys;
 	}
 
+	/**
+	 * @param {String} name
+	 * @param {String} key
+	 */
+	function faildefined ( name, key, fail ) {
+		throw new TypeError ( name + " declares \"" + key + "\" as something undefined" );
+	}
+
+	/**
+	 * @param {String} name
+	 * @param {String} key
+	 */
+	function failconstructor ( name, key ) {
+		throw new TypeError ( name + " \"" + key + "\" must resolve to a constructor" );
+	}
+
 
 	return { // Public ...............................................................
 
@@ -49,29 +65,22 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 									Def = def;
 									types [ key ] = new Def ( json [ key ]);
 								} else {
-									throw new TypeError ( name + " \"" + key + "\" must resolve to a constructor" );
+									failconstructor ( name, key );
 								}
 							} else {
 								types [ key ] = edb.Type.cast ( isdefined ( val ) ? val : def );
 							}
-						} else {
-							// json [ key ] = def; ???
 						}
 					} else {
-						throw new TypeError ( name + " declares \"" + key + "\" as something undefined" );
+						faildefined ( name, key );
 					}
-				} else { // was json [ key ] = def;
+				} else {
 					var desc = Object.getOwnPropertyDescriptor ( base, key );
-					if ( desc ) {
-						console.log ( key );
+					if ( desc ) { // this now filter out numeric indexes (arrays)
 						Object.defineProperty ( json, key, desc );
 					}
 				}
 			});
-
-			/*
-			 * 
-			 */
 			gui.Object.nonmethods ( json ).forEach ( function ( key ) {
 				var def = json [ key ];
 				if ( gui.Type.isComplex ( def )) {
@@ -80,7 +89,6 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 					}
 				}
 			});
-
 			return types;
 		}
 

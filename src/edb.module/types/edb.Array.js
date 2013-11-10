@@ -92,18 +92,18 @@
 		 * Observe array.
 		 * @param @optional {IChangeHandler} handler
 		 */
-		observe : function ( handler ) {
-			edb.Object.observe ( this, handler || this );
-			edb.Array.observe ( this, handler || this );
+		addObserver : function ( handler ) {
+			edb.Object.observe ( this, handler );
+			edb.Array.observe ( this, handler );
 		},
 
 		/**
 		 * Unobserve array.
 		 * @param @optional {IChangeHandler} handler
 		 */
-		unobserve : function ( handler ) {
-			edb.Object.unobserve ( this, handler || this );
-			edb.Array.observe ( this, handler || this );
+		removeObserver : function ( handler ) {
+			edb.Object.unobserve ( this, handler );
+			edb.Array.observe ( this, handler );
 		},
 
 		/**

@@ -1,7 +1,7 @@
 edb.ObjectProxy = ( function () {
 
 	/**
-	 * Create getter for key.
+	 * Create observable getter for key.
 	 * @param {String} key
 	 * @param {function} base
 	 * @returns {function}
@@ -15,7 +15,7 @@ edb.ObjectProxy = ( function () {
 	}
 
 	/**
-	 * Create setter for key.
+	 * Create observable setter for key.
 	 * @param {String} key
 	 * @param {function} base
 	 * @returns {function}
@@ -53,26 +53,29 @@ edb.ObjectProxy = ( function () {
 			 */
 			gui.Object.nonmethods ( target ).forEach ( function ( key ) {
 				var desc = Object.getOwnPropertyDescriptor ( target, key );
-				if ( desc.hasOwnProperty ( "value" )) {
+				if ( desc.configurable ) {
 					Object.defineProperty ( handler, key, {
 						enumerable : desc.enumerable,
 						configurable : desc.configurable,
 						get : getter ( key, function () {
-							return types [ key ] || target [ key ];
+							if ( desc.get ) {
+								return desc.get.call ( this );
+							} else {
+								return types [ key ] || target [ key ];
+							}
 						}),
 						set : setter ( key, function ( value ) {
-							var x = types [ key ] ? types : target;
-							x [ key ] = edb.Type.cast ( value );
+							var o;
+							if ( desc.set ) {
+								desc.set.call ( this, value );
+							} else {
+								o = types [ key ] ? types : target;
+								o [ key ] = edb.Type.cast ( value );
+							}
 						})
 					});
-				} else {
-					throw new TypeError ( "Accessor not supported: " + key );
 				}
 			});
-
-			/**
-			 * Experimental...
-			 */
 			gui.Object.ownmethods ( target ).forEach ( function ( key ) {
 				handler [ key ] = target [ key ];
 			});

@@ -33,7 +33,7 @@ edb.ArrayPopulator = ( function using ( isconstructor ) {
 	 */
 	function defaultconvert ( args ) {
 		return args.map ( function ( o ) {
-			if ( !edb.Type.isInstance ( o )) {
+			if ( !edb.Type.is ( o )) {
 				switch ( gui.Type.of ( o )) {
 					case "object" : 
 						return new edb.Object ( o );
@@ -53,7 +53,8 @@ edb.ArrayPopulator = ( function using ( isconstructor ) {
 		 * 1. Populate as normal array, one member for each argument
 		 * 2. If the first argument is an array, populate 
 		 *    using this and ignore the remaining arguments.
-		 *    
+		 *
+		 * @TODO only this if $of is edb.Array or array...
 		 * @TODO read something about http://www.2ality.com/2011/08/spreading.html
 		 * @param {edb.Array}
 		 * @param {Arguments} args
@@ -82,7 +83,7 @@ edb.ArrayPopulator = ( function using ( isconstructor ) {
 		 * @returns {Array}
 		 */
 		convert : function ( array, args ) {
-			args = gui.Object.toArray ( args );
+			args = gui.Array.from ( args );
 			if ( gui.Type.isFunction ( array.$of )) {
 				return declareconvert ( args, array.$of );
 			} else {

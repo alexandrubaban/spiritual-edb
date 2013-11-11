@@ -136,7 +136,7 @@
 		 */
 		$normalize : function () {
 			return Array.map ( this, function ( thing ) {
-				if ( edb.Type.isInstance ( thing )) {
+				if ( edb.Type.is ( thing )) {
 					return thing.$normalize ();
 				}
 				return thing;

@@ -190,7 +190,7 @@ gui.Object.each ({ // static mixins edb.Type
 	 * @param {object} o
 	 * @returns {boolean}
 	 */
-	isInstance : function ( o ) {
+	is : function ( o ) {
 		if ( gui.Type.isComplex ( o )) {
 			return ( o instanceof edb.Object ) || ( o instanceof edb.Array );
 		}
@@ -227,7 +227,7 @@ gui.Object.each ({ // static mixins edb.Type
 	 * @param {object} value
 	 */
 	cast : function fix ( value ) {
-		if ( gui.Type.isComplex ( value ) && !edb.Type.isInstance ( value )) {
+		if ( gui.Type.isComplex ( value ) && !edb.Type.is ( value )) {
 			switch ( gui.Type.of ( value )) {
 				case "object" :
 					return new edb.Object ( value );

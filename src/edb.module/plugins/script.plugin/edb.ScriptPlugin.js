@@ -213,24 +213,25 @@ edb.ScriptPlugin = ( function using ( chained, confirmed ) {
 		_html : null,
 
 		/**
-		 * Parse processing instructions.
+		 * Parse processing instructions. Add input listeners in 
+		 * batch to prevent prematurly getting a `this.input.done`
 		 * @param {Array<object>} pis
 		 */
 		_process : function ( pis ) {
 			if ( pis ) {
-				var inputs = []; // batch multiple inputs to prevent early resolve
-				pis.forEach ( function ( pi ) {
-					switch ( pi.type ) {
-						case "input" :
-							inputs.push ( 
-								gui.Object.lookup ( pi.atts.type )
-							);
-							break;
+				var optional = []; 
+				var required = [];
+				if ( pis.reduce ( function ( hasinput, pi ) {
+					if ( pi.type === "input" ) {
+						var list = pi.atts.required === false ? optional : required;
+						list.push ( gui.Object.lookup ( pi.atts.type ));
+						return true;
 					}
-				});
-				if ( inputs.length ) {
+					return hasinput;
+				}, false )) {
 					this.input = new edb.InputPlugin ();
-					this.input.add ( inputs, this );
+					this.input.add ( required, this, true );
+					this.input.add ( optional, this, false );
 				}
 			}
 		},

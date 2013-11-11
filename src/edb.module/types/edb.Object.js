@@ -64,7 +64,7 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 			gui.Object.each ( this, function ( key, value ) {
 				c = key [ 0 ];
 				if ( c !== "$" && c !== "_" ) {
-					if ( edb.Type.isInstance ( value  )) {
+					if ( edb.Type.is ( value  )) {
 						value = value.$normalize ();	
 					}
 					o [ key ] = value;	

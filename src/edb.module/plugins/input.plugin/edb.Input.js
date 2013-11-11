@@ -5,7 +5,7 @@
  * @param {edb.Object|edb.Array} type
  */
 edb.Input = function Input ( type ) {
-	if ( edb.Type.isInstance ( type )) {
+	if ( edb.Type.is ( type )) {
 		this.type = type.constructor;
 		this.data = type;
 	} else {

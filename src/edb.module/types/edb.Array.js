@@ -1,8 +1,9 @@
 /**
  * @using {Array.prototype}
+ * @using {gui.Combo chained}
  * @using {gui.Type.isConstructor}
  */
-( function using ( proto, isconstructor ) {
+( function using ( proto, chained, isconstructor ) {
 
 	/**
 	 * edb.Array
@@ -86,25 +87,34 @@
 		},
 
 
-		// Custom ..............................................................................
+		// Expandos ...........................................................................
 
 		/**
-		 * Observe array.
-		 * @param @optional {IChangeHandler} handler
+		 * Just to illustrate that arrays may conveniently get their 
+		 * content assigned to a variable name via the arguments list.
+		 * @param {Array<object>} members (edb.Types all newed up here)
 		 */
-		addObserver : function ( handler ) {
+		onconstruct : function ( members ) {},
+
+		/**
+		 * Observe array (both object properties and list mutations). 
+		 * @param @optional {IChangeHandler} handler
+		 * @returns {edb.Array}
+		 */
+		addObserver : chained ( function ( handler ) {
 			edb.Object.observe ( this, handler );
 			edb.Array.observe ( this, handler );
-		},
+		}),
 
 		/**
 		 * Unobserve array.
 		 * @param @optional {IChangeHandler} handler
+		 * @returns {edb.Array}
 		 */
-		removeObserver : function ( handler ) {
+		removeObserver : chained ( function ( handler ) {
 			edb.Object.unobserve ( this, handler );
-			edb.Array.observe ( this, handler );
-		},
+			edb.Array.unobserve ( this, handler );
+		}),
 
 		/**
 		 * The content type can be declared as:
@@ -126,7 +136,6 @@
 			var types = edb.ObjectPopulator.populate ( data, this );
 			edb.ObjectProxy.approximate ( data, this, types );
 			this.onconstruct ([].slice.call ( this ));
-			this.oninit (); // @deprecated
 		},
 
 		/**
@@ -186,60 +195,11 @@
 		},
 
 
-		// Static secret .....................................................................
-
-		
-
-		/**
-		 * Simplistic proxy mechanism. 
-		 * @param {object} handler The object that intercepts properties (the edb.Array)
-		 * @param {object} proxy The object whose properties are being intercepted (raw JSON data)
-		 *
-		$approximate : function ( handler, proxy ) {
-			var def = null;
-			proxy = proxy || Object.create ( null );	
-			this._definitions ( handler ).forEach ( function ( key ) {
-				def = handler [ key ];
-				switch ( gui.Type.of ( def )) {
-					case "function" :
-						break;
-					case "object" :
-					case "array" :
-						console.warn ( "TODO: complex stuff on edb.Array :)" );
-						break;
-					default :
-						if ( !gui.Type.isDefined ( proxy [ key ])) {
-							proxy [ key ] = handler [ key ];
-						}
-						break;
-				}
-			});
-			
-			/* 
-			 * Handler intercepts all accessors for simple properties.
-			 *
-			gui.Object.nonmethods ( proxy ).forEach ( function ( key ) {
-				Object.defineProperty ( handler, key, {
-					enumerable : true,
-					configurable : true,
-					get : edb.Type.getter ( function () {
-						return proxy [ key ];
-					}),
-					set : edb.Type.setter ( function ( value ) {
-						proxy [ key ] = value;
-					})
-				});
-			});
-		},
-		*/
-		
-
-
 		// Private static .........................................................
 
 		/**
-		 * Array observers.
-		 * @type {}
+		 * Mapping instanceids to lists of observers.
+		 * @type {Map<String,Array<edb.IChangeHandler>>}
 		 */
 		_observers : Object.create ( null ),
 
@@ -335,8 +295,9 @@
 
 }( 
 	Array.prototype, 
-	gui.Type.isConstructor )
-);
+	gui.Combo.chained,
+	gui.Type.isConstructor 
+));
 
 /*
  * Overloading array methods.

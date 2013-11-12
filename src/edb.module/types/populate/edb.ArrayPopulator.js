@@ -1,7 +1,25 @@
 /**
  * @using {gui.Type.isConstructor}
  */
-edb.ArrayPopulator = ( function using ( isconstructor ) {
+edb.ArrayPopulator = ( function () {
+
+	/**
+	 * Array was declared to contain lists (not objects)?
+	 * @param {edb.Array} array
+	 * @returns {boolean}
+	 */
+	function oflist ( array ) {
+		return array.$of && array.$of.prototype.reverse;
+	}
+
+	/**
+	 * Something is a list?
+	 * @param {object} o
+	 * @returns {boolean}
+	 */
+	function islist ( o ) {
+		return Array.isArray ( o ) || edb.Array.is ( o );
+	}
 
 	/**
 	 * Convert via constructor or via filter 
@@ -10,8 +28,8 @@ edb.ArrayPopulator = ( function using ( isconstructor ) {
 	 * @param {function} func
 	 * @returns {Array<edb.Type>}
 	 */
-	function declareconvert ( args, func ) {
-		var Type = func, is = isconstructor ( Type );
+	function guidedconvert ( args, func ) {
+		var Type = func, is = gui.Type.isConstructor ( Type );
 		return args.map ( function ( o ) {
 			if ( o !== undefined && !o._instanceid ) {
 				Type = is ? Type : func ( o );
@@ -31,7 +49,7 @@ edb.ArrayPopulator = ( function using ( isconstructor ) {
 	 * @param {Array} args
 	 * @returns {Array}
 	 */
-	function defaultconvert ( args ) {
+	function autoconvert ( args ) {
 		return args.map ( function ( o ) {
 			if ( !edb.Type.is ( o )) {
 				switch ( gui.Type.of ( o )) {
@@ -48,31 +66,24 @@ edb.ArrayPopulator = ( function using ( isconstructor ) {
 	return { // Public .........................................................
 
 		/**
-		 * Populate {edb.Array} from constructor arguments.
-		 *
-		 * 1. Populate as normal array, one member for each argument
-		 * 2. If the first argument is an array, populate 
-		 *    using this and ignore the remaining arguments.
-		 *
-		 * @TODO only this if $of is edb.Array or array...
+		 * Populate {edb.Array} from constructor arguments. This works like normal 
+		 * arrays, except for the scenario where 1) the content model of the array 
+		 * is NOT arrays (ie. not a dimensional array) and 2) the first argument IS 
+		 * an array OR an {edb.Array} in which case the first members of this list 
+		 * will populate into the array and the remaining arguments will be ignored. 
 		 * @TODO read something about http://www.2ality.com/2011/08/spreading.html
 		 * @param {edb.Array}
 		 * @param {Arguments} args
 		 */
 		populate : function ( array, args ) {
-			var members;
+			var first = args [ 0 ];
 			if ( args.length ) {
-				members = [];
-				if ( gui.Type.isArray ( args [ 0 ])) {
-					members = args [ 0 ];
-				} else {
-					if ( args [ 0 ] instanceof edb.Array ) {
-						args = args [ 0 ];
-					}
-					members = Array.prototype.slice.call ( args );
+				if ( !oflist ( array ) && islist ( first )) {
+					args = first;
 				}
-				members = this.convert ( array, members );
-				Array.prototype.push.apply ( array, members );
+				Array.prototype.push.apply ( array, 
+					this.convert ( array, args )
+				);
 			}
 		},
 
@@ -85,12 +96,12 @@ edb.ArrayPopulator = ( function using ( isconstructor ) {
 		convert : function ( array, args ) {
 			args = gui.Array.from ( args );
 			if ( gui.Type.isFunction ( array.$of )) {
-				return declareconvert ( args, array.$of );
+				return guidedconvert ( args, array.$of );
 			} else {
-				return defaultconvert ( args );
+				return autoconvert ( args );
 			}
 		}
 
 	};
 
-}( gui.Type.isConstructor ));
+}());

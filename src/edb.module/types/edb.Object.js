@@ -1,30 +1,33 @@
 /**
  * edb.Object
  * @extends {edb.Type} at least in principle.
+ * @using {gui.Combo.chained}
  * @using {gui.Type.isDefined}
  * @using {gui.Type.isComplex}, 
  * @using {gui.Type.isFunction} 
  * @using {gui.Type.isConstructor}
  */
-edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor ) {
+edb.Object = ( function using ( chained, isdefined, iscomplex, isfunction, isconstructor ) {
 	
 	return gui.Class.create ( Object.prototype, {
 		
 		/**
 		 * Observe object.
 		 * @param @optional {IChangeHandler} handler
+		 * @returns {edb.Object}
 		 */
-		addObserver : function ( handler ) {
+		addObserver : chained ( function ( handler ) {
 			edb.Object.observe ( this, handler );
-		},
+		}),
 
 		/**
 		 * Unobserve object.
 		 * @param @optional {IChangeHandler} handler
+		 * @returns {edb.Object}
 		 */
-		removeObserver : function ( handler ) {
+		removeObserver : chained ( function ( handler ) {
 			edb.Object.unobserve ( this, handler );
-		},
+		}),
 
 
 		// Secret ......................................................................
@@ -48,8 +51,12 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 						gui.Type.of ( data ) + ": " + String ( data )
 					);
 			}
-			this.onconstruct.apply ( this, arguments ); // @TODO do we want this?
-			this.oninit ();
+			//this.onconstruct.apply ( this, arguments ); // @TODO do we want this?
+			//this.oninit ();
+			this.onconstruct ();
+			if ( this.oninit ) {
+				console.error ( "Deprecated API is deprecated: " + this + ".oninit" );
+			}
 		},
 		
 		/**
@@ -155,20 +162,21 @@ edb.Object = ( function using ( isdefined, iscomplex, isfunction, isconstructor 
 		// Private static ....................................................................
 		
 		/**
-		 * Object observers.
-		 * @type {}
+		 * Mapping instanceids to lists of observers.
+		 * @type {Map<String,Array<edb.IChangeHandler>>}
 		 */
 		_observers : Object.create ( null ),
 
 		/**
-		 * Mapping instanceids to maps that map property names to change summaries.
-		 * @type {Map<String,Map<String,edb.ObjectChange>>}
+		 * Mapping instanceids to lists of changes.
+		 * @type {Map<String,Array<edb.ObjectChange>>}
 		 */
-		_changes : Object.create ( null )
+		_changes : Object.create ( null ),
 
 	});
 
 }) ( 
+	gui.Combo.chained,
 	gui.Type.isDefined, 
 	gui.Type.isComplex, 
 	gui.Type.isFunction, 

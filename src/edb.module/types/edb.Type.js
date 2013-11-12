@@ -33,11 +33,6 @@ edb.Type.prototype = {
 	onconstruct : function () {},
 
 	/**
-	 * Hello.
-	 */
-	oninit : function () {},
-
-	/**
 	 * Hello again.
 	 */
 	ondestruct : function () {},
@@ -239,7 +234,6 @@ gui.Object.each ({ // static mixins edb.Type
 	},
 
 	/**
-	 * TODO
 	 * @param {edb.Object|edb.Array} type
 	 * @param {edb.IChangeHandler} handler
 	 * @returns {edb.Object}
@@ -255,7 +249,6 @@ gui.Object.each ({ // static mixins edb.Type
 	},
 
 	/**
-	 * TODO
 	 * @param {edb.Object} type
 	 * @param {edb.IChangeHandler} handler
 	 * @returns {edb.Object|edb.Array}
@@ -321,6 +314,12 @@ gui.Object.each ({ // static mixins edb.Type
 		 */
 		out : function () {
 			return edb.Output.out ( this );
+		}
+	};
+
+	var spassermixins = {
+		is : function ( o ) {
+			return gui.Type.isComplex ( o ) && ( o instanceof this );
 		}
 	};
 
@@ -490,7 +489,7 @@ gui.Object.each ({ // static mixins edb.Type
 	 */
 	edb.Type.$staticmixins = function () {
 		var mixins = {};
-		[ httpmixins, iomixins ].forEach ( function ( set ) {
+		[ httpmixins, iomixins, spassermixins ].forEach ( function ( set ) {
 			Object.keys ( set ).forEach ( function ( key ) {
 				mixins [ key ] = this [ key ];
 			}, this );

@@ -31,12 +31,6 @@ edb.EDBModule = gui.module ( "edb", {
 		},
 		
 		/**
-		 * Handle input.
-		 * @param {edb.Input} input
-		 */
-		oninput : function ( input ) {},
-
-		/**
 		 * Called whenever the EDBML script was evaluated.
 		 * @param {TODOTHING} summary
 		 */
@@ -46,7 +40,23 @@ edb.EDBModule = gui.module ( "edb", {
 		 * Handle changes.
 		 * @param {Array<edb.ObjectChange|edb.ArrayChange>}
 		 */
-		onchange : function ( changes ) {}
+		onchange : function ( changes ) {},
+
+		/**
+		 * Handle input.
+		 * @param {edb.Input} input
+		 */
+		oninput : function ( input ) {},
+
+		/**
+		 * Handle directed input. Setup to require 
+		 * the input listener be to be added first.
+		 * @see {edb.InputPlugin}
+		 * @TODO: when to destruct the type?
+		 */
+		$oninput : function ( input ) {
+			this.input.match ( input );
+		}
 	},
 	
 	/*

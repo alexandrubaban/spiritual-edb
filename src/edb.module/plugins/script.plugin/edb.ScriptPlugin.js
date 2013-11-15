@@ -15,7 +15,8 @@ edb.ScriptPlugin = ( function using ( chained, confirmed ) {
 		loaded : false,
 
 		/**
-		 * Script has been run? Flipped after first run.
+		 * Script has been run? Flipped after first run. 
+		 * @todo Rename this to something professional.
 		 * @type {boolean}
 		 */
 		ran : false,
@@ -65,12 +66,14 @@ edb.ScriptPlugin = ( function using ( chained, confirmed ) {
 		 * @returns {edb.ScriptPlugin}
 		 */
 		load : chained ( confirmed ( "function|string" ) ( function ( script ) {
-			this.loaded = true;
-			this._script = script.bind ? script : gui.Object.lookup ( script );
-			this._updater = new edb.UpdateManager ( this.spirit );
-			this._process ( script.$instructions );
-			if ( !this.input ) {
-				this.run ();
+			if (( script = script.bind ? script : gui.Object.lookup ( script ))) {
+				this.loaded = true;
+				this._script = script;
+				this._updater = new edb.UpdateManager ( this.spirit );
+				this._process ( script.$instructions );
+				if ( !this.input ) {
+					this.run ();
+				}
 			}
 		})),
 
@@ -79,6 +82,7 @@ edb.ScriptPlugin = ( function using ( chained, confirmed ) {
 		 * @param {edb.Input} input
 		 */
 		oninput : function ( input ) {
+			this.input.match ( input );
 			if ( this.input.done ) {
 				this.run ();
 			}
@@ -227,7 +231,7 @@ edb.ScriptPlugin = ( function using ( chained, confirmed ) {
 						list.push ( gui.Object.lookup ( pi.atts.type ));
 						return true;
 					}
-					return hasinput;
+					return hasinput ;
 				}, false )) {
 					this.input = new edb.InputPlugin ();
 					this.input.add ( required, this, true );

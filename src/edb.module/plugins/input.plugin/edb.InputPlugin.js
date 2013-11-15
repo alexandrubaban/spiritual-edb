@@ -96,7 +96,11 @@ edb.InputPlugin = gui.Tracker.extend ({
 	 * @param {edb.Input} input
 	 */
 	match : function ( input ) {
-		this._maybeinput ( input );
+		if ( this._matches.every ( function ( match ) {
+			return match.$instanceid !== input.$instanceid;
+		})) {
+			this._maybeinput ( input );
+		}
 	},
 	
 	
@@ -113,6 +117,11 @@ edb.InputPlugin = gui.Tracker.extend ({
 	 * @type {Array<edb.Input>} 
 	 */
 	_matches : null,
+
+	/**
+	 * ?
+	 */
+	_needing : null,
 
 	/**
 	 * Add input handler for types.

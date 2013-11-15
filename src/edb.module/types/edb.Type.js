@@ -48,7 +48,7 @@ edb.Type.prototype = {
 	},
 
 	/**
-	 * Garbage collect now. At least in theory.
+	 * Garbage collect now, at least in theory.
 	 */
 	dispose : function () {
 		this.$ondestruct ();

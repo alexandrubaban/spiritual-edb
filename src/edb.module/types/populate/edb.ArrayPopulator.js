@@ -77,7 +77,7 @@ edb.ArrayPopulator = ( function () {
 		 */
 		populate : function ( array, args ) {
 			var first = args [ 0 ];
-			if ( args.length ) {
+			if ( first ) {
 				if ( !oflist ( array ) && islist ( first )) {
 					args = first;
 				}

@@ -55,7 +55,7 @@ edb.EDBModule = gui.module ( "edb", {
 		 * @TODO: when to destruct the type?
 		 */
 		$oninput : function ( input ) {
-			this.input.match ( input );
+			this.script.input.match ( input );
 		}
 	},
 	

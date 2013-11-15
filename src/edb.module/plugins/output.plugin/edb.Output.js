@@ -21,7 +21,7 @@ edb.Output = {
 		var handler, input = this._configure ( type.constructor, type );
 		if ( target ) {
 			if (( handler = target.$oninput || target.oninput )) {
-				target [ handler ] ( input );
+				handler.call ( target, input );
 			}
 		} else {
 			gui.Broadcast.dispatch ( null, edb.BROADCAST_OUTPUT, input );

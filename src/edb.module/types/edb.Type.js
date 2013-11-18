@@ -61,15 +61,7 @@ edb.Type.prototype = {
 		console.log ( "Deprecated API is deprecated" );
 	},
 
-	/**
-	 * Serialize normalized form.
-	 * @returns {object}
-	 */
-	toJSON : function () {
-		return this.$normalize ();
-	},
-
-
+	
 	// CRUD .............................................................................
 
 	/**
@@ -345,7 +337,7 @@ gui.Object.each ({ // static mixins edb.Type
 		from : function ( json ) {
 			var Type = this;
 			if ( edb.Type.is ( json )) {
-				json = json.$normalize ();
+				json = json.toJSON ();
 			}
 			return new Type ( json );
 		}
@@ -456,7 +448,7 @@ gui.Object.each ({ // static mixins edb.Type
 			var type = this;
 			var then = new gui.Then ();
 			var href = gui.URL.parametrize ( inst.uri, options );
-			var data = gui.Type.isInstance ( inst ) ? inst.$normalize () : inst;
+			var data = gui.Type.isInstance ( inst ) ? inst.toJSON () : inst;
 			this.$httprequest ( href, method || "PUT", data, function ( response ) {
 				then.now ( type.$httpresponse ( response, options, method ));
 			});

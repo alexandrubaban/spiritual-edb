@@ -60,14 +60,16 @@ edb.Object = ( function using ( chained ) {
 		 * TODO: WHITELIST stuff that *was* in JSON!
 		 * @returns {object}
 		 */
-		$normalize : function () {
+		toJSON : function () {
 			var c, o = {};
 			gui.Object.each ( this, function ( key, value ) {
 				c = key [ 0 ];
 				if ( c !== "$" && c !== "_" ) {
+					/*
 					if ( edb.Type.is ( value  )) {
-						value = value.$normalize ();	
+						value = value.toJSON ();	
 					}
+					*/
 					o [ key ] = value;	
 				}
 			});

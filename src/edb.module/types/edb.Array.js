@@ -78,7 +78,7 @@
 		 */
 		reverse : function () {
 			if ( observes ( this )) {
-				var out = this.$normalize ();
+				var out = this.toJSON ();
 				var add = proto.reverse.apply ( out.slice ());
 				onchange ( this, 0, out, add );	
 			}
@@ -142,10 +142,10 @@
 		 * types. Returns the type of array we would typically transmit back to the server. 
 		 * @returns {Array}
 		 */
-		$normalize : function () {
+		toJSON : function () {
 			return Array.map ( this, function ( thing ) {
 				if ( edb.Type.is ( thing )) {
-					return thing.$normalize ();
+					return thing.toJSON ();
 				}
 				return thing;
 			});

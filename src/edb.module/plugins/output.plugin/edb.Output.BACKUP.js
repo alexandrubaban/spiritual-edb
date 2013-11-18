@@ -78,7 +78,7 @@ edb.Output = {
 		var key = Type.$classname;
 		switch ( target ) {
 			case "session" :
-				//sessionStorage.setItem ( key, type.$normalize ());
+				//sessionStorage.setItem ( key, type.toJSON ());
 				break;
 			case "local" :
 				console.error ( "TODO" );

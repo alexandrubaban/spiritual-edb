@@ -65,12 +65,17 @@ edb.ObjectProxy = ( function () {
 							}
 						}),
 						set : setter ( key, function ( value ) {
-							var o;
+							var Type, type;
 							if ( desc.set ) {
 								desc.set.call ( this, value );
 							} else {
-								o = types [ key ] ? types : target;
-								o [ key ] = edb.Type.cast ( value );
+								if (( type = types [ key ])) {
+									Type = type.constructor; // @TODO: filter function support!
+									types [ key ] = new Type ( value );
+								} else {
+									target [ key ] = edb.Type.cast ( value );
+								}
+							
 							}
 						})
 					});

@@ -15,28 +15,30 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 	 * @returns {Array<String>}
 	 */
 	function definitions ( handler ) {
-		var Type = handler instanceof edb.Object ? edb.Object : edb.Array;
-		var Base = handler instanceof edb.Object ? Object : Array;
+		var Type = edb.Object.is ( handler ) ? edb.Object : edb.Array;
+		var Base = edb.Object.is ( handler ) ? Object : Array;
 		var keys = [], classes = [ edb.Type, Type, Base ];
 		gui.Object.all ( handler, function ( key ) {
-			if ( !key.startsWith ( "_" ) && classes.every ( function ( o ) {
+			if ( isregular ( key ) && classes.every ( function ( o ) {
 				return o.prototype [ key ] === undefined;
 			})) {
 				keys.push ( key );
-			}	
+			}
 		});
 		return keys;
 	}
 
 	/**
+	 * Fail me once.
 	 * @param {String} name
 	 * @param {String} key
 	 */
-	function faildefined ( name, key, fail ) {
+	function faildefined ( name, key ) {
 		throw new TypeError ( name + " declares \"" + key + "\" as something undefined" );
 	}
 
 	/**
+	 * Fail me twice.
 	 * @param {String} name
 	 * @param {String} key
 	 */
@@ -44,13 +46,28 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 		throw new TypeError ( name + " \"" + key + "\" must resolve to a constructor" );
 	}
 
+	/**
+	 * Object key is not a number and doesn't start with exoctic character? 
+	 * @param {String|number} key
+	 * @returns {boolean}
+	 */
+	function isregular ( key ) {
+		return key.match ( /^[a-z]/i );
+	}
+
 
 	return { // Public ...............................................................
 
-		populate : function ( json, type ) {
+		/**
+		 * Populate object properties of type instance.
+		 * @param {object} json
+		 * @param {edb.Object|edb.Array} type
+		 * @return {Map<String,edb.Object|edb.Array>} types
+		 */
+		populate : function ( json, type ) { 
+			var Def, def, val, desc, types = Object.create ( null );
 			var base = type.constructor.prototype;
 			var name = type.constructor.$classname;
-			var Def, def, val, types = {};
 			definitions ( type ).forEach ( function ( key ) {
 				def = type [ key ];
 				val = json [ key ];
@@ -75,15 +92,27 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 						faildefined ( name, key );
 					}
 				} else {
-					var desc = Object.getOwnPropertyDescriptor ( base, key );
-					if ( desc ) { // this now filter out numeric indexes (arrays)
-						Object.defineProperty ( json, key, desc );
+					if ( isregular ( key ) && edb.Type.isConstructor ( def )) {
+						/*
+						 * @TODO: cleanup something here
+						 */
+						if ( edb.Array.isConstructor ( def )) {
+							json [ key ] = [];	
+						} else {
+							json [ key ] = null;
+						}
+						Def = def;
+						types [ key ] = new Def ( json [ key ]);
+					} else {
+						if (( desc = Object.getOwnPropertyDescriptor ( base, key ))) {
+							Object.defineProperty ( json, key, desc );
+						}
 					}
 				}
 			});
 			gui.Object.nonmethods ( json ).forEach ( function ( key ) {
 				var def = json [ key ];
-				if ( gui.Type.isComplex ( def )) {
+				if ( isregular ( key ) && gui.Type.isComplex ( def )) {
 					if ( !types [ key ]) {
 						types [ key ] = edb.Type.cast ( def );
 					}

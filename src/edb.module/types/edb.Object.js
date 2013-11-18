@@ -2,12 +2,8 @@
  * edb.Object
  * @extends {edb.Type} at least in principle.
  * @using {gui.Combo.chained}
- * @using {gui.Type.isDefined}
- * @using {gui.Type.isComplex}, 
- * @using {gui.Type.isFunction} 
- * @using {gui.Type.isConstructor}
  */
-edb.Object = ( function using ( chained, isdefined, iscomplex, isfunction, isconstructor ) {
+edb.Object = ( function using ( chained ) {
 	
 	return gui.Class.create ( Object.prototype, {
 		
@@ -36,23 +32,21 @@ edb.Object = ( function using ( chained, isdefined, iscomplex, isfunction, iscon
 		 * Constructor.
 		 * @overrides {edb.Type#onconstruct}
 		 */
-		$onconstruct : function ( data ) {
+		$onconstruct : function ( json ) {	
 			edb.Type.prototype.$onconstruct.apply ( this, arguments );
-			switch ( gui.Type.of ( data )) {
+			switch ( gui.Type.of ( json )) {
 				case "object" : 
 				case "undefined" :
-					data = data || {};
-					var types = edb.ObjectPopulator.populate ( data, this );
-					edb.ObjectProxy.approximate ( data, this, types );
+					var proxy = gui.Object.copy ( json || {});
+					var types = edb.ObjectPopulator.populate ( proxy, this );
+					edb.ObjectProxy.approximate ( proxy, this, types );
 					break;
 				default :
 					throw new TypeError ( 
 						"Unexpected edb.Object constructor argument of type " + 
-						gui.Type.of ( data ) + ": " + String ( data )
+						gui.Type.of ( json ) + ": " + String ( json )
 					);
 			}
-			//this.onconstruct.apply ( this, arguments ); // @TODO do we want this?
-			//this.oninit ();
 			this.onconstruct ();
 			if ( this.oninit ) {
 				console.error ( "Deprecated API is deprecated: " + this + ".oninit" );
@@ -79,19 +73,14 @@ edb.Object = ( function using ( chained, isdefined, iscomplex, isfunction, iscon
 			});
 			return o;
 		}
+	});
 
+}( gui.Combo.chained ));
 
-	}, ( function mixins () { // Recurring static ..........................................
-
-		/*
-		 * edb.Object and edb.Array don't really subclass edb.Type, 
-		 * so we'll just have to hack in these shared static fields. 
-		 * @TODO: formalized mixin strategy for recurring statics...
-		 */
-		return edb.Type.$staticmixins ();
-		
-
-	}()), { // Static ......................................................................
+/**
+ * Mixin static methods. Recurring static members mixed in from {edb.Type}.
+ */
+edb.Object.mixin ( null, edb.Type.$staticmixins (), {
 
 		/**
 		 * Observe.
@@ -134,6 +123,16 @@ edb.Object = ( function using ( chained, isdefined, iscomplex, isfunction, iscon
 
 		// Secret static .....................................................................
 		
+		/*
+		 * @TODO this!
+		 * 
+		$welldefined : function ( json ) {
+			return Object.keys ( json ).every ( function ( key ) {
+				return ( json [ key ] !== undefined );
+			});
+		},
+		*/
+
 		/**
 		 * Publish a notification on property accessors.
 		 * @param {String} instanceid
@@ -173,15 +172,7 @@ edb.Object = ( function using ( chained, isdefined, iscomplex, isfunction, iscon
 		 */
 		_changes : Object.create ( null ),
 
-	});
-
-}) ( 
-	gui.Combo.chained,
-	gui.Type.isDefined, 
-	gui.Type.isComplex, 
-	gui.Type.isFunction, 
-	gui.Type.isConstructor
-);
+});
 
 /*
  * Mixin methods and properties common to both {edb.Object} and {edb.Array}

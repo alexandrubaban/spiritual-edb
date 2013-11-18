@@ -1,9 +1,8 @@
 /**
  * @using {Array.prototype}
  * @using {gui.Combo chained}
- * @using {gui.Type.isConstructor}
  */
-( function using ( proto, chained, isconstructor ) {
+( function using ( proto, chained ) {
 
 	/**
 	 * edb.Array
@@ -14,7 +13,7 @@
 		/**
 		 * Push.
 		 */
-		push : function() {
+		push : function () {
 			var idx = this.length;
 			var add = convert ( this, arguments );
 			var res = proto.push.apply ( this, add );
@@ -130,11 +129,11 @@
 		 * @overrides {edb.Type#onconstruct}
 		 */
 		$onconstruct : function () {
+			var oprops = {}, types;
 			edb.Type.prototype.$onconstruct.apply ( this, arguments );
 			edb.ArrayPopulator.populate ( this, arguments );
-			var data = data || {};
-			var types = edb.ObjectPopulator.populate ( data, this );
-			edb.ObjectProxy.approximate ( data, this, types );
+			types = edb.ObjectPopulator.populate ( oprops, this );
+			edb.ObjectProxy.approximate ( oprops, this, types );
 			this.onconstruct ([].slice.call ( this ));
 		},
 
@@ -151,123 +150,17 @@
 				return thing;
 			});
 		}
-		
-		
-	}, ( function mixins () { // Recurring static ..........................................
-
-		/*
-		 * edb.Object and edb.Array don't really subclass edb.Type, 
-		 * so we'll just have to hack in these shared static fields. 
-		 * @TODO: formalized mixin strategy for recurring statics...
-		 */
-		return edb.Type.$staticmixins ();
-		
-
-	}()), { // Static ......................................................................
-
-		/**
-		 * Observe.
-		 */
-		observe : edb.Type.$observe,
-
-		/**
-		 * Unobserve.
-		 */
-		unobserve : edb.Type.$unobserve,
-
-		/**
-		 * Publishing change summaries async.
-		 * @param {gui.Tick} tick
-		 */
-		ontick : function ( tick ) {
-			var snapshot, handlers, observers = this._observers;
-			if ( tick.type === edb.TICK_PUBLISH_CHANGES ) {
-				snapshot = gui.Object.copy ( this._changes );
-				this._changes = Object.create ( null );
-				gui.Object.each ( snapshot, function ( instanceid, changes ) {
-					if (( handlers = observers [ instanceid ])) {
-						handlers.forEach ( function ( handler ) {
-							handler.onchange ( changes );
-						});
-					}
-				});
-			}
-		},
-
-
-		// Private static .........................................................
-
-		/**
-		 * Mapping instanceids to lists of observers.
-		 * @type {Map<String,Array<edb.IChangeHandler>>}
-		 */
-		_observers : Object.create ( null ),
-
-		/**
-		 * Mapping instanceids to lists of changes.
-		 * @type {Map<String,Array<edb.ArrayChange>>}
-		 */
-		_changes : Object.create ( null ),
-
-		/**
-		 * Collect list of definitions to transfer from proxy to handler.
-		 * @param {object} handler
-		 * @returns {Array<String>}
-		 */
-		_definitions : function ( handler ) {
-			var keys = [];
-			for ( var key in handler ) {
-				if ( this._define ( key )) {
-					keys.push ( key );
-				}
-			}
-			return keys;
-		},
-
-		/**
-		 * Should define given property?
-		 * @param {String} key
-		 * @returns {boolean}
-		 */
-		_define : function ( key ) {
-			if ( !gui.Type.isNumber ( gui.Type.cast ( key ))) {
-				if ( !gui.Type.isDefined ( Array.prototype [ key ])) {
-					if ( !gui.Type.isDefined ( edb.Type.prototype [ key ])) {
-						if ( !key.startsWith ( "_" )) {
-							return true;
-						}
-					}
-				}
-			}
-			return false;
-		},
-
-		/**
-		 * TODO.
-		 * @param {edb.Array} array
-		 */
-		_onaccess : function ( array ) {},
-
-		/**
-		 * Register change summary for publication in next tick.
-		 * @todo http://stackoverflow.com/questions/11919065/sort-an-array-by-the-levenshtein-distance-with-best-performance-in-javascript
-		 * @param {edb.Array} array
-		 * @param {number} type
-		 * @param {object} item
-		 */
-		_onchange : function ( array, index, removed, added ) {
-			var key = array.$instanceid || array._instanceid;
-			var all = this._changes;
-			var set = all [ key ] || ( all [ key ] = []);
-			set.push ( new edb.ArrayChange ( array, index, removed, added ));
-			gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
-		},
-
 	});
 
 	
 	// Helpers ..........................................................
 
+	/**
+	 * Convert arguments.
+	 * @param {edb.Array} array
+	 * @param {Arguments} args
+	 * @returns {Array}
+	 */
 	function convert ( array, args ) {
 		return edb.ArrayPopulator.convert ( array, args );
 	}
@@ -292,12 +185,91 @@
 		var key = array.$instanceid || array._instanceid;
 		return edb.Array._observers [ key ] ? true : false;
 	}
+	
+}( Array.prototype, gui.Combo.chained ));
 
-}( 
-	Array.prototype, 
-	gui.Combo.chained,
-	gui.Type.isConstructor 
-));
+
+/**
+ * Mixin static methods. Recurring static members mixed in from {edb.Type}.
+ */
+edb.Array.mixin ( null, edb.Type.$staticmixins (), {
+
+	/**
+	 * Observe.
+	 */
+	observe : edb.Type.$observe,
+
+	/**
+	 * Unobserve.
+	 */
+	unobserve : edb.Type.$unobserve,
+
+	/**
+	 * Something is a subclass constructor of {edb.Array}?
+	 * @TODO let's generalize this facility in {gui.Class}
+	 */
+	isConstructor : function ( o ) {
+		return gui.Type.isConstructor ( o ) && 
+			gui.Class.ancestorsAndSelf ( o ).indexOf ( edb.Array ) >-1;
+	},
+	
+	/**
+	 * Publishing change summaries async.
+	 * @param {gui.Tick} tick
+	 */
+	ontick : function ( tick ) {
+		var snapshot, handlers, observers = this._observers;
+		if ( tick.type === edb.TICK_PUBLISH_CHANGES ) {
+			snapshot = gui.Object.copy ( this._changes );
+			this._changes = Object.create ( null );
+			gui.Object.each ( snapshot, function ( instanceid, changes ) {
+				if (( handlers = observers [ instanceid ])) {
+					handlers.forEach ( function ( handler ) {
+						handler.onchange ( changes );
+					});
+				}
+			});
+		}
+	},
+
+
+	// Private static .........................................................
+
+	/**
+	 * Mapping instanceids to lists of observers.
+	 * @type {Map<String,Array<edb.IChangeHandler>>}
+	 */
+	_observers : Object.create ( null ),
+
+	/**
+	 * Mapping instanceids to lists of changes.
+	 * @type {Map<String,Array<edb.ArrayChange>>}
+	 */
+	_changes : Object.create ( null ),
+
+	/**
+	 * TODO.
+	 * @param {edb.Array} array
+	 */
+	_onaccess : function ( array ) {},
+
+	/**
+	 * Register change summary for publication in next tick.
+	 * @todo http://stackoverflow.com/questions/11919065/sort-an-array-by-the-levenshtein-distance-with-best-performance-in-javascript
+	 * @param {edb.Array} array
+	 * @param {number} type
+	 * @param {object} item
+	 */
+	_onchange : function ( array, index, removed, added ) {
+		var key = array.$instanceid || array._instanceid;
+		var all = this._changes;
+		var set = all [ key ] || ( all [ key ] = []);
+		set.push ( new edb.ArrayChange ( array, index, removed, added ));
+		gui.Tick.dispatch ( edb.TICK_PUBLISH_CHANGES );
+	},
+
+});
+
 
 /*
  * Overloading array methods.

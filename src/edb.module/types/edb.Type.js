@@ -55,14 +55,18 @@ edb.Type.prototype = {
 	},
 	
 	/**
-	 * Serialize to JSON string without private and expando properties.
-	 * @todo Declare $normalize as a method stub here (and stull work in subclass)
-	 * @param {function} filter
-	 * @param {String|number} tabber
-	 * @returns {String}
+	 * @deprecated
 	 */
-	stringify : function ( filter, tabber ) {
-		return JSON.stringify ( this.$normalize (), filter, tabber );
+	stringify : function () {
+		console.log ( "Deprecated API is deprecated" );
+	},
+
+	/**
+	 * Serialize normalized form.
+	 * @returns {object}
+	 */
+	toJSON : function () {
+		return this.$normalize ();
 	},
 
 
@@ -181,15 +185,25 @@ gui.Object.each ({ // static mixins edb.Type
 	},
 
 	/**
-	 * Is inst of {edb.Object} or {edb.Array}?
+	 * Something is an instance of {edb.Object} or {edb.Array}? 
+	 * Note: these both inherit an `is` method from `gui.Class`
 	 * @param {object} o
 	 * @returns {boolean}
 	 */
 	is : function ( o ) {
-		if ( gui.Type.isComplex ( o )) {
-			return ( o instanceof edb.Object ) || ( o instanceof edb.Array );
-		}
-		return false;
+		return edb.Object.is ( o ) || edb.Array.is ( o );
+	},
+
+	/**
+	 * Something is a Type constructor?
+	 * @param {object} o
+	 * @returns {boolean}
+	 */
+	isConstructor : function ( o ) {
+		return gui.Type.isConstructor ( o ) && o.$classname && 
+			gui.Class.ancestorsAndSelf ( o ).some ( function ( C ) {
+				return C === edb.Object || C === edb.Array;
+			});
 	},
 
 	/**
@@ -309,7 +323,8 @@ gui.Object.each ({ // static mixins edb.Type
 	var iomixins = { // input-output methods
 
 		/**
-		 * Instance of this Type has been output?
+		 * Instance of this Type has been output 
+		 * in window (or worker scope) context?
 		 * @returns {boolean}
 		 */
 		out : function () {
@@ -318,8 +333,21 @@ gui.Object.each ({ // static mixins edb.Type
 	};
 
 	var spassermixins = {
-		is : function ( o ) {
-			return gui.Type.isComplex ( o ) && ( o instanceof this );
+
+		/**
+		 * Create new instance from argument.
+		 * 
+		 * 1) If you like to avoid 'new' keyword
+		 * 2) If you wish to clone an instance.
+		 * @param {object|Array} json
+		 * @return {edb.Object|edb.Array}
+		 */
+		from : function ( json ) {
+			var Type = this;
+			if ( edb.Type.is ( json )) {
+				json = json.$normalize ();
+			}
+			return new Type ( json );
 		}
 	};
 
@@ -476,7 +504,7 @@ gui.Object.each ({ // static mixins edb.Type
 	/**
 	 * Declare the fields on edb.Type.
 	 */
-	[ iomixins, httpmixins ].forEach ( function ( mixins ) {
+	[ iomixins, httpmixins, spassermixins ].forEach ( function ( mixins ) {
 		gui.Object.each ( mixins, function mixin ( key, value ) {
 			edb.Type [ key ] = value;
 		});
@@ -484,14 +512,13 @@ gui.Object.each ({ // static mixins edb.Type
 
 	/**
 	 * Create one-liner for mixin to subclass constructors recurring static fields.
-	 * @TODO: come up with a formalized setup for this
 	 * @returns {Map<String,String|function>}
 	 */
 	edb.Type.$staticmixins = function () {
 		var mixins = {};
 		[ httpmixins, iomixins, spassermixins ].forEach ( function ( set ) {
 			Object.keys ( set ).forEach ( function ( key ) {
-				mixins [ key ] = this [ key ];
+				mixins [ key ] = set [ key ];
 			}, this );
 		}, this );
 		return mixins;

@@ -29,6 +29,28 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 	}
 
 	/**
+	 * @TODO: higher level this feature in {gui.Property}
+	 */
+	function hiddenprop ( type, name, value ) {
+		Object.defineProperty ( type, name, gui.Property.nonenumerable ({
+			value : value
+		}));
+	}
+
+	/**
+	 * @TODO: Call this something else...
+	 * @param {object} json
+	 * @param {edb.Object|edb.Array} type
+	 */
+	function evalheaders ( json, type ) {
+		var id = json.$instanceid;
+		if ( id ) {
+			hiddenprop ( type, "$originalid", id );
+			delete json.$instanceid;
+		}
+	}
+
+	/**
 	 * Fail me once.
 	 * @param {String} name
 	 * @param {String} key
@@ -64,10 +86,11 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 		 * @param {edb.Object|edb.Array} type
 		 * @return {Map<String,edb.Object|edb.Array>} types
 		 */
-		populate : function ( json, type ) { 
+		populate : function ( json, type ) {
 			var Def, def, val, desc, types = Object.create ( null );
 			var base = type.constructor.prototype;
 			var name = type.constructor.$classname;
+			evalheaders ( json, type );
 			definitions ( type ).forEach ( function ( key ) {
 				def = type [ key ];
 				val = json [ key ];

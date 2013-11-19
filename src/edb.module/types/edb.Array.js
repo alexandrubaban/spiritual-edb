@@ -129,11 +129,12 @@
 		 * @overrides {edb.Type#onconstruct}
 		 */
 		$onconstruct : function () {
-			var oprops = {}, types;
+			var object, types;
+			object = arguments.length ? arguments [ 0 ].$object || {} : {};  
 			edb.Type.prototype.$onconstruct.apply ( this, arguments );
 			edb.ArrayPopulator.populate ( this, arguments );
-			types = edb.ObjectPopulator.populate ( oprops, this );
-			edb.ObjectProxy.approximate ( oprops, this, types );
+			types = edb.ObjectPopulator.populate ( object, this );
+			edb.ObjectProxy.approximate ( object, this, types );
 			this.onconstruct ([].slice.call ( this ));
 		},
 

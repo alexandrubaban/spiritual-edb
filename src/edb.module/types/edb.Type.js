@@ -17,6 +17,12 @@ edb.Type.prototype = {
 	 * @type {String}
 	 */
 	$id : null,
+
+	/**
+	 * Synchronization stuff ohoy. Matches an $instanceid.
+	 * @type {String}
+	 */
+	$originalid : null,
 		
 	/**
 	 * Instance key (clientside session only).
@@ -61,7 +67,7 @@ edb.Type.prototype = {
 		console.log ( "Deprecated API is deprecated" );
 	},
 
-	
+
 	// CRUD .............................................................................
 
 	/**
@@ -107,7 +113,7 @@ edb.Type.prototype = {
 	 */
 	$onconstruct : function () {
 		edb.Type.underscoreinstanceid ( this ); // iOS bug...
-		edb.Type.$confirmpersist ( this );
+		// edb.Type.$confirmpersist ( this );
 	},
 
 	/**
@@ -116,7 +122,7 @@ edb.Type.prototype = {
 	 * @TODO: recursively nuke descendant types :)
 	 */
 	$ondestruct : function () {
-		edb.Type.$maybepersist ( this );
+		// edb.Type.$maybepersist ( this );
 	}
 };
 
@@ -124,6 +130,12 @@ edb.Type.prototype = {
 // Static .............................................................................
 
 gui.Object.each ({ // static mixins edb.Type
+
+	/**
+	 * Flag thing.
+	 * @type {boolean}
+	 */
+	$sync : false,
 
 	/*
 	 * Dispatch a getter broadcast before base function.
@@ -271,33 +283,6 @@ gui.Object.each ({ // static mixins edb.Type
 			}
 		}
 		return type;
-	},
-
-	/**
-	 * Type constructed. Validate persistance OK.
-	 * @param {edb.Model|edb.Collection} type
-	 */
-	$confirmpersist : function ( type ) {
-		var Type = type.constructor;
-		if ( Type.storage && edb.Storage.$typecheck ( type )) {
-			if ( arguments.length > 1 ) {
-				throw new Error ( 
-					"Persisted models and collections " +
-					"must construct with a single arg" 
-				);
-			}
-		}
-	},
-
-	/**
-	 * Type destructed. Persist if required.
-	 * @param {edb.Model|edb.Collection} type
-	 */
-	$maybepersist : function ( type ) {
-		var Type = type.constructor;
-		if ( Type.storage ) {
-			Type.$store ( type, true );
-		}
 	}
 
 }, function mixin ( key, value ) {
@@ -331,7 +316,7 @@ gui.Object.each ({ // static mixins edb.Type
 		 * 
 		 * 1) If you like to avoid 'new' keyword
 		 * 2) If you wish to clone an instance.
-		 * @param {object|Array} json
+		 * @param {object|Array|edb.Object|edb.Array} json
 		 * @return {edb.Object|edb.Array}
 		 */
 		from : function ( json ) {
@@ -340,7 +325,25 @@ gui.Object.each ({ // static mixins edb.Type
 				json = json.toJSON ();
 			}
 			return new Type ( json );
+		},
+
+		/**
+		 * Experimental.
+		 * @param {object|Array|edb.Object|edb.Array} json
+		 * @return {edb.Object|edb.Array}
+		 */
+		sync : function ( json ) {
+			var type;
+			if ( edb.Type.is ( json )) {
+				json = new edb.Serializer ().serializeToString ( json );
+				json = new edb.Parser ().parseFromString ( json, null );
+			}
+			edb.Relay.$sync = true;
+			type = this.from ( json );
+			edb.Relay.$sync = false;
+			return type;
 		}
+
 	};
 
 	var httpmixins = { // http crud and server resources

@@ -1,6 +1,8 @@
 [
 	"edb.js",
 
+	"relay/edb.Relay.js",
+
 	"types/edb.Type.js",
 	"types/edb.Object.js",
 	"types/edb.Array.js",
@@ -20,22 +22,25 @@
 	"plugins/script.plugin/edb.ScriptPlugin.js",
 
 	"spirits/edb.ScriptSpirit.js",
+
+	"utils/edb.Serializer.js",
+	"utils/edb.Parser.js",
 	
 	"runtime/edb.Att.js",
 	"runtime/edb.Out.js",
 	"runtime/edb.Script.js",
 
-	"rendering/edb.UpdateAssistant.js",
-	"rendering/edb.UpdateManager.js",
-	"rendering/edb.UpdateCollector.js",
-	"rendering/updates/edb.Update.js",
-	"rendering/updates/atts/edb.AttsUpdate.js",
-	"rendering/updates/hard/edb.HardUpdate.js",
-	"rendering/updates/soft/edb.SoftUpdate.js",
-	"rendering/updates/soft/edb.InsertUpdate.js",
-	"rendering/updates/soft/edb.AppendUpdate.js",
-	"rendering/updates/soft/edb.RemoveUpdate.js",
-	"rendering/updates/functions/edb.FunctionUpdate.js",
+	"render/edb.UpdateAssistant.js",
+	"render/edb.UpdateManager.js",
+	"render/edb.UpdateCollector.js",
+	"render/updates/edb.Update.js",
+	"render/updates/atts/edb.AttsUpdate.js",
+	"render/updates/hard/edb.HardUpdate.js",
+	"render/updates/soft/edb.SoftUpdate.js",
+	"render/updates/soft/edb.InsertUpdate.js",
+	"render/updates/soft/edb.AppendUpdate.js",
+	"render/updates/soft/edb.RemoveUpdate.js",
+	"render/updates/functions/edb.FunctionUpdate.js",
 	
 	"edb.module.js"
 ]

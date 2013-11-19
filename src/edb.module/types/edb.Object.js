@@ -32,7 +32,7 @@ edb.Object = ( function using ( chained ) {
 		 * Constructor.
 		 * @overrides {edb.Type#onconstruct}
 		 */
-		$onconstruct : function ( json ) {	
+		$onconstruct : function ( json ) {
 			edb.Type.prototype.$onconstruct.apply ( this, arguments );
 			switch ( gui.Type.of ( json )) {
 				case "object" : 
@@ -40,6 +40,9 @@ edb.Object = ( function using ( chained ) {
 					var proxy = gui.Object.copy ( json || {});
 					var types = edb.ObjectPopulator.populate ( proxy, this );
 					edb.ObjectProxy.approximate ( proxy, this, types );
+					if ( edb.Relay.$sync ) {
+						edb.Relay.synchronize ( this );
+					}
 					break;
 				default :
 					throw new TypeError ( 
@@ -63,18 +66,38 @@ edb.Object = ( function using ( chained ) {
 		toJSON : function () {
 			var c, o = {};
 			gui.Object.each ( this, function ( key, value ) {
-				c = key [ 0 ];
+				c = key.charAt ( 0 );
 				if ( c !== "$" && c !== "_" ) {
-					/*
 					if ( edb.Type.is ( value  )) {
 						value = value.toJSON ();	
 					}
-					*/
 					o [ key ] = value;	
 				}
 			});
 			return o;
+		},
+		
+		/*
+		serialize : function () {
+			var o = {};
+			gui.Object.each ( this, function ( key, value ) {
+				if ( edb.Type.is ( value  )) {
+					value = value.toJSON ();	
+				}
+				o [ key ] = value;
+			});
+			return JSON.stringify ( o );
 		}
+		*/
+
+		/*
+		serialize : function () {
+			return gui.Object.extend ({
+
+			}).toJSON ();
+		}
+		*/
+
 	});
 
 }( gui.Combo.chained ));

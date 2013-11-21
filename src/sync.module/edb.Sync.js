@@ -44,7 +44,6 @@ edb.Sync = ( function using ( confirmed ) {
 		gui.Object.each ( dispatch, function ( id, all ) {
 			var method = globals [ id ] ? "dispatchGlobal" : "dispatch";
 			gui.Broadcast [ method ] ( null, edb.Sync.BROADCAST + id, all );
-			console.log ( JSON.stringify ( all ));
 		});
 		syncdone.forEach ( function ( type ) {
 			delete type.$willsync;

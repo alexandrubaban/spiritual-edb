@@ -76,62 +76,6 @@ window.edb = gui.namespace ( "edb", {
 
 
 
-edb.Relay = ( function () {
-
-	return {
-
-		synchronize : function ( type ) {
-			type.addObserver ( this );
-			var x = {
-				onbroadcast : function ( b ) {
-					var changes = b.data;
-					if ( changes.some ( function ( c ) {
-						return c.$instanceid !== type.$instanceid;
-					})) {
-						changes.forEach ( function ( c ) {
-							if ( type [ c.name ] !== c.newValue ) {
-								type.$synchronizing = true;
-								type [ c.name ] = c.newValue;
-							}
-						});
-					}
-				}
-			};
-			gui.Broadcast.add ( type.$originalid || type.$instanceid, x );		
-		},
-
-		/**
-		 * 
-		 * @param {Array<edb.ObjectChange>} changes
-		 */
-		onchange : function ( changes ) {
-			var summary = {};
-			var syncing = {};
-			changes.forEach ( function ( c ) {
-				var type = c.object;
-				if ( type.$synchronizing ) {
-					syncing [ type.$instanceid ] = type;
-				} else {
-					var aaa = gui.Object.copy ( c );
-					delete aaa.object;
-					aaa.$instanceid = type.$instanceid;
-					var id = type.$originalid || type.$instanceid;
-					summary [ id ] = summary [ id ] || [];
-					summary [ id ].push ( aaa );
-				}
-			});
-			gui.Object.each ( summary, function ( id, cs ) {
-				gui.Broadcast.dispatch ( null, id, cs );
-			});
-			gui.Object.each ( syncing, function ( id, type ) {
-				type.$synchronizing = false;
-			});
-		}
-	};
-
-}());
-
-
 /**
  * Conceptual superclass for {edb.Object} and {edb.Array}.
  * We use the following only as a pool for mixin methods.
@@ -192,13 +136,6 @@ edb.Type.prototype = {
 	 */
 	dispose : function () {
 		this.$ondestruct ();
-	},
-	
-	/**
-	 * @deprecated
-	 */
-	stringify : function () {
-		console.log ( "Deprecated API is deprecated" );
 	},
 
 
@@ -264,12 +201,6 @@ edb.Type.prototype = {
 // Static .............................................................................
 
 gui.Object.each ({ // static mixins edb.Type
-
-	/**
-	 * Flag thing.
-	 * @type {boolean}
-	 */
-	$sync : false,
 
 	/*
 	 * Dispatch a getter broadcast before base function.
@@ -386,6 +317,16 @@ gui.Object.each ({ // static mixins edb.Type
 	},
 
 	/**
+	 * Apply mixins to both {edb.Object} and {edb.Array}.
+	 * @param {object} mixins
+	 */
+	mixin : function ( protos, xstatics, statics ) {
+		[ edb.Object, edb.Array ].forEach ( function ( Type ) {
+			Type.mixin ( protos, xstatics, statics );
+		});
+	},
+
+	/**
 	 * @param {edb.Object|edb.Array} type
 	 * @param {edb.IChangeHandler} handler
 	 * @returns {edb.Object}
@@ -446,26 +387,30 @@ gui.Object.each ({ // static mixins edb.Type
 	var spassermixins = {
 
 		/**
-		 * Create new instance from argument.
-		 * 
-		 * 1) If you like to avoid 'new' keyword
-		 * 2) If you wish to clone an instance.
-		 * @param {object|Array|edb.Object|edb.Array} json
+		 * Create new instance from argument of fuzzy type.
+		 * @param {String|object|Array|edb.Object|edb.Array} json
 		 * @return {edb.Object|edb.Array}
 		 */
-		from : function ( json ) {
+		from : gui.Arguments.confirmed ( "(string|object)" ) ( function ( json ) {
 			var Type = this;
-			if ( edb.Type.is ( json )) {
-				json = json.toJSON ();
+			if ( json ) {
+				if ( edb.Type.is ( json )) {
+					json = new edb.Serializer ().serializeToString ( json );
+				}
+				if ( gui.Type.isString ( json )) {
+					if ( json.contains ( "$object" ) || json.contains ( "$array" )) {
+						json = new edb.Parser ().parseFromString ( json, null );	
+					}
+				}
 			}
 			return new Type ( json );
-		},
+		})
 
 		/**
 		 * Experimental.
 		 * @param {object|Array|edb.Object|edb.Array} json
 		 * @return {edb.Object|edb.Array}
-		 */
+		 *
 		sync : function ( json ) {
 			var type;
 			if ( edb.Type.is ( json )) {
@@ -477,6 +422,7 @@ gui.Object.each ({ // static mixins edb.Type
 			edb.Relay.$sync = false;
 			return type;
 		}
+		*/
 
 	};
 
@@ -695,12 +641,10 @@ edb.Object = ( function using ( chained ) {
 			switch ( gui.Type.of ( json )) {
 				case "object" : 
 				case "undefined" :
+				case "null" :
 					var proxy = gui.Object.copy ( json || {});
 					var types = edb.ObjectPopulator.populate ( proxy, this );
 					edb.ObjectProxy.approximate ( proxy, this, types );
-					if ( edb.Relay.$sync ) {
-						edb.Type.synchronize ( this );
-					}
 					break;
 				default :
 					throw new TypeError ( 
@@ -1308,7 +1252,7 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 						if ( edb.Array.isConstructor ( def )) {
 							json [ key ] = [];	
 						} else {
-							json [ key ] = null;
+							json [ key ] = null; // @TODO: stay null somehow...
 						}
 						Def = def;
 						types [ key ] = new Def ( json [ key ]);
@@ -1659,14 +1603,25 @@ edb.ArrayChange.prototype = gui.Object.create ( edb.Change.prototype, {
 });
 
 /*
- * Update types. 
+ * Update types. We'll stick to `splice` for now.
  */
 edb.ArrayChange.TYPE_SPLICE = "splice";
-/*
-edb.ArrayChange.TYPE_ADD = "add";
-edb.ArrayChange.TYPE_UPDATE = "update";
-edb.ArrayChange.TYPE_DELETE = "delete";
-*/
+
+/**
+ * Given a `splice` change, compute the arguments required 
+ * to cause or reproduce the change using `array.splice()`.
+ * @see http://mdn.io/splice
+ */
+edb.ArrayChange.toSpliceParams = function ( change ) {
+	if ( change.type === edb.ArrayChange.TYPE_SPLICE ) {
+		var idx = change.index;
+		var out = change.removed.length;
+		var add = change.added;
+		return [ idx, out ].concat ( add );
+	} else {
+		throw new TypeError ();
+	}
+};
 
 
 /**
@@ -2547,6 +2502,63 @@ edb.ScriptSpirit = gui.Spirit.extend ({
 });
 
 
+/**
+ * Crawl structures descending.
+ */
+edb.Crawler = ( function () {
+
+	function Crawler () {}
+	Crawler.prototype = {
+
+		/**
+		 * 
+		 */
+		crawl : function ( type, handler ) {
+			if ( edb.Type.is ( type )) {
+				handle ( type, handler );
+				crawl ( type, handler );
+			} else {
+				throw new TypeError ();
+			}
+		}
+	};
+
+	function crawl ( type, handler ) {
+		gui.Object.each ( type, istype ).forEach ( 
+			function ( type ) {
+				handle ( type, handler );
+				crawl ( type,handler );
+			}
+		);
+	}
+
+	function istype ( key, value ) {
+		if ( edb.Type.is ( value )) {
+			return value;
+		}
+	}
+
+	function handle ( type, handler ) {
+		if ( handler.ontype ) {
+			handler.ontype ( type );
+		}
+		if ( handler.onarray ) {
+			if ( edb.Array.is ( type )) {
+				handler.onarray ( type );
+			}
+		}
+		if ( handler.onobject ) {
+			if ( edb.Object.is ( type )) {
+				handler.onobject ( type );
+			}
+		}
+	}
+
+	return Crawler;
+
+}());
+
+
 edb.Serializer = ( function () {
 
 	function Serializer () {}
@@ -2696,7 +2708,7 @@ edb.Parser = ( function () {
 	 * @returns {boolean}
 	 */
 	function isType ( json ) {
-		return gui.Type.isComplex ( json ) && json.$array || json.$object;
+		return gui.Type.isComplex ( json ) && ( json.$array || json.$object );
 	}
 
 	/**
@@ -4323,7 +4335,7 @@ edb.FunctionUpdate = edb.Update.extend ({
 /*
  * Register module.
  */
-edb.EDBModule = gui.module ( "edb", {
+edb.EDBModule = gui.module ( "edb@wunderbyte.com", {
 	
 	/**
 	 * CSS selector for currently focused form field.

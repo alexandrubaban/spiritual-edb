@@ -37,6 +37,7 @@ edb.Object = ( function using ( chained ) {
 			switch ( gui.Type.of ( json )) {
 				case "object" : 
 				case "undefined" :
+				case "null" :
 					var proxy = gui.Object.copy ( json || {});
 					var types = edb.ObjectPopulator.populate ( proxy, this );
 					edb.ObjectProxy.approximate ( proxy, this, types );

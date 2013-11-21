@@ -60,15 +60,6 @@ edb.Type.prototype = {
 		this.$ondestruct ();
 	},
 
-	/**
-	 * [sync description]
-	 * @return {[type]} [description]
-	 */
-	sync : function () {
-		edb.Sync.$synchronize ( this );
-		return this;
-	},
-
 
 	// CRUD .............................................................................
 
@@ -248,6 +239,16 @@ gui.Object.each ({ // static mixins edb.Type
 	},
 
 	/**
+	 * Apply mixins to both {edb.Object} and {edb.Array}.
+	 * @param {object} mixins
+	 */
+	mixin : function ( protos, xstatics, statics ) {
+		[ edb.Object, edb.Array ].forEach ( function ( Type ) {
+			Type.mixin ( protos, xstatics, statics );
+		});
+	},
+
+	/**
 	 * @param {edb.Object|edb.Array} type
 	 * @param {edb.IChangeHandler} handler
 	 * @returns {edb.Object}
@@ -308,21 +309,24 @@ gui.Object.each ({ // static mixins edb.Type
 	var spassermixins = {
 
 		/**
-		 * Create new instance from argument.
-		 * 
-		 * 1) If you like to avoid 'new' keyword
-		 * 2) If you wish to clone an instance.
-		 * @param {object|Array|edb.Object|edb.Array} json
+		 * Create new instance from argument of fuzzy type.
+		 * @param {String|object|Array|edb.Object|edb.Array} json
 		 * @return {edb.Object|edb.Array}
 		 */
-		from : function ( json ) {
+		from : gui.Arguments.confirmed ( "(string|object)" ) ( function ( json ) {
 			var Type = this;
-			if ( edb.Type.is ( json )) {
-				json = new edb.Serializer ().serializeToString ( json );
-				json = new edb.Parser ().parseFromString ( json, null );
+			if ( json ) {
+				if ( edb.Type.is ( json )) {
+					json = new edb.Serializer ().serializeToString ( json );
+				}
+				if ( gui.Type.isString ( json )) {
+					if ( json.contains ( "$object" ) || json.contains ( "$array" )) {
+						json = new edb.Parser ().parseFromString ( json, null );	
+					}
+				}
 			}
 			return new Type ( json );
-		}
+		})
 
 		/**
 		 * Experimental.

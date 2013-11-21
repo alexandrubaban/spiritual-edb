@@ -1,7 +1,7 @@
 /*
  * Register module.
  */
-edb.EDBModule = gui.module ( "edb", {
+edb.EDBModule = gui.module ( "edb@wunderbyte.com", {
 	
 	/**
 	 * CSS selector for currently focused form field.

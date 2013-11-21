@@ -45,7 +45,7 @@ edb.Parser = ( function () {
 	 * @returns {boolean}
 	 */
 	function isType ( json ) {
-		return gui.Type.isComplex ( json ) && json.$array || json.$object;
+		return gui.Type.isComplex ( json ) && ( json.$array || json.$object );
 	}
 
 	/**

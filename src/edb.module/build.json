@@ -1,11 +1,6 @@
 [
 	"edb.js",
-
-	"sync/edb.Sync.js",
-	"sync/edb.ObjectSync.js",
-	"sync/edb.ArraySync.js",
-	"sync/edb.SyncJohn.js",
-
+	
 	"types/edb.Type.js",
 	"types/edb.Object.js",
 	"types/edb.Array.js",

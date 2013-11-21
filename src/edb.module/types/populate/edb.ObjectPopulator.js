@@ -122,7 +122,7 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 						if ( edb.Array.isConstructor ( def )) {
 							json [ key ] = [];	
 						} else {
-							json [ key ] = null;
+							json [ key ] = null; // @TODO: stay null somehow...
 						}
 						Def = def;
 						types [ key ] = new Def ( json [ key ]);

@@ -59,12 +59,14 @@ edb.Type.prototype = {
 	dispose : function () {
 		this.$ondestruct ();
 	},
-	
+
 	/**
-	 * @deprecated
+	 * [sync description]
+	 * @return {[type]} [description]
 	 */
-	stringify : function () {
-		console.log ( "Deprecated API is deprecated" );
+	sync : function () {
+		edb.Sync.$synchronize ( this );
+		return this;
 	},
 
 
@@ -130,12 +132,6 @@ edb.Type.prototype = {
 // Static .............................................................................
 
 gui.Object.each ({ // static mixins edb.Type
-
-	/**
-	 * Flag thing.
-	 * @type {boolean}
-	 */
-	$sync : false,
 
 	/*
 	 * Dispatch a getter broadcast before base function.
@@ -322,16 +318,17 @@ gui.Object.each ({ // static mixins edb.Type
 		from : function ( json ) {
 			var Type = this;
 			if ( edb.Type.is ( json )) {
-				json = json.toJSON ();
+				json = new edb.Serializer ().serializeToString ( json );
+				json = new edb.Parser ().parseFromString ( json, null );
 			}
 			return new Type ( json );
-		},
+		}
 
 		/**
 		 * Experimental.
 		 * @param {object|Array|edb.Object|edb.Array} json
 		 * @return {edb.Object|edb.Array}
-		 */
+		 *
 		sync : function ( json ) {
 			var type;
 			if ( edb.Type.is ( json )) {
@@ -343,6 +340,7 @@ gui.Object.each ({ // static mixins edb.Type
 			edb.Relay.$sync = false;
 			return type;
 		}
+		*/
 
 	};
 

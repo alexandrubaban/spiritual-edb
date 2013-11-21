@@ -34,11 +34,22 @@ edb.ArrayChange.prototype = gui.Object.create ( edb.Change.prototype, {
 });
 
 /*
- * Update types. 
+ * Update types. We'll stick to `splice` for now.
  */
 edb.ArrayChange.TYPE_SPLICE = "splice";
-/*
-edb.ArrayChange.TYPE_ADD = "add";
-edb.ArrayChange.TYPE_UPDATE = "update";
-edb.ArrayChange.TYPE_DELETE = "delete";
-*/
+
+/**
+ * Given a `splice` change, compute the arguments required 
+ * to cause or reproduce the change using `array.splice()`.
+ * @see http://mdn.io/splice
+ */
+edb.ArrayChange.toSpliceParams = function ( change ) {
+	if ( change.type === edb.ArrayChange.TYPE_SPLICE ) {
+		var idx = change.index;
+		var out = change.removed.length;
+		var add = change.added;
+		return [ idx, out ].concat ( add );
+	} else {
+		throw new TypeError ();
+	}
+};

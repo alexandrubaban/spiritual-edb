@@ -40,9 +40,6 @@ edb.Object = ( function using ( chained ) {
 					var proxy = gui.Object.copy ( json || {});
 					var types = edb.ObjectPopulator.populate ( proxy, this );
 					edb.ObjectProxy.approximate ( proxy, this, types );
-					if ( edb.Relay.$sync ) {
-						edb.Relay.synchronize ( this );
-					}
 					break;
 				default :
 					throw new TypeError ( 

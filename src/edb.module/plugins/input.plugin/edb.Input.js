@@ -5,7 +5,8 @@
  * @param {edb.Object|edb.Array} type
  */
 edb.Input = function Input ( type ) {
-	if ( edb.Type.isInstance ( type )) {
+	this.$instanceid = gui.KeyMaster.generateKey ();
+	if ( edb.Type.is ( type )) {
 		this.type = type.constructor;
 		this.data = type;
 	} else {
@@ -14,7 +15,7 @@ edb.Input = function Input ( type ) {
 };
 
 edb.Input.prototype = {
-	
+
 	/**
 	 * Input Type (function constructor)
 	 * @type {function}
@@ -26,6 +27,12 @@ edb.Input.prototype = {
 	 * @type {object|edb.Type} data
 	 */
 	data : null,
+
+	/**
+	 * Uniquely identifies the input.
+	 * @type {String}
+	 */
+	$instanceid : null,
 
 	/**
 	 * Identification.

@@ -1,6 +1,6 @@
 /**
- * Conceptual superclass for {edb.Object} and {edb.Array}, not a real 
- * superclass. We use the following only as a pool for mixin methods.
+ * Conceptual superclass for {edb.Object} and {edb.Array}.
+ * We use the following only as a pool for mixin methods.
  */
 edb.Type = function () {};
 
@@ -19,18 +19,10 @@ edb.Type.prototype = {
 	$id : null,
 
 	/**
-	 * Output context (for cross-context cornercases).
-	 * @type {Window|WorkerGlobalScope}
-	 *
-	$context : null,
-
-	/**
-	 * Output context ID equivalent to 'this.$context.gui.$contextid'. 
-	 * The ID is not persistable (generated random on session startup).
+	 * Synchronization stuff ohoy. Matches an $instanceid.
 	 * @type {String}
-	 *
-	$contextid : null,
-	*/
+	 */
+	$originalid : null,
 		
 	/**
 	 * Instance key (clientside session only).
@@ -47,11 +39,6 @@ edb.Type.prototype = {
 	onconstruct : function () {},
 
 	/**
-	 * Hello.
-	 */
-	oninit : function () {},
-
-	/**
 	 * Hello again.
 	 */
 	ondestruct : function () {},
@@ -65,16 +52,24 @@ edb.Type.prototype = {
 		edb.Output.dispatch ( this, target );
 		return this;
 	},
-	
+
 	/**
-	 * Serialize to JSON string without private and expando properties.
-	 * @todo Declare $normalize as a method stub here (and stull work in subclass)
-	 * @param {function} filter
-	 * @param {String|number} tabber
+	 * Garbage collect now, at least in theory.
+	 */
+	dispose : function () {
+		this.$ondestruct ();
+	},
+
+	/**
+	 * Serialize to abstract EDB tree. Unlike `toJSON`, this 
+	 * includes underscore and dollar prefixed properties. 
+	 * It also features the the object-properties of arrays.
+	 * @param @optional {function} filter
+	 * @param @optional {String|number} tabs
 	 * @returns {String}
 	 */
-	stringify : function ( filter, tabber ) {
-		return JSON.stringify ( this.$normalize (), filter, tabber );
+	serializeToString : function ( filter, tabs ) {
+		return new edb.Serializer ().serializeToString ( this, filter, tabs );
 	},
 
 
@@ -123,7 +118,7 @@ edb.Type.prototype = {
 	 */
 	$onconstruct : function () {
 		edb.Type.underscoreinstanceid ( this ); // iOS bug...
-		edb.Type.$confirmpersist ( this );
+		// edb.Type.$confirmpersist ( this );
 	},
 
 	/**
@@ -132,7 +127,7 @@ edb.Type.prototype = {
 	 * @TODO: recursively nuke descendant types :)
 	 */
 	$ondestruct : function () {
-		edb.Type.$maybepersist ( this );
+		// edb.Type.$maybepersist ( this );
 	}
 };
 
@@ -193,15 +188,25 @@ gui.Object.each ({ // static mixins edb.Type
 	},
 
 	/**
-	 * Is inst of {edb.Object} or {edb.Array}?
+	 * Something is an instance of {edb.Object} or {edb.Array}? 
+	 * Note: these both inherit an `is` method from `gui.Class`
 	 * @param {object} o
 	 * @returns {boolean}
 	 */
-	isInstance : function ( o ) {
-		if ( gui.Type.isComplex ( o )) {
-			return ( o instanceof edb.Object ) || ( o instanceof edb.Array );
-		}
-		return false;
+	is : function ( o ) {
+		return edb.Object.is ( o ) || edb.Array.is ( o );
+	},
+
+	/**
+	 * Something is a Type constructor?
+	 * @param {object} o
+	 * @returns {boolean}
+	 */
+	isConstructor : function ( o ) {
+		return gui.Type.isConstructor ( o ) && o.$classname && 
+			gui.Class.ancestorsAndSelf ( o ).some ( function ( C ) {
+				return C === edb.Object || C === edb.Array;
+			});
 	},
 
 	/**
@@ -234,7 +239,7 @@ gui.Object.each ({ // static mixins edb.Type
 	 * @param {object} value
 	 */
 	cast : function fix ( value ) {
-		if ( gui.Type.isComplex ( value ) && !edb.Type.isInstance ( value )) {
+		if ( gui.Type.isComplex ( value ) && !edb.Type.is ( value )) {
 			switch ( gui.Type.of ( value )) {
 				case "object" :
 					return new edb.Object ( value );
@@ -246,30 +251,47 @@ gui.Object.each ({ // static mixins edb.Type
 	},
 
 	/**
-	 * Type constructed. Validate persistance OK.
-	 * @param {edb.Model|edb.Collection} type
+	 * Apply mixins to both {edb.Object} and {edb.Array}.
+	 * @param {object} mixins
 	 */
-	$confirmpersist : function ( type ) {
-		var Type = type.constructor;
-		if ( Type.storage && edb.Storage.$typecheck ( type )) {
-			if ( arguments.length > 1 ) {
-				throw new Error ( 
-					"Persisted models and collections " +
-					"must construct with a single arg" 
-				);
-			}
-		}
+	mixin : function ( protos, xstatics, statics ) {
+		[ edb.Object, edb.Array ].forEach ( function ( Type ) {
+			Type.mixin ( protos, xstatics, statics );
+		});
 	},
 
 	/**
-	 * Type destructed. Persist if required.
-	 * @param {edb.Model|edb.Collection} type
+	 * @param {edb.Object|edb.Array} type
+	 * @param {edb.IChangeHandler} handler
+	 * @returns {edb.Object}
 	 */
-	$maybepersist : function ( type ) {
-		var Type = type.constructor;
-		if ( Type.storage ) {
-			Type.$store ( type, true );
+	$observe : function ( type, handler ) {
+		var id = type.$instanceid || type._instanceid;
+		var obs = this._observers;
+		var handlers = obs [ id ] || ( obs [ id ] = []);
+		if ( handlers.indexOf ( handler ) === -1 ) {
+			handlers.push ( handler );
 		}
+		return type;
+	},
+
+	/**
+	 * @param {edb.Object} type
+	 * @param {edb.IChangeHandler} handler
+	 * @returns {edb.Object|edb.Array}
+	 */
+	$unobserve : function ( type, handler ) {
+		var id = type.$instanceid || type._instanceid;
+		var obs = this._observers;
+		var index, handlers = obs [ id ];
+		if ( handlers ) {
+			if (( index = handlers.indexOf ( handler )) >-1 ) {
+				if ( gui.Array.remove ( handlers, index ) === 0	) {
+					delete obs [ id ];
+				}
+			}
+		}
+		return type;
 	}
 
 }, function mixin ( key, value ) {
@@ -287,7 +309,8 @@ gui.Object.each ({ // static mixins edb.Type
 	var iomixins = { // input-output methods
 
 		/**
-		 * Instance of this Type has been output?
+		 * Instance of this Type has been output 
+		 * in window (or worker scope) context?
 		 * @returns {boolean}
 		 */
 		out : function () {
@@ -295,29 +318,46 @@ gui.Object.each ({ // static mixins edb.Type
 		}
 	};
 
-	var persistancemixins = {
+	var spassermixins = {
 
 		/**
-		 * @type {edb.Storage}
+		 * Create new instance from argument of fuzzy type.
+		 * @param {String|object|Array|edb.Object|edb.Array} json
+		 * @return {edb.Object|edb.Array}
 		 */
-		storage : null,
+		from : gui.Arguments.confirmed ( "(string|object)" ) ( function ( json ) {
+			var Type = this;
+			if ( json ) {
+				if ( edb.Type.is ( json )) {
+					json = new edb.Serializer ().serializeToString ( json );
+				}
+				if ( gui.Type.isString ( json )) {
+					if ( json.contains ( "$object" ) || json.contains ( "$array" )) {
+						json = new edb.Parser ().parseFromString ( json, null );	
+					}
+				}
+			}
+			return new Type ( json );
+		})
 
 		/**
-		 * Restore instance from client storage. Note that the constructor 
-		 * (this constructor) will be called with only one single argument.
-		 * @returns {gui.Then}
-		 */
-		restore : function ( context ) {
-			return this.storage.getItem ( this.$classname, context || self );
-		},
-
-		/**
-		 * Persist instance. Managed by the framework via instance.$ondestruct.
-		 * @param {edb.Object|edb.Array} type
-		 */
-		$store : function ( type, now ) {
-			this.storage.setItem ( this.$classname, type, type.$context, now );
+		 * Experimental.
+		 * @param {object|Array|edb.Object|edb.Array} json
+		 * @return {edb.Object|edb.Array}
+		 *
+		sync : function ( json ) {
+			var type;
+			if ( edb.Type.is ( json )) {
+				json = new edb.Serializer ().serializeToString ( json );
+				json = new edb.Parser ().parseFromString ( json, null );
+			}
+			edb.Relay.$sync = true;
+			type = this.from ( json );
+			edb.Relay.$sync = false;
+			return type;
 		}
+		*/
+
 	};
 
 	var httpmixins = { // http crud and server resources
@@ -425,7 +465,7 @@ gui.Object.each ({ // static mixins edb.Type
 			var type = this;
 			var then = new gui.Then ();
 			var href = gui.URL.parametrize ( inst.uri, options );
-			var data = gui.Type.isInstance ( inst ) ? inst.$normalize () : inst;
+			var data = gui.Type.isInstance ( inst ) ? inst.toJSON () : inst;
 			this.$httprequest ( href, method || "PUT", data, function ( response ) {
 				then.now ( type.$httpresponse ( response, options, method ));
 			});
@@ -473,7 +513,7 @@ gui.Object.each ({ // static mixins edb.Type
 	/**
 	 * Declare the fields on edb.Type.
 	 */
-	[ iomixins, persistancemixins, httpmixins ].forEach ( function ( mixins ) {
+	[ iomixins, httpmixins, spassermixins ].forEach ( function ( mixins ) {
 		gui.Object.each ( mixins, function mixin ( key, value ) {
 			edb.Type [ key ] = value;
 		});
@@ -481,14 +521,13 @@ gui.Object.each ({ // static mixins edb.Type
 
 	/**
 	 * Create one-liner for mixin to subclass constructors recurring static fields.
-	 * @TODO: come up with a formalized setup for this
 	 * @returns {Map<String,String|function>}
 	 */
 	edb.Type.$staticmixins = function () {
 		var mixins = {};
-		[ httpmixins, iomixins, persistancemixins ].forEach ( function ( set ) {
+		[ httpmixins, iomixins, spassermixins ].forEach ( function ( set ) {
 			Object.keys ( set ).forEach ( function ( key ) {
-				mixins [ key ] = this [ key ];
+				mixins [ key ] = set [ key ];
 			}, this );
 		}, this );
 		return mixins;

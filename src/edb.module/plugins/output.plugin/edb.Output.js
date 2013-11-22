@@ -18,10 +18,10 @@ edb.Output = {
 	 * @param @optional {object} target
 	 */
 	dispatch : function ( type, target ) {
-		var plugin, input = this._configure ( type.constructor, type );
-		if ( target ) { // @TODO: test for target interface
-			if (( plugin = target.input ) instanceof edb.InputPlugin ) {
-				plugin.match ( input ); // @TODO: pass extra arg for auto-destruct?
+		var handler, input = this._configure ( type.constructor, type );
+		if ( target ) {
+			if (( handler = target.$oninput || target.oninput )) {
+				handler.call ( target, input );
 			}
 		} else {
 			gui.Broadcast.dispatch ( null, edb.BROADCAST_OUTPUT, input );

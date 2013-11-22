@@ -1,5 +1,6 @@
 /**
  * edb.Object change summary.
+ * @extends {edb.Change}
  * @param {edb.Object} object
  * @param {String} name
  * @param {String} type
@@ -7,7 +8,6 @@
  * @param {object} newval
  */
 edb.ObjectChange = function ( object, name, type, oldval, newval ) {
-	//this.instanceid = object._instanceid;
 	this.object = object;
 	this.name = name;
 	this.type = type;
@@ -15,11 +15,10 @@ edb.ObjectChange = function ( object, name, type, oldval, newval ) {
 	this.newValue = newval;
 };
 
+// gui.Object.create ( edb.Change.prototype, {
+
 edb.ObjectChange.prototype = {
-	//instanceid : null,
-	object: null,
 	name: null,
-	type: null,
 	oldValue: undefined,
 	newValue: undefined
 };
@@ -29,4 +28,4 @@ edb.ObjectChange.prototype = {
  * native 'Object.observe' comes along.
  * @type {String}
  */
-edb.ObjectChange.TYPE_UPDATED = "updated";
+edb.ObjectChange.TYPE_UPDATE = "update";

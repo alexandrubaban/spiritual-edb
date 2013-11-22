@@ -19,6 +19,7 @@ edb.InputPlugin = gui.Tracker.extend ({
 		this.context = self; // @TODO: deprecate this whole thing...
 		this._watches = [];
 		this._matches = [];
+		this._needing = [];
 	},
 
 	/**
@@ -27,36 +28,39 @@ edb.InputPlugin = gui.Tracker.extend ({
 	ondestruct : function () {
 		this._super.ondestruct ();
 		this.remove ( this._watches );
-		this._xxx ( false );
 	},
 	
 	/**
 	 * Add handler for one or more input types.
 	 * @param {edb.Type|String|Array<edb.Type|String>} arg 
-	 * @param @optional {object} IInputHandler Defaults to this.spirit
+	 * @param @optional {IInputHandler} handler Defaults to this.spirit
+	 * @param @optional {IInputHandler} handler Defaults to this.spirit
 	 * @returns {gui.InputPlugin}
 	 */
-	add : gui.Combo.chained ( function ( arg, handler ) {
-		this.done = false;
+	add : gui.Combo.chained ( function ( arg, handler, required ) {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
-		this._add ( arg, handler );
-		this._xxx ( true );
+		if ( arg.length ) {
+			this.done = this.done && required === false;
+			this._add ( arg, handler, required );
+			this._subscribe ( true );
+		}
 	}),
+
 
 	/**
 	 * Remove handler for one or more input types.
 	 * @TODO Cleanup more stuff?
 	 * @param {edb.Type|String|Array<edb.Type|String>} arg 
-	 * @param @optional {object} handler implements InputListener (defaults to this)
+	 * @param @optional {IInputHandler} handler Defaults to this.spirit
 	 * @returns {gui.InputPlugin}
 	 */
 	remove : gui.Combo.chained ( function ( arg, handler ) {
 		handler = handler ? handler : this.spirit;
 		arg = edb.InputPlugin._breakdown ( arg, this.context );
-		this._remove ( arg, handler );
-		if (( this.done = this._matches.length === this._watches.length )) { // right?
-			this._xxx ( false );
+		if ( arg.length ) {
+			this._remove ( arg, handler );
+			this.done = this._done ();
 		}
 	}),
 
@@ -78,22 +82,6 @@ edb.InputPlugin = gui.Tracker.extend ({
 	},
 
 	/**
-	 * Dispatch private data. Only the associated {edb.Script} can see this!
-	 * @TODO the dispatching spirit should be able to intercept this as well...
-	 * @param {object} data JSON object or array (demands arg 2) or an edb.Type instance (omit arg 2).
-	 * @param @optional {function|String} type edb.Type constructor or "my.ns.MyType"
-	 * @returns {edb.Object|edb.Array}
-	 *
-	dispatch : function ( data, Type ) {
-		if ( this.spirit ) {
-			return this.spirit.script.input ( data, Type );
-		} else {
-			console.error ( "TODO: not implemented (private sandbox input)" );
-		}
-	},
-	*/
-	
-	/**
 	 * Evaluate new input.
 	 * @param {gui.Broadcast} b
 	 */
@@ -108,7 +96,11 @@ edb.InputPlugin = gui.Tracker.extend ({
 	 * @param {edb.Input} input
 	 */
 	match : function ( input ) {
-		this._maybeinput ( input );
+		if ( this._matches.every ( function ( match ) {
+			return match.$instanceid !== input.$instanceid;
+		})) {
+			this._maybeinput ( input );
+		}
 	},
 	
 	
@@ -127,15 +119,24 @@ edb.InputPlugin = gui.Tracker.extend ({
 	_matches : null,
 
 	/**
+	 * ?
+	 */
+	_needing : null,
+
+	/**
 	 * Add input handler for types.
 	 * @param {Array<function>} types
 	 * @param {IInputHandler} handler
+	 * @param {boolean} required
 	 */
-	_add : function ( types, handler ) {
+	_add : function ( types, handler, required ) {
 		types.forEach ( function ( Type ) {
 			if ( gui.Type.isDefined ( Type )) {
-				this._watches.push ( Type );
 				this._addchecks ( Type.$classid, [ handler ]);
+				this._watches.push ( Type );
+				if ( required ) {
+					this._needing.push ( Type );
+				}
 			} else {
 				throw new TypeError ( "Could not register input for undefined Type" );
 			}
@@ -153,11 +154,12 @@ edb.InputPlugin = gui.Tracker.extend ({
 	 * @param {IInputHandler} handler
 	 */
 	_remove : function ( types, handler ) {
-		types.forEach ( function ( type ) {
-			var index = this._watches.indexOf ( type );
-			if ( index >-1 ) {
-				gui.Array.remove ( this._watches, ( index ));
-				this._removechecks ( type.$classid, [ handler ]);
+		types.forEach ( function ( Type ) {
+			gui.Array.remove ( this._watches, Type );
+			gui.Array.remove ( this._needing, Type );
+			this._removechecks ( Type.$classid, [ handler ]);
+			if ( !this._watches.length ) {
+				this._subscribe ( false );
 			}
 		}, this );
 	},
@@ -170,7 +172,7 @@ edb.InputPlugin = gui.Tracker.extend ({
 		var best = edb.InputPlugin._bestmatch ( input.type, this._watches );
 		if ( best ) {
 			this._updatematch ( input );
-			this.done = this._matches.length === this._watches.length;
+			this.done = this._done ();
 			this._updatehandlers ( input );
 		}
 	},
@@ -214,9 +216,23 @@ edb.InputPlugin = gui.Tracker.extend ({
 	},
 
 	/**
+	 * Required inputs was required?
+	 * @returns {boolean}
+	 */
+	_done : function () {
+		var needs = this._needing;
+		var haves = this._matches;
+		return needs.every ( function ( Type ) {
+			return haves.some ( function ( input ) {
+				return ( input.data instanceof Type );
+			});
+		});
+	},
+
+	/**
 	 * @param {boolean} is
 	 */
-	_xxx : function ( is ) {
+	_subscribe : function ( is ) {
 		gui.Broadcast [ is ? "add" : "remove" ] ( edb.BROADCAST_OUTPUT, this, this.context.gui.$contextid );
 	}
 

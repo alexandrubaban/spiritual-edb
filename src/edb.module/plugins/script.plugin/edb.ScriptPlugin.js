@@ -1,9 +1,10 @@
 /**
  * The ScriptPlugin shall render the spirits HTML.
  * @extends {gui.Plugin}
+ * @using {gui.Combo.chained}
  * @using {gui.Arguments.confirmed}
  */
-edb.ScriptPlugin = ( function using ( confirmed ) {
+edb.ScriptPlugin = ( function using ( chained, confirmed ) {
 
 	return gui.Plugin.extend ({
 
@@ -14,7 +15,8 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 		loaded : false,
 
 		/**
-		 * Script has been run? Flipped after first run.
+		 * Script has been run? Flipped after first run. 
+		 * @todo Rename this to something professional.
 		 * @type {boolean}
 		 */
 		ran : false,
@@ -60,23 +62,27 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 
 		/**
 		 * Load script.
-		 * @param {function} script
+		 * @param {function|String} script
+		 * @returns {edb.ScriptPlugin}
 		 */
-		load : confirmed ( "function" ) ( function ( script ) {
-			this.loaded = true;
-			this._script = script;
-			this._updater = new edb.UpdateManager ( this.spirit );
-			this._process ( script.$instructions );
-			if ( !this.input ) {
-				this.run ();
+		load : chained ( confirmed ( "function|string" ) ( function ( script ) {
+			if (( script = script.bind ? script : gui.Object.lookup ( script ))) {
+				this.loaded = true;
+				this._script = script;
+				this._updater = new edb.UpdateManager ( this.spirit );
+				this._process ( script.$instructions );
+				if ( !this.input ) {
+					this.run ();
+				}
 			}
-		}),
+		})),
 
 		/**
 		 * Handle input.
 		 * @param {edb.Input} input
 		 */
 		oninput : function ( input ) {
+			this.input.match ( input );
 			if ( this.input.done ) {
 				this.run ();
 			}
@@ -211,24 +217,25 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 		_html : null,
 
 		/**
-		 * Parse processing instructions.
+		 * Parse processing instructions. Add input listeners in 
+		 * batch to prevent prematurly getting a `this.input.done`
 		 * @param {Array<object>} pis
 		 */
 		_process : function ( pis ) {
 			if ( pis ) {
-				var inputs = []; // batch multiple inputs to prevent early resolve
-				pis.forEach ( function ( pi ) {
-					switch ( pi.type ) {
-						case "input" :
-							inputs.push ( 
-								gui.Object.lookup ( pi.atts.type )
-							);
-							break;
+				var optional = []; 
+				var required = [];
+				if ( pis.reduce ( function ( hasinput, pi ) {
+					if ( pi.type === "input" ) {
+						var list = pi.atts.required === false ? optional : required;
+						list.push ( gui.Object.lookup ( pi.atts.type ));
+						return true;
 					}
-				});
-				if ( inputs.length ) {
+					return hasinput ;
+				}, false )) {
 					this.input = new edb.InputPlugin ();
-					this.input.add ( inputs, this );
+					this.input.add ( required, this, true );
+					this.input.add ( optional, this, false );
 				}
 			}
 		},
@@ -319,4 +326,4 @@ edb.ScriptPlugin = ( function using ( confirmed ) {
 
 	});
 
-}( gui.Arguments.confirmed ));
+}( gui.Combo.chained, gui.Arguments.confirmed ));

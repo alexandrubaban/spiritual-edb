@@ -129,6 +129,13 @@ edb.ObjectPopulator = ( function using ( isdefined, iscomplex, isfunction, iscon
 					} else {
 						if (( desc = Object.getOwnPropertyDescriptor ( base, key ))) {
 							Object.defineProperty ( json, key, desc );
+							/*
+							if ( desc.value ) {
+								Object.defineProperty ( json, key, desc );
+							} else {
+								Object.defineProperty ( type, key, desc );
+							}
+							*/
 						}
 					}
 				}

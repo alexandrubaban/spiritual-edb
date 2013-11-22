@@ -41,9 +41,10 @@ edb.Sync = ( function using ( confirmed ) {
 		changes.forEach ( function ( c ) {
 			maybechange ( c, c.object, dispatch, syncdone );
 		});
-		gui.Object.each ( dispatch, function ( id, all ) {
+		gui.Object.each ( dispatch, function ( id, syncs ) {
+			// console.log ( JSON.stringify ( syncs, null, 4 ));
 			var method = globals [ id ] ? "dispatchGlobal" : "dispatch";
-			gui.Broadcast [ method ] ( null, edb.Sync.BROADCAST + id, all );
+			gui.Broadcast [ method ] ( null, edb.Sync.BROADCAST + id, syncs );
 		});
 		syncdone.forEach ( function ( type ) {
 			delete type.$willsync;
@@ -64,6 +65,11 @@ edb.Sync = ( function using ( confirmed ) {
 	function getchange ( change, sourceid ) {
 		switch ( change.type ) {
 			case edb.ObjectChange.TYPE_UPDATE :
+				var neu = change.newValue;
+				var old = change.oldValue;
+				if ( edb.Type.is ( old )) {
+					console.log ( change.name + "\n" + old + "\n" + neu );
+				}
 				return new edb.ObjectSync ( change, sourceid );
 			case edb.ArrayChange.TYPE_SPLICE :
 				return new edb.ArraySync ( change, sourceid );

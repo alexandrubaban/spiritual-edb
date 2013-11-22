@@ -60,6 +60,18 @@ edb.Type.prototype = {
 		this.$ondestruct ();
 	},
 
+	/**
+	 * Serialize to abstract EDB tree. Unlike `toJSON`, this 
+	 * includes underscore and dollar prefixed properties. 
+	 * It also features the the object-properties of arrays.
+	 * @param @optional {function} filter
+	 * @param @optional {String|number} tabs
+	 * @returns {String}
+	 */
+	serializeToString : function ( filter, tabs ) {
+		return new edb.Serializer ().serializeToString ( this, filter, tabs );
+	},
+
 
 	// CRUD .............................................................................
 

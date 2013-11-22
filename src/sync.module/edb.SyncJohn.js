@@ -9,9 +9,8 @@ edb.SyncJohn = function ( type ) {
 edb.SyncJohn.prototype = {
 
 	/**
-	 * [onbroadcast description]
-	 * @param  {[type]} b [description]
-	 * @return {[type]}   [description]
+	 * Handle broadcast.
+	 * @param {gui.Broadcast} b
 	 */
 	onbroadcast : function ( b ) {
 		var type = this.type;
@@ -25,6 +24,11 @@ edb.SyncJohn.prototype = {
 		}
 	},
 
+	/**
+	 * Change type somehow.
+	 * @param {edb.Object|edb.Array} type
+	 * @param {edb.ObjectSync|edb.ArraySync} c
+	 */
 	_change : function ( type, c ) {
 		switch ( c.type ) {
 			case edb.ObjectChange.TYPE_UPDATE :
@@ -36,19 +40,36 @@ edb.SyncJohn.prototype = {
 		}
 	},
 
+	/**
+	 * Change object properties.
+	 * @param {edb.Object|edb.Array} type
+	 * @param {edb.ObjectSync|edb.ArraySync} c
+	 */
 	_objectchange : function ( type, c ) {
 		if ( type [ c.name ] !== c.newValue ) {
 			type.$willsync = true;
 			type [ c.name ] = c.newValue;
+			/*
+			console.log ( c.name, c.newValue );
+			if ( edb.Type.is ( type [ c.name ])) {
+				console.log ( document.title, c.name, type [ c.name ]);
+			}
+			*/
 		}
 	},
 
 	/**
-	 * @TODO: Make sure that change does mutate 
-	 * the array before we mark as willsync...
+	 * Change array structure.
+	 * @param {edb.Array} type
+	 * @param {edb.ArraySync} c
 	 */
 	_arraychange : function ( type, c ) {
 		type.$willsync = true;
 		type.splice.apply ( type, c.args );
+		/*
+		c.args.slice ( 2 ).forEach ( function ( added ) {
+			console.log ( type + " added", added, document.title );
+		});
+		*/
 	}
 };

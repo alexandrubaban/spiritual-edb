@@ -21,6 +21,12 @@ edb.Serializer = ( function () {
 	};
 
 	/**
+	 * Match array features leaking into objects.
+	 * @type {RegExp}
+	 */
+	var INTRINSIC = /^length|^\d+/;
+
+	/**
 	 * Thing is a type?
 	 * @param {object} thing
 	 * @returns {boolean}
@@ -53,10 +59,10 @@ edb.Serializer = ( function () {
 	function asObject ( type ) {
 		var map = gui.Object.map ( type, mapObject, type );
 		return {
-			$object : gui.Object.extend ( map, {
+			$object : gui.Object.extend ({
 				$classname : type.$classname,
 				$instanceid : type.$instanceid
-			})
+			}, map )
 		};
 	}
 
@@ -72,16 +78,39 @@ edb.Serializer = ( function () {
 	}
 
 	/**
-	 * Map the object properties of a type. 
-	 * Skip all array intrinsic properties.
+	 * Map the object properties of a type.
+	 *  
+	 * - Skip private (underscore) fields.
+	 * - Skip all array intrinsic properties.
+	 * - Skip what looks like instance objects.
+	 * - Skip getters and setters.
 	 * @param {String} key
 	 * @param {object} value
 	 */
 	function mapObject ( key, value ) {
-		if ( isArray ( this ) && key.match ( /^length|^\d+/ )) {
+		var c = key.charAt ( 0 );
+		if ( c === "_" || c === "$" ) {
+			return undefined;
+		} else if ( isArray ( this ) && key.match ( INTRINSIC )) {
+			return undefined;
+		} else if ( isType ( value )) {
+			return parse ( value );
+		} else if ( gui.Type.isComplex ( value )) {
+			switch ( value.constructor ) {
+				case Object :
+				case Array :
+					return value;
+			}
 			return undefined;
 		} else {
-			return isType ( value ) ? parse ( value ) : value;
+			if ( isType ( this )) {
+				var base = this.constructor.prototype;
+				var desc = Object.getOwnPropertyDescriptor ( base, key );
+				if ( desc && ( desc.set || desc.get )) {
+					return undefined;
+				}
+			}
+			return value;
 		}
 	}
 

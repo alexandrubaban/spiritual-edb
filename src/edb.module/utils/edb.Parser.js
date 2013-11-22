@@ -4,6 +4,8 @@ edb.Parser = ( function () {
 	Parser.prototype = {
 
 		/**
+		 * @param {String} json
+		 * @param @optional {function} type
 		 * @returns {edb.Object|edb.Array}
 		 */
 		parseFromString : function ( json, type ) {
@@ -58,9 +60,9 @@ edb.Parser = ( function () {
 	}
 
 	/**
-	 * Parse array node to array members (transform from object to array). 
-	 * 
-	 * @returns {}
+	 * Parse array node to a simple array. 
+	 * Stamp object properties onto array. 
+	 * @returns {Array}
 	 */
 	function asArray ( type ) {
 		var members = type.$array.map ( mapValue );

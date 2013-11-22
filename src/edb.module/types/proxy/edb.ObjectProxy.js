@@ -22,21 +22,22 @@ edb.ObjectProxy = ( function () {
 	 */
 	function setter ( key, base ) {
 		return function ( newval ) {
-			var oldval = this [ key ]; // @TODO suspend something?
+			var oldval = this [ key ]; // @TODO suspend something (getter)?
 			base.apply ( this, arguments );
-			if ( newval !== oldval ) {
+			if (( newval = this [ key ]) !== oldval ) { // @TODO suspend again?
 				edb.Object.$onchange ( this, key, oldval, newval );
 				oldval = newval;
 			}
 		};
 	}
 
+
 	return { // Public ............................................................................
 
 		/**
 		 * Simplistic proxy mechanism to dispatch broadcasts on getters and setters.
 		 * @param {object} target The object whose properties are being intercepted (the JSON object)
-		 * @param {edb.Object} handler The edb.Object instance that intercepts all the properties
+		 * @param {edb.Object|edb.Array} handler The type instance that intercepts the properties
 		 */
 		approximate : function ( target, handler, types ) {
 
